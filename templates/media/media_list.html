@@ -1,0 +1,36 @@
+{% extends 'base.html' %} {% comment %} Assuming you have a base.html for your site layout {% endcomment %}
+
+{% block title %}Media Library{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="mb-4">Media Library</h1>
+
+    {% if medias %}
+    <div class="row">
+        {% for media in medias %}
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                {% if media.file.url %}
+                    {% if media.file.name|lower|slice:"-3:" == "jpg" or media.file.name|lower|slice:"-4:" == "jpeg" or media.file.name|lower|slice:"-3:" == "png" or media.file.name|lower|slice:"-3:" == "gif" %}
+                        <img src="{{ media.file.url }}" class="card-img-top" alt="{{ media.title }}" style="max-height: 200px; object-fit: cover;">
+                    {% else %}
+                        <div class="card-body text-center d-flex align-items-center justify-content-center" style="min-height: 150px;">
+                            <i class="fas fa-file fa-3x text-muted"></i>
+                        </div>
+                    {% endif %}
+                {% endif %}
+                <div class="card-body">
+                    <h5 class="card-title">{{ media.title }}</h5>
+                    <p class="card-text text-muted small">Uploaded: {{ media.uploaded_at|date:"M d, Y" }}</p>
+                    <a href="{% url 'media_detail' pk=media.pk %}" class="btn btn-sm btn-primary">View Details</a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p>No media files have been uploaded yet.</p>
+    {% endif %}
+</div>
+{% endblock %}

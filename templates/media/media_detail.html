@@ -1,0 +1,45 @@
+{% extends 'base.html' %} {% comment %} Assuming you have a base.html for your site layout {% endcomment %}
+
+{% block title %}{{ media_item.title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3>{{ media_item.title }}</h3>
+        </div>
+        <div class="card-body">
+            <p><strong>Uploaded At:</strong> {{ media_item.uploaded_at|date:"F d, Y P" }}</p>
+            <p><strong>File Name:</strong> {{ media_item.file.name|basename }}</p>
+
+            {% if media_item.file.url %}
+                <p><strong>Direct Link:</strong> <a href="{{ media_item.file.url }}" target="_blank">{{ media_item.file.url }}</a></p>
+
+                <div class="mt-4 text-center">
+                    {% if media_item.file.name|lower|slice:"-3:" == "jpg" or media_item.file.name|lower|slice:"-4:" == "jpeg" or media_item.file.name|lower|slice:"-3:" == "png" or media_item.file.name|lower|slice:"-3:" == "gif" %}
+                        <img src="{{ media_item.file.url }}" class="img-fluid border" alt="{{ media_item.title }}" style="max-width: 100%; height: auto;">
+                    {% elif media_item.file.name|lower|slice:"-3:" == "mp4" or media_item.file.name|lower|slice:"-3:" == "ogg" or media_item.file.name|lower|slice:"-4:" == "webm" %}
+                        <video controls class="img-fluid border" style="max-width: 100%; height: auto;">
+                            <source src="{{ media_item.file.url }}" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                    {% elif media_item.file.name|lower|slice:"-3:" == "mp3" or media_item.file.name|lower|slice:"-3:" == "wav" or media_item.file.name|lower|slice:"-3:" == "ogg" %}
+                        <audio controls class="w-100">
+                            <source src="{{ media_item.file.url }}" type="audio/mpeg">
+                            Your browser does not support the audio element.
+                        </audio>
+                    {% else %}
+                        <p class="text-muted">No preview available for this file type.</p>
+                        <a href="{{ media_item.file.url }}" class="btn btn-outline-primary" download>Download File</a>
+                    {% endif %}
+                </div>
+            {% else %}
+                <p class="text-danger">File not found.</p>
+            {% endif %}
+        </div>
+        <div class="card-footer text-end">
+            <a href="{% url 'media_list' %}" class="btn btn-secondary">Back to Media Library</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
