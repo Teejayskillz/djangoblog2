@@ -1,0 +1,8 @@
+# START YOAST BLOCK
+# ---------------------------
+User-agent: *
+Disallow:
+
+Sitemap: https://hypeblog9jatv.com.ng/sitemap.xml
+# ---------------------------
+# END YOAST BLOCK

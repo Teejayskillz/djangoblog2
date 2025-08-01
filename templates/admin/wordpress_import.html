@@ -1,0 +1,32 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div class="content-main">
+    <h1>Import WordPress Content</h1>
+    <div class="module">
+        <form method="post" enctype="multipart/form-data" class="form-horizontal">
+            {% csrf_token %}
+            <div class="form-row">
+                {{ form.xml_file.label_tag }}
+                {{ form.xml_file }}
+                {{ form.xml_file.errors }}
+            </div>
+            <div class="form-row">
+                {{ form.default_category.label_tag }}
+                {{ form.default_category }}
+                {{ form.default_category.errors }}
+            </div>
+            <div class="form-row">
+                {{ form.skip_existing.label_tag }}
+                {{ form.skip_existing }}
+                {{ form.skip_existing.errors }}
+                <p class="help">{{ form.skip_existing.help_text }}</p>
+            </div>
+            <div class="submit-row">
+                <input type="submit" value="Import" class="default">
+                <a href="../" class="button">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

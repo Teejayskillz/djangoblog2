@@ -1,0 +1,466 @@
+{% extends 'core/base.html' %}
+{% load static %} {# Load static files for default_thumbnail.jpg #}
+
+{% block title %}Search Results for "{{ query }}"{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10 col-md-12">
+            <div class="section">
+                <nav aria-label="breadcrumb" class="mb-4">
+                    <ol class="breadcrumb-custom">
+                        <li class="breadcrumb-item-custom">
+                            <a href="{% url 'home' %}" class="breadcrumb-link">
+                                <i class="bi bi-house-fill me-1"></i>Home
+                            </a>
+                        </li>
+                        <li class="breadcrumb-separator">
+                            <i class="bi bi-chevron-right"></i>
+                        </li>
+                        <li class="breadcrumb-item-custom active" aria-current="page">
+                            Search Results
+                        </li>
+                    </ol>
+                </nav>
+
+                <div class="search-header mb-4">
+                    <h2 class="search-title mb-2">
+                        <i class="bi bi-search me-2"></i>Search Results for: "<span class="query-highlight">{{ query }}</span>"
+                    </h2>
+                    {% if results %}
+                    <div class="results-info">
+                        <span class="text-muted">
+                            {% if is_paginated %}
+                            Showing {{ page_obj.start_index }} - {{ page_obj.end_index }} of {{ page_obj.paginator.count }} results
+                            {% else %}
+                            {{ results|length }} result{{ results|length|pluralize }}
+                            {% endif %}
+                        </span>
+                    </div>
+                    {% endif %}
+                </div>
+
+                {% if results %}
+                <div class="latest-updates-grid">
+                    {% for post in results %}
+                    <a href="{% url 'post_detail' category=post.category.slug slug=post.slug %}" class="post-card">
+                        {% if post.thumbnail %}
+                        <div class="post-card-img-container">
+                            <img src="{{ post.thumbnail.url }}" alt="{{ post.title }}" loading="lazy">
+                        </div>
+                        {% else %}
+                        <div class="post-card-img-container">
+                            <img src="{% static 'images/default_thumbnail.jpg' %}" alt="No Image" loading="lazy">
+                        </div>
+                        {% endif %}
+                        <div class="post-card-content">
+                            <h3>{{ post.title }}</h3>
+                            <div class="post-meta">
+                                <span class="post-date">
+                                    <i class="bi bi-calendar3 me-1"></i>{{ post.published_date|date:"M j, Y" }}
+                                </span>
+                                {% if post.category %}
+                                <span class="category-badge">{{ post.category.name }}</span>
+                                {% endif %}
+                            </div>
+                            {% if post.excerpt %}
+                            <p class="post-excerpt">{{ post.excerpt|truncatechars:120 }}</p>
+                            {% endif %}
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+
+                {% if is_paginated %}
+                <div class="pagination-container">
+                    <nav aria-label="Search results pagination">
+                        <ul class="pagination-list">
+                            {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link prev-next" href="?query={{ query }}&page={{ page_obj.previous_page_number }}" aria-label="Previous">
+                                    <i class="bi bi-chevron-left"></i>
+                                    <span>Previous</span>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link prev-next disabled">
+                                    <i class="bi bi-chevron-left"></i>
+                                    <span>Previous</span>
+                                </span>
+                            </li>
+                            {% endif %}
+                            
+                            {% for num in page_obj.paginator.page_range %}
+                                {% if page_obj.number == num %}
+                                <li class="page-item active">
+                                    <span class="page-link current">{{ num }}</span>
+                                </li>
+                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?query={{ query }}&page={{ num }}">{{ num }}</a>
+                                </li>
+                                {% elif num == 1 %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?query={{ query }}&page={{ num }}">{{ num }}</a>
+                                </li>
+                                {% if page_obj.number > 4 %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">...</span>
+                                </li>
+                                {% endif %}
+                                {% elif num == page_obj.paginator.num_pages %}
+                                {% if page_obj.number < page_obj.paginator.num_pages|add:'-3' %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">...</span>
+                                </li>
+                                {% endif %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?query={{ query }}&page={{ num }}">{{ num }}</a>
+                                </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link prev-next" href="?query={{ query }}&page={{ page_obj.next_page_number }}" aria-label="Next">
+                                    <span>Next</span>
+                                    <i class="bi bi-chevron-right"></i>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link prev-next disabled">
+                                    <span>Next</span>
+                                    <i class="bi bi-chevron-right"></i>
+                                </span>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    
+                    <div class="page-info">
+                        <span class="text-muted">
+                            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                        </span>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% else %}
+                <div class="no-results">
+                    <div class="text-center py-5">
+                        <i class="bi bi-search-heart-fill" style="font-size: 4rem; color: #666666; margin-bottom: 20px;"></i> {# Hardcoded for visibility #}
+                        <h3 class="mb-3" style="color: #000000;">No results found for "<span class="text-danger">{{ query }}</span>"</h3> {# Hardcoded for visibility #}
+                        <p style="color: #666666;" class="mb-4">Please try a different keyword or check your spelling.</p> {# Hardcoded for visibility #}
+                        <a href="{% url 'home' %}" class="btn btn-outline-dark">
+                            <i class="bi bi-arrow-left me-2"></i>Back to Home
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Using CSS variables defined in core/base.html (or hardcoded for testing) */
+
+/* Search-specific styles */
+.search-title {
+    color: #000000; /* Hardcoded to black for testing */
+    font-weight: 800;
+    font-size: 2.2rem;
+    margin-bottom: 15px;
+    text-shadow: none;
+}
+
+.query-highlight {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 50%, var(--primary-light) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 900;
+    position: relative;
+}
+
+.query-highlight::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+    border-radius: 2px;
+}
+
+/* Breadcrumbs */
+.breadcrumb-custom {
+    display: flex;
+    align-items: center;
+    list-style: none;
+    margin: 0;
+    padding: 15px 20px;
+    background: var(--lighter-bg);
+    border-radius: 15px;
+    border: 1px solid var(--border-color);
+    gap: 10px;
+    box-shadow: 0 5px 15px var(--shadow-sm);
+}
+
+.breadcrumb-item-custom {
+    display: flex;
+    align-items: center;
+}
+
+.breadcrumb-link {
+    color: #333333; /* Hardcoded for testing */
+    text-decoration: none;
+    transition: all 0.3s ease;
+    padding: 5px 10px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+}
+
+.breadcrumb-link:hover {
+    color: var(--primary);
+    background: var(--primary-alpha);
+}
+
+.breadcrumb-separator {
+    color: #666666; /* Hardcoded for testing */
+    font-size: 0.8rem;
+}
+
+.breadcrumb-item-custom.active {
+    color: var(--primary);
+    font-weight: 600;
+}
+
+/* Results info */
+.results-info {
+    margin-top: 10px;
+    font-size: 0.9rem;
+    color: #666666; /* Hardcoded for testing */
+}
+
+/* Post Card (from latest-updates-grid) */
+.post-card {
+    background: var(--light-bg);
+    border: 1px solid var(--border-color);
+    color: #000000; /* IMPORTANT: Hardcoded to black for testing */
+    /* ... other existing styles for post-card ... */
+}
+
+.post-card-content h3 {
+    color: #000000; /* IMPORTANT: Hardcoded to black for testing */
+}
+
+.post-card-content .post-excerpt {
+    color: #333333; /* IMPORTANT: Hardcoded to dark gray for testing */
+}
+
+/* Post meta styling */
+.post-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+.post-date {
+    color: #666666; /* Hardcoded for testing */
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+}
+
+.category-badge {
+    background: linear-gradient(45deg, var(--primary), var(--primary-hover));
+    color: white;
+    padding: 4px 12px;
+    border-radius: 15px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Netflix-Style Pagination */
+.pagination-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 50px;
+    padding: 30px 0;
+    gap: 20px;
+    background: var(--lighter-bg);
+    border-radius: 20px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 5px 20px var(--shadow);
+}
+
+.pagination-list {
+    display: flex;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.page-item {
+    display: flex;
+}
+
+.page-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 48px;
+    height: 48px;
+    padding: 10px 18px;
+    background: var(--light-bg);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    color: #666666; /* Hardcoded for testing */
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    will-change: transform, background, border-color, box-shadow;
+}
+
+.page-link::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 100%;
+    background: linear-gradient(45deg, var(--primary), var(--primary-hover));
+    transition: width 0.3s ease;
+    z-index: -1;
+}
+
+.page-link:hover {
+    color: #ffffff;
+    border-color: var(--primary);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px var(--glow);
+}
+
+.page-link:hover::before {
+    width: 100%;
+}
+
+.page-link.current {
+    background: linear-gradient(45deg, var(--primary), var(--primary-hover));
+    border-color: var(--primary);
+    color: #ffffff;
+    font-weight: 800;
+    box-shadow: 0 4px 15px var(--glow);
+    transform: scale(1.03);
+}
+
+.page-link.prev-next {
+    padding: 10px 24px;
+    gap: 10px;
+    font-weight: 700;
+    min-width: auto;
+}
+
+.page-link.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: var(--light-bg);
+    border-color: var(--border-color);
+    color: #666666; /* Hardcoded for testing */
+}
+
+.page-link.disabled:hover {
+    transform: none;
+    box-shadow: none;
+    border-color: var(--border-color);
+}
+
+.page-info {
+    color: #666666; /* Hardcoded for testing */
+    font-size: 1rem;
+    font-weight: 500;
+    background: var(--light-bg);
+    padding: 10px 20px;
+    border-radius: 25px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+/* No Results Styling */
+.no-results {
+    background: var(--lighter-bg);
+    border-radius: 20px;
+    margin: 40px 0;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 5px 20px var(--shadow);
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .search-title {
+        font-size: 1.8rem;
+        text-align: center;
+    }
+    
+    .breadcrumb-custom {
+        padding: 12px 15px;
+        gap: 8px;
+    }
+    
+    .pagination-list {
+        gap: 4px;
+    }
+    
+    .page-link {
+        min-width: 42px;
+        height: 42px;
+        padding: 8px 14px;
+        font-size: 0.9rem;
+    }
+    
+    .page-link.prev-next {
+        padding: 8px 18px;
+    }
+    
+    .results-info {
+        text-align: center;
+    }
+    
+    .post-meta {
+        justify-content: center;
+    }
+}
+
+/* Smooth Animations */
+.latest-updates-grid {
+    animation: fadeInUp 0.6s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+</style>
+{% endblock %}

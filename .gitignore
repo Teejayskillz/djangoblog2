@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.tox/
+.venv/
+env/
+venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+*.log
+*.pot
+*.mo
+local_settings.py
+db.sqlite3
+staticfiles/ 
+.env 
+media/
+static/core/migrations/0008_alter_downloadquality_quality.py
+static/

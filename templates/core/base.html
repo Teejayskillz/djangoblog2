@@ -1,0 +1,688 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ post.get_page_title|default:'Watch Latest Movies & TV Shows' }}{% endblock %} - Hypeblog9jaTV</title>
+    <meta name="description" content="{% block meta_description %}{{ post.excerpt|default:'Stream and download the latest Nollywood, Hollywood, and Bollywood movies and TV shows on Hypeblog9jaTV. Get movie reviews, trailers, and more.' }}{% endblock %}">
+
+    {# Open Graph Tags (for Facebook, WhatsApp, LinkedIn) #}
+    <meta property="og:locale" content="en_US"/>
+    <meta property="og:site_name" content="Hypeblog9jaTV"/>
+    <meta property="og:title" content="{% block og_title %}{{ post.get_page_title|default:'Watch Latest Movies & TV Shows' }}{% endblock %} - Hypeblog9jaTV">
+    
+    {# Use the pre-calculated absolute URL from the view #}
+    <meta property="og:url" content="{{ post_absolute_url }}">
+    
+    <meta property="og:type" content="article">
+    <meta property="og:description" content="{% block og_description %}{{ post.excerpt|default:'Stream and download the latest Nollywood, Hollywood, and Bollywood movies and TV Shows on Hypeblog9jaTV.' }}{% endblock %}">
+    
+    {# Use the pre-calculated absolute URL for thumbnail #}
+    <meta property="og:image" content="{{ thumbnail_absolute_url }}">
+    <meta property="og:image:url" content="{{ thumbnail_absolute_url }}">
+    <meta property="og:image:secure_url" content="{{ thumbnail_absolute_url }}">
+    
+    {% if post.thumbnail %}
+        {# If you have width/height stored in your model, use them here #}
+        <meta property="og:image:width" content="1200">
+        <meta property="og:image:height" content="630">
+    {% endif %}
+
+    {% if post.published_date %}<meta property="article:published_time" content="{{ post.published_date|date:'c' }}"/>{% endif %}
+    {% if post.published_date %}<meta property="article:modified_time" content="{{ post.published_date|date:'c' }}" />{% endif %}
+    {% if post.published_date %}<meta property="og:updated_time" content="{{ post.published_date|date:'c' }}" />{% endif %}
+    {% if post.category %}<meta property="article:section" content="{{ post.category.name }}" />{% endif %}
+
+    {# Twitter Card Tags #}
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{% block twitter_title %}{{ post.get_page_title|default:'Watch Latest Movies & TV Shows' }}{% endblock %} - Hypeblog9jaTV">
+    {# Use the pre-calculated absolute URL #}
+    <meta name="twitter:url" content="{{ post_absolute_url }}">
+    <meta name="twitter:description" content="{% block twitter_description %}{{ post.excerpt|default:'Stream and download the latest Nollywood, Hollywood, and Bollywood movies and TV Shows on Hypeblog9jaTV.' }}{% endblock %}">
+    
+    {# Use the pre-calculated absolute URL for thumbnail #}
+    <meta name="twitter:image" content="{{ thumbnail_absolute_url }}">
+    
+    <meta name="twitter:site" content="@Hypeblog9jaTV">
+    <meta name="twitter:creator" content="@YourCreatorHandle">
+    
+    {# Canonical URL - Use the pre-calculated absolute URL #}
+    <link rel="canonical" href="{{ post_absolute_url }}" />
+    {# Your favicon links will now correctly point to: /static/images/favicon.ico #}
+    <link rel="icon" type="image/x-icon" href="{% static 'images/favicon.ico' %}">
+    <link rel="shortcut icon" type="image/x-icon" href="{% static 'images/favicon.ico' %}">
+    <link rel="apple-touch-icon" href="{% static 'images/apple-touch-icon.png' %}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-3QKYHLCB32"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-3QKYHLCB32');
+</script>
+    <style>
+        :root {
+            /* White Theme Colors */
+            --light-bg: #f5f5f5; /* Light background for body */
+            --lighter-bg: #ffffff; /* Even lighter for cards/sections */
+            --card-bg: #ffffff;
+            --primary: #e50914; /* Netflix Red */
+            --primary-hover: #f40612; /* Slightly brighter red */
+            --text: #333333; /* Dark text for readability */
+            --text-muted: #666666; /* Muted dark text */
+            --text-dim: #999999; /* Even dimmer text */
+            --border-color: #e0e0e0; /* Light border */
+            --shadow: rgba(0, 0, 0, 0.1); /* Lighter shadow */
+            --glow: rgba(229, 9, 20, 0.15); /* Lighter red glow */
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--light-bg); 
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+
+        a {
+            color: var(--primary);
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        a:hover {
+            color: var(--primary-hover);
+            text-shadow: 0 0 3px rgba(229, 9, 20, 0.2); 
+        }
+
+        /* --- MODIFIED LAYOUT CSS START --- */
+        /* Custom Container - Now acts more like a wider Bootstrap container */
+        .custom-container {
+            max-width: 1400px; /* Set a wider max-width for larger screens */
+            width: 100%;
+            margin: 0 auto;
+            /* No padding here, main-wrapper will handle it */
+        }
+
+        /* Main Wrapper - Handles the boxed effect and responsive padding */
+        .main-wrapper {
+            background: var(--lighter-bg); 
+            border-radius: 15px;
+            border: 1px solid var(--border-color);
+            margin: 20px auto; /* Default margin for desktop */
+            overflow: hidden;
+            box-shadow: 0 10px 20px var(--shadow); /* Lighter shadow */
+            /* Removed will-change for transform - use only for explicit animations */
+        }
+
+        /* Responsive padding for main-wrapper */
+        .main-wrapper > *:not(.ad-section) { /* Apply padding to direct children except ad-section */
+            padding-left: 20px;
+            padding-right: 20px;
+        }
+
+        /* Responsive padding for main-wrapper children on small screens */
+        @media (max-width: 767.98px) { /* Adjust for smaller screens (mobile, small tablets) */
+            .main-wrapper {
+                margin: 10px auto; /* Smaller margin on mobile */
+                border-radius: 10px; /* Slightly smaller border-radius */
+            }
+            .main-wrapper > *:not(.ad-section) {
+                padding-left: 15px; /* Reduce padding on smaller screens */
+                padding-right: 15px;
+            }
+        }
+        /* --- MODIFIED LAYOUT CSS END --- */
+
+
+        /* Ad Section - More compact */
+        .ad-section {
+            background: var(--lighter-bg); 
+            border-bottom: 1px solid var(--border-color);
+            padding: 15px 20px; /* Keep consistent padding here, or adjust as needed */
+            text-align: center;
+        }
+
+        /* Header and Footer styling within the wrapper */
+        .main-wrapper > *:first-child {
+            border-top-left-radius: 15px;
+            border-top-right-radius: 15px;
+        }
+
+        .main-wrapper > *:last-child {
+            border-bottom-left-radius: 15px;
+            border-bottom-right-radius: 15px;
+        }
+
+        /* Ensure header and footer have proper background and spacing */
+        .main-wrapper header,
+        .main-wrapper footer {
+            background: var(--lighter-bg); /* Match main-wrapper background */
+            border-bottom: 1px solid var(--border-color);
+            padding-top: 15px; /* Keep padding here, adjusted for new wrapper padding */
+            padding-bottom: 15px;
+        }
+
+        .main-wrapper footer {
+            border-bottom: none;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .ad-slot-container {
+            min-height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 8px 0;
+            background-color: var(--light-bg); /* Add a subtle background to ad containers */
+            border-radius: 8px;
+            padding: 5px;
+        }
+
+        /* Content area padding - this will be impacted by the main-wrapper's padding now */
+        .content-area {
+            padding-top: 20px;
+            padding-bottom: 20px;
+        }
+
+        /* Category Headers - Sleeker */
+        .category-header {
+            background: linear-gradient(90deg, var(--primary), var(--primary-hover));
+            padding: 12px 20px;
+            margin: 20px 0 15px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #ffffff;
+            border-radius: 25px;
+            position: relative;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 4px 10px var(--glow); 
+            will-change: transform; 
+        }
+
+        .category-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            border-radius: 25px;
+        }
+
+        /* Post Cards - Compact and Sleek */
+        .post-card {
+            background: var(--card-bg); 
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            height: 100%;
+            position: relative;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08); 
+            will-change: transform, box-shadow, border-color; 
+        }
+
+        .post-card:hover {
+            transform: translateY(-5px) scale(1.01); 
+            box-shadow: 0 15px 30px var(--shadow), 0 0 15px var(--glow); 
+            border-color: var(--primary);
+        }
+
+        /* Compact Image Container */
+        .post-card-img-container {
+            width: 100%;
+            padding-bottom: 60%;
+            position: relative;
+            overflow: hidden;
+            background: var(--light-bg); 
+        }
+
+        .post-card-img-container img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s ease;
+        }
+
+        .post-card:hover .post-card-img-container img {
+            transform: scale(1.05); 
+        }
+
+        /* Overlay gradient - Adjusted for white theme */
+        .post-card-img-container::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 50%;
+            background: linear-gradient(transparent, rgba(255,255,255,0.8)); 
+            pointer-events: none;
+        }
+
+        /* Content styling */
+        .post-card-content {
+            padding: 12px 15px;
+            position: relative;
+        }
+
+        .post-card h3 {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text); 
+            margin-bottom: 8px;
+            line-height: 1.3;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+
+        .post-card .category {
+            font-size: 0.7rem;
+            color: var(--primary);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Grid improvements */
+        .latest-updates-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+            padding: 10px 0;
+        }
+
+        /* Sidebar - More compact */
+        .sidebar-section {
+            background: var(--card-bg); 
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08); 
+            transition: all 0.3s ease;
+            will-change: transform, box-shadow, border-color; 
+        }
+
+        .sidebar-section:hover {
+            border-color: var(--primary);
+            box-shadow: 0 8px 20px var(--shadow); 
+        }
+
+        .sidebar-section h4 {
+            color: var(--primary);
+            margin-bottom: 15px;
+            font-size: 1rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--primary);
+        }
+
+        /* Compact sidebar items */
+        .sidebar-list-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+            padding: 8px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .sidebar-list-item:hover {
+            background: var(--light-bg); 
+            transform: translateX(5px);
+        }
+
+        .sidebar-list-item img {
+            width: 50px;
+            height: 50px;
+            border-radius: 8px;
+            margin-right: 12px;
+            object-fit: cover;
+            border: 2px solid var(--border-color);
+        }
+
+        .sidebar-list-item-details a {
+            color: var(--text); 
+            font-size: 0.85rem;
+            font-weight: 500;
+            line-height: 1.4;
+            display: -webkit-box;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+
+        .sidebar-list-item-details span {
+            font-size: 0.7rem;
+            color: var(--text-dim); 
+            margin-top: 2px;
+        }
+
+        /* Trending buttons - More stylish */
+        .trending-buttons {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .trending-buttons .btn {
+            flex: 1;
+            font-size: 0.7rem;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            min-width: 70px;
+        }
+
+        .trending-buttons .btn-primary {
+            background: linear-gradient(45deg, var(--primary), var(--primary-hover));
+            border: none;
+            box-shadow: 0 4px 10px var(--glow); 
+        }
+
+        .trending-buttons .btn-secondary {
+            background: var(--light-bg); 
+            border: 1px solid var(--border-color);
+            color: var(--text-muted); 
+            box-shadow: none; 
+        }
+
+        .trending-buttons .btn-secondary:hover {
+            background: var(--border-color); 
+            color: var(--text);
+            transform: translateY(-1px); 
+        }
+
+        /* Popular search styling */
+        .popular-search-list {
+            padding-left: 0;
+            list-style: none;
+        }
+
+        .popular-search-list li {
+            margin-bottom: 8px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+        }
+
+        .popular-search-list li:hover {
+            background: var(--light-bg); 
+            transform: translateX(5px);
+        }
+
+        .popular-search-list li a {
+            color: var(--text-muted); 
+            font-size: 0.8rem;
+        }
+
+        /* Mobile Responsive Design */
+        @media (max-width: 575.98px) {
+            .latest-updates-grid {
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+                gap: 15px;
+            }
+            
+            .post-card-img-container {
+                padding-bottom: 70%;
+            }
+            
+            .post-card-content {
+                padding: 10px 12px;
+            }
+            
+            .post-card h3 {
+                font-size: 0.8rem;
+            }
+            
+            .sidebar-section {
+                margin-bottom: 15px;
+                padding: 12px;
+            }
+            
+            .sidebar-list-item img {
+                width: 40px;
+                height: 40px;
+            }
+            
+            .category-header {
+                font-size: 1rem;
+                padding: 10px 15px;
+                margin: 15px 0 10px;
+            }
+
+            .trending-buttons {
+                justify-content: center;
+            }
+
+            .trending-buttons .btn {
+                min-width: 60px;
+                font-size: 0.65rem;
+                padding: 5px 10px;
+            }
+        }
+
+        @media (min-width: 576px) and (max-width: 767.98px) {
+            .latest-updates-grid {
+                grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            }
+        }
+
+        @media (min-width: 768px) and (max-width: 991.98px) {
+            .latest-updates-grid {
+                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            }
+        }
+
+        @media (min-width: 992px) and (max-width: 1199.98px) {
+            .latest-updates-grid {
+                grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            }
+        }
+
+        @media (min-width: 1200px) {
+            .latest-updates-grid {
+                grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            }
+        }
+
+        /* Extra large screens */
+        @media (min-width: 1400px) {
+            /* Now custom-container handles the max-width for very large screens */
+        }
+
+        /* Animation keyframes */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px); 
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .post-card, .sidebar-section {
+            animation: fadeInUp 0.5s ease-out forwards; 
+            animation-timeline: view(); 
+            animation-range: entry 0% cover 20%; 
+        }
+        @supports not (animation-timeline: view()) {
+            .post-card, .sidebar-section {
+                animation: fadeInUp 0.5s ease-out;
+            }
+        }
+
+        /* Scrollbar styling - Adjusted for light theme */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--light-bg); 
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--primary-hover);
+        }
+    </style>
+</head>
+<body>
+    <div class="custom-container">
+        <div class="main-wrapper">
+            {% include 'core/includes/header.html' %}
+            
+            <div class="ad-section">
+                <div class="alert alert-warning text-center" style="margin-bottom: 8px; padding: 8px; font-size: 0.8rem;">
+                    <strong>NOTICE:</strong> This site uses pop-up ads. Please close unwanted tabs.
+                </div>
+
+                <div class="ad-slot-container">
+                    {{ ads_by_slug.header1|safe }}
+                </div>
+
+                <div class="ad-slot-container">
+                     {{ ads_by_slug.header2|safe }}
+                </div>
+                
+            </div>
+            
+            <div class="content-area">
+                <div class="row"> 
+                    <div class="col-lg-8">
+                        {% block content %}{% endblock %}
+                    </div>
+                    <div class="col-lg-4">
+                        {% block sidebar %}
+                            <div class="sidebar-section">
+                                <h4><i class="fas fa-ad"></i> Sponsored</h4>
+                                <div class="text-center" style="padding: 30px; border: 2px dashed var(--border-color); border-radius: 8px; color: var(--text-dim); background-color: var(--light-bg);">
+                                   {{ ads_by_slug.sidebar1|safe }}
+                                </div>
+                            </div>
+
+                            <div class="sidebar-section">
+                                <h4><i class="fas fa-fire"></i> Trending</h4>
+                                <div class="trending-buttons">
+                                    <a href="?time=24hrs" class="btn {% if selected_time_frame == '24hrs' %}btn-primary{% else %}btn-secondary{% endif %}">🔥 24Hrs</a>
+                                    <a href="?time=7days" class="btn {% if selected_time_frame == '7days' %}btn-primary{% else %}btn-secondary{% endif %}">⭐ 7Days</a>
+                                </div>
+
+                                <div class="list-unstyled">
+                                    {% for post in trending_posts %}
+                                    <div class="sidebar-list-item">
+                                        {% if post.thumbnail %}
+                                            <img src="{{ post.thumbnail.url }}"
+                                                 alt="{{ post.title }}"
+                                                 width="100" height="100"
+                                                 style="object-fit: cover; border-radius: 5px;"
+                                                 loading="lazy">
+                                        {% else %}
+                                            <img src="{% static 'images/default_thumbnail.jpg' %}" {# Corrected static path for consistency #}
+                                                 alt="No Image"
+                                                 width="100" height="100"
+                                                 style="object-fit: cover; border-radius: 5px;"
+                                                 loading="lazy">
+                                        {% endif %}
+                                        <div class="sidebar-list-item-details">
+                                            <a href="{{ post.get_absolute_url }}">{{ post.title }}</a>
+                                            <span>{{ post.published_date|date:"M d, Y" }}</span>
+                                        </div>
+                                    </div>
+                                    {% empty %}
+                                    <p style="color: var(--text-dim);">No trending posts available for this period.</p>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <div class="sidebar-section">
+                                <h4><i class="fas fa-clock"></i> Recent</h4>
+                                <div class="trending-buttons">
+                                    <button class="btn btn-primary">All</button>
+                                </div>
+                                <div class="list-unstyled">
+                                    {% for post in recent_posts %}
+                                    <div class="sidebar-list-item">
+                                        {% if post.thumbnail %}
+                                            <img src="{{ post.thumbnail.url }}"
+                                                 alt="{{ post.title }}"
+                                                 width="100" height="100"
+                                                 style="object-fit: cover; border-radius: 5px;"
+                                                 loading="lazy">
+                                        {% else %}
+                                            <img src="{% static 'images/default_thumbnail.jpg' %}" {# Corrected static path for consistency #}
+                                                 alt="No Image"
+                                                 width="100" height="100"
+                                                 style="object-fit: cover; border-radius: 5px;"
+                                                 loading="lazy">
+                                        {% endif %}
+                                        <div class="sidebar-list-item-details">
+                                            <a href="{{ post.get_absolute_url }}">{{ post.title }}</a>
+                                            <span>{{ post.published_date }}</span>
+                                        </div>
+                                    </div>
+                                    {% empty %}
+                                    <p style="color: var(--text-dim);">No recent posts available.</p>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <div class="sidebar-section">
+                                <h4><i class="fas fa-search"></i> Popular</h4>
+                                <ul class="popular-search-list">
+                                    {% for tag in popular_tags %}
+                                    <li>
+                                        <a href="{% url 'tag_detail' tag.slug %}">
+                                            <i class="fas fa-hashtag"></i> {{ tag.name }}
+                                        </a>
+                                    </li>
+                                    {% empty %}
+                                    <li>No popular tags found.</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        {% endblock %}
+                    </div>
+                </div>
+            </div>
+            
+            {% include 'core/includes/footer.html' %}
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" defer></script>
+</body>
+</html>

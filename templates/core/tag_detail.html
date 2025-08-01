@@ -1,0 +1,69 @@
+{% extends 'core/base.html' %} {# Make sure this path is correct for your base template #}
+
+{% block title %}Posts Tagged: "{{ tag.name }}"{% endblock %}
+
+{% block content %}
+<div class="container my-4"> {# Use a container for better layout #}
+    <div class="row justify-content-center">
+        <div class="col-lg-10 col-md-12"> {# Adjust column sizes as per your base.html layout #}
+            <div class="section">
+                <div class="category-header">
+                    <h2>Posts Tagged: "{{ tag.name }}"</h2>
+                </div>
+
+                {% if posts %}
+                <div class="latest-updates-grid"> {# Use the same grid class as home.html #}
+                    {% for post in posts %}
+                    <a href="{% url 'post_detail' category=post.category.slug slug=post.slug %}" class="post-card">
+                        {% if post.thumbnail%} {# Use thumbnail_image as per our model #}
+                        <div class="post-card-img-container">
+                            <img src="{{ post.thumbnail.url }}" alt="{{ post.title }}" loading="lazy">
+                        </div>
+                        {% else %}
+                        <div class="post-card-img-container">
+                            <img src="/static/images/default_thumbnail.jpg" alt="No Image" loading="lazy">
+                        </div>
+                        {% endif %}
+                        <div class="post-card-content">
+                            <h3>{{ post.title }}</h3>
+                            {% if post.category %}
+                            <span class="category">{{ post.category.name }}</span>
+                            {% endif %}
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+
+                {# Pagination Section (adapt from your home.html if you have it there too) #}
+                {% if is_paginated %}
+                <nav aria-label="Page navigation" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+                            </li>
+                        {% endif %}
+
+                        {% for i in paginator.page_range %}
+                            <li class="page-item {% if page_obj.number == i %}active{% endif %}">
+                                <a class="page-link" href="?page={{ i }}">{{ i }}</a>
+                            </li>
+                        {% endfor %}
+
+                        {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+
+                {% else %}
+                <p>No posts found for this tag.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

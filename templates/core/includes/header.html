@@ -1,0 +1,310 @@
+<style>
+  /* Root variables from base.html are imported/available here if this is a separate file */
+  :root {
+      /* White Theme Colors - Ensure these match your base.html */
+      --light-bg: #f5f5f5; /* Light background for body */
+      --lighter-bg: #ffffff; /* Even lighter for cards/sections */
+      --card-bg: #ffffff;
+      --primary: #e50914; /* Netflix Red */
+      --primary-hover: #f40612; /* Slightly brighter red */
+      --text: #333333; /* Dark text for readability */
+      --text-muted: #666666; /* Muted dark text */
+      --text-dim: #999999; /* Even dimmer text */
+      --border-color: #e0e0e0; /* Light border */
+      --shadow: rgba(0, 0, 0, 0.1); /* Lighter shadow */
+      --glow: rgba(229, 9, 20, 0.15); /* Lighter red glow */
+  }
+
+  .header-gradient {
+    /* Changed from dark gradient to light background */
+    background: var(--lighter-bg); /* Use a solid white background */
+    box-shadow: 0 4px 20px var(--shadow); /* Lighter shadow */
+    border-bottom: 3px solid var(--primary); /* Keep red accent */
+    position: relative;
+    overflow: hidden;
+  }
+
+  .header-gradient::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    /* Adjusted transparent gradient for light theme */
+    background: linear-gradient(45deg, transparent 0%, rgba(229, 9, 20, 0.05) 50%, transparent 100%);
+    pointer-events: none;
+  }
+
+  .logo-brand {
+    font-family: 'Arial Black', sans-serif;
+    font-weight: 900;
+    font-size: 2.2rem;
+    /* Background clip text remains red gradient */
+    background: linear-gradient(45deg, var(--primary), var(--primary-hover));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: 0 0 10px var(--glow); /* Lighter glow */
+    transition: all 0.3s ease;
+    position: relative;
+    will-change: transform, filter; /* Hint for animation */
+  }
+
+  .logo-brand:hover {
+    transform: scale(1.03); /* Slightly less aggressive scale */
+    filter: drop-shadow(0 0 10px rgba(229, 9, 20, 0.6)); /* Lighter drop shadow */
+  }
+
+  .tagline {
+    color: var(--text-muted) !important; /* Muted dark text */
+    font-size: 0.85rem;
+    font-weight: 300;
+    margin-top: 2px;
+    opacity: 0.9; /* Slightly more visible */
+  }
+
+  .search-container {
+    position: relative;
+  }
+
+  .search-input {
+    /* Changed from dark rgba to light background */
+    background: var(--light-bg) !important;
+    border: 2px solid var(--border-color) !important; /* Lighter border */
+    color: var(--text) !important; /* Dark text */
+    border-radius: 25px !important;
+    padding: 12px 20px !important;
+    transition: all 0.3s ease;
+    /* REMOVED backdrop-filter for performance */
+  }
+
+  .search-input:focus {
+    background: var(--lighter-bg) !important; /* Slightly lighter on focus */
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 15px var(--glow) !important; /* Lighter glow */
+    color: var(--text) !important;
+  }
+
+  .search-input::placeholder {
+    color: var(--text-dim) !important; /* Dimmer dark text */
+  }
+
+  .search-btn {
+    border: none !important;
+    background: linear-gradient(45deg, var(--primary), var(--primary-hover)) !important; /* Netflix red gradient */
+    border-radius: 0 25px 25px 0 !important;
+    padding: 12px 20px !important;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    will-change: transform, box-shadow; /* Hint for animation */
+  }
+
+  .search-btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255, 255, 255, 0.3); /* Slightly more visible ripple */
+    border-radius: 50%;
+    transition: all 0.3s ease;
+    transform: translate(-50%, -50%);
+  }
+
+  .search-btn:hover::before {
+    width: 120px; /* Slightly larger ripple */
+    height: 120px;
+  }
+
+  .search-btn:hover {
+    transform: translateY(-1px); /* Slightly less aggressive lift */
+    box-shadow: 0 5px 10px rgba(229, 9, 20, 0.3); /* Lighter shadow */
+  }
+
+  .admin-btn {
+    /* Changed from dark rgba to light background */
+    background: var(--light-bg) !important;
+    border: 2px solid var(--border-color) !important; /* Lighter border */
+    border-radius: 20px !important;
+    padding: 8px 16px !important;
+    transition: all 0.3s ease;
+    /* REMOVED backdrop-filter for performance */
+    font-weight: 500;
+    color: var(--text) !important; /* Dark text */
+    will-change: transform, box-shadow, background-color; /* Hint for animation */
+  }
+
+  .admin-btn:hover {
+    background: var(--border-color) !important; /* Subtle hover background */
+    transform: translateY(-1px); /* Slightly less aggressive lift */
+    box-shadow: 0 3px 10px var(--shadow); /* Lighter shadow */
+  }
+
+  .telegram-btn {
+    background: linear-gradient(45deg, var(--primary), var(--primary-hover)) !important; /* Netflix red gradient */
+    border: none !important;
+    border-radius: 20px !important;
+    padding: 8px 16px !important;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    will-change: transform, box-shadow; /* Hint for animation */
+  }
+
+  .telegram-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s ease;
+  }
+
+  .telegram-btn:hover::before {
+    left: 100%;
+  }
+
+  .telegram-btn:hover {
+    transform: translateY(-1px); /* Slightly less aggressive lift */
+    box-shadow: 0 5px 15px var(--glow); /* Lighter glow */
+  }
+
+  .category-nav {
+    /* Changed from dark rgba to light background */
+    background: var(--light-bg); 
+    /* REMOVED backdrop-filter for performance */
+    border-top: 1px solid var(--border-color); /* Lighter border */
+    padding: 15px 0;
+  }
+
+  .category-btn {
+    /* Changed from dark rgba to light background */
+    background: var(--lighter-bg) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 25px !important;
+    padding: 10px 20px !important;
+    color: var(--text) !important; /* Dark text */
+    font-weight: 500;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    /* REMOVED backdrop-filter for performance */
+    margin: 4px;
+    will-change: transform, box-shadow, border-color; /* Hint for animation */
+  }
+
+  .category-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 100%;
+    background: linear-gradient(45deg, var(--primary), var(--primary-hover)); /* Netflix red gradient */
+    transition: width 0.3s ease;
+    z-index: -1;
+  }
+
+  .category-btn:hover {
+    color: #ffffff !important; /* Text turns white on red hover */
+    border-color: var(--primary) !important;
+    transform: translateY(-2px); /* Slightly less aggressive lift */
+    box-shadow: 0 5px 15px var(--glow); /* Lighter glow */
+  }
+
+  .category-btn:hover::before {
+    width: 100%;
+  }
+
+  /* Responsive improvements */
+  @media (max-width: 768px) {
+    .logo-brand {
+      font-size: 1.8rem;
+    }
+    
+    .search-container {
+      width: 100% !important;
+      margin: 10px 0;
+    }
+    
+    .header-content {
+      flex-direction: column;
+      gap: 15px;
+    }
+    
+    .admin-controls {
+      align-self: stretch;
+      justify-content: center;
+    }
+    .search-btn {
+      border-radius: 0 25px 25px 0 !important; /* Ensure correct border-radius on mobile */
+    }
+  }
+
+  /* Smooth animations - REMOVED universal transition for better control */
+  /* * { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); } */
+</style>
+
+<header class="header-gradient text-dark p-3 mb-4"> {# Changed text-white to text-dark for default #}
+  <div class="container">
+    <div class="d-flex justify-content-between align-items-center header-content">
+      <div class="logo-section">
+        <h1 class="m-0">
+          <a href="{% url 'home' %}" class="text-decoration-none logo-brand">Hypeblog9jaTV</a>
+        </h1>
+        <small class="tagline">Your Ultimate Entertainment Hub</small>
+      </div>
+      
+      <div class="search-container w-50">
+        <form action="{% url 'search' %}" method="get">
+          <div class="input-group">
+            <input type="text" name="q" class="form-control search-input" 
+                   placeholder="Search movies, series..." aria-label="Search">
+            <button class="btn search-btn" type="submit">
+              <i class="bi bi-search"></i>
+            </button>
+          </div>
+        </form>
+      </div>
+      
+      <div class="admin-controls d-flex gap-2">
+        {% if user.is_staff %}
+        <a href="{% url 'admin:index' %}" class="btn btn-sm admin-btn">
+          <i class="bi bi-gear-fill me-1"></i>Admin
+        </a>
+        {% endif %}
+        <a href="https://t.me/hypeblog9ja" class="btn btn-sm telegram-btn text-white"> {# Ensure text is white on red button #}
+          <i class="bi bi-send-fill me-1"></i>Telegram
+        </a>
+      </div>
+    </div>
+  </div>
+  
+  <nav class="category-nav mt-3">
+    <div class="container">
+      <div class="d-flex flex-wrap justify-content-center gap-1">
+        <a href="{% url 'category' 'hollywood-movie' %}" class="btn btn-sm category-btn">
+          <i class="bi bi-film me-1"></i>Hollywood
+        </a>
+        <a href="{% url 'category' 'nollywood-movie' %}" class="btn btn-sm category-btn">
+          <i class="bi bi-camera-reels me-1"></i>Nollywood
+        </a>
+        <a href="{% url 'category' 'korean-drama' %}" class="btn btn-sm category-btn">
+          <i class="bi bi-heart-fill me-1"></i>Korean Drama
+        </a>
+        <a href="{% url 'category' 'chinese-drama' %}" class="btn btn-sm category-btn">
+          <i class="bi bi-globe-asia-australia me-1"></i>Chinese Drama
+        </a>
+        <a href="{% url 'category' 'anime' %}" class="btn btn-sm category-btn">
+          <i class="bi bi-lightning-fill me-1"></i>Anime
+        </a>
+      </div>
+    </div>
+  </nav>
+</header>

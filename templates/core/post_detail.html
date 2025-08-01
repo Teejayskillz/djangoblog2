@@ -1,0 +1,1103 @@
+{% extends 'core/base.html' %}
+{% load static %} {# Make sure this is loaded for static files #}
+
+{% block title %}
+    {{ post.get_page_title }}
+{% endblock %}
+
+{% block content %}
+<article class="post-detail">
+
+    <header class="post-header my-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <h1 class="display-4">{{ post.title }}</h1>
+        </div>
+        <div class="text-muted mb-3">
+            Published on {{ post.published_date|date:"F j, Y" }}
+        </div>
+        {% if post.category %}
+        <a href="{% url 'category' post.category.slug %}" class="badge bg-primary fs-6 text-decoration-none">
+            {{ post.category.name }}
+        </a>
+        {% endif %}
+    </header>
+
+    <div class="ad-slot-container header-ad-container"> {# Added new class for specific control #}
+        {{ ads_by_slug.thumbnail1|safe }}
+    </div>
+
+    {% if post.thumbnail %}
+    <div class="featured-image">
+        <img src="{{ post.thumbnail.url }}"
+             alt="{{ post.title }}"
+             class="img-fluid w-100 rounded"
+             style="max-height: 500px; object-fit: cover;"
+             loading="lazy">
+    </div>
+    {% else %}
+    <div class="featured-image">
+        <img src="{% static 'images/default_thumbnail.jpg' %}"
+             alt="No Image"
+             class="img-fluid w-100 rounded"
+             style="max-height: 500px; object-fit: cover;"
+             loading="lazy">
+    </div>
+    {% endif %}
+
+    <div class="ad-slot-container header-ad-container"> {# Added new class for specific control #}
+        {{ ads_by_slug.thumbnail2|safe }}
+    </div>
+
+    <div class="post-content mb-5">
+        {{ post.content|safe }}
+    </div>
+
+    {% if show_download_section %}
+    <div class="download-section">
+        <h4 class="section-title">
+            <i class="bi bi-download"></i>
+            {{ post.download_section_title|default:"Download Options" }}
+        </h4>
+
+        {% if post.qualities.exists %}
+        <div class="quality-section">
+            <h5 class="section-heading">Video Quality</h5>
+            <div class="quality-buttons">
+                {% for quality in post.qualities.all %}
+                <a href="{% url 'download_quality' quality.pk %}"
+                   class="quality-btn"
+                   >
+                   <div class="quality-info">
+                       <i class="bi bi-film"></i>
+                       <span class="quality-name">{{ quality.get_quality_display }}</span>
+                       {% if quality.is_premium %}
+                       <span class="premium-badge">Premium</span>
+                       {% endif %}
+                   </div>
+                   <div class="download-count">{{ quality.download_count }}</div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if post.subtitles.exists %}
+        <div class="subtitle-section">
+            <h5 class="section-heading">Subtitles</h5>
+            <div class="subtitle-grid">
+                {% for sub in post.subtitles.all %}
+                <a href="{% url 'download_subtitle' sub.pk %}"
+                   class="subtitle-btn"
+                   >
+                   <div class="subtitle-info">
+                       <i class="bi bi-translate"></i>
+                       <span class="uppercase-text">DOWNLOAD {{ sub.language }} SUBTITLE</span>
+                       {% if sub.is_auto_generated %}
+                       <span class="auto-badge">Auto</span>
+                       {% endif %}
+                   </div>
+                   <small>{{ sub.download_count }}</small>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="disclaimer">
+            <i class="bi bi-info-circle"></i>
+            Files are hosted externally. We do not store any content.
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="share-buttons mt-5">
+        <h5>Share this post:</h5>
+        <div class="btn-group" role="group">
+            <a href="https://www.facebook.com/sharer/sharer.php?u={{ request.build_absolute_uri }}"
+               target="_blank"
+               class="btn btn-sm btn-primary">
+                <i class="bi bi-facebook"></i> Facebook
+            </a>
+
+            <a href="https://twitter.com/intent/tweet?text={{ post.title|urlencode }}&url={{ request.build_absolute_uri }}"
+               target="_blank"
+               class="btn btn-sm btn-info text-white">
+                <i class="bi bi-twitter"></i> Twitter
+            </a>
+
+            <a href="https://wa.me/?text={{ post.title|urlencode }}%20{{ request.build_absolute_uri }}"
+               target="_blank"
+               class="btn btn-sm btn-success">
+                <i class="bi bi-whatsapp"></i> WhatsApp
+            </a>
+
+            <a href="https://www.linkedin.com/shareArticle?mini=true&url={{ request.build_absolute_uri }}&title={{ post.title|urlencode }}"
+               target="_blank"
+               class="btn btn-sm btn-secondary">
+                <i class="bi bi-linkedin"></i> LinkedIn
+            </a>
+        </div>
+    </div>
+
+    {% if related_posts %}
+    <section class="related-posts">
+        <h3 class="mb-4">More {{ post.category.name }}</h3>
+        <div class="row">
+            {% for related in related_posts %}
+            <div class="col-md-3 mb-4">
+                <div class="card h-100">
+                    {% if related.thumbnail %}
+                    <img src="{{ related.thumbnail.url }}"
+                         class="card-img-top"
+                         alt="{{ related.title }}"
+                         style="height: 200px; object-fit: cover;"
+                         loading="lazy">
+                    {% else %}
+                    <img src="{% static 'images/default_thumbnail.jpg' %}"
+                         class="card-img-top"
+                         alt="No Image"
+                         style="height: 200px; object-fit: cover;"
+                         loading="lazy">
+                    {% endif %}
+                    <div class="card-body">
+                        <h5 class="card-title">{{ related.title|truncatechars:40 }}</h5>
+                        <a href="{{ related.get_absolute_url }}" class="btn btn-sm btn-outline-primary">
+                            Read More
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <div class="comments-section">
+        {% if messages %}
+            <div class="messages">
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="comments-header">
+            <h4>Comments
+                <span class="comment-count">
+                    {% if post.comments.count %}
+                        {{ post.comments.count }}
+                    {% else %}
+                        0
+                    {% endif %}
+                </span>
+            </h4>
+        </div>
+
+        <div class="comment-list">
+            {% for comment in post.comments.all %}
+            <div class="comment">
+                <div class="comment-header">
+                    <span class="comment-author">{{ comment.name }}</span>
+                    <span class="comment-date">{{ comment.created_at|date:"F j, Y g:i A" }}</span>
+                </div>
+                <p class="comment-text">{{ comment.comment|linebreaks }}</p>
+            </div>
+            {% empty %}
+            <div class="no-comments">
+                <p>💬 No comments yet. Be the first to share your thoughts!</p>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="comment-form">
+            <h5 class="form-title">✨ Leave a Comment</h5>
+            <form method="post" action="{% url 'post_detail' category=post.category.slug slug=post.slug %}">
+                {% csrf_token %}
+                <div class="form-group">
+                    <input type="text" name="name" class="form-control"
+                           placeholder="Your Name" required
+                           value="{{ form.name.value|default:'' }}">
+                    {% if form.name.errors %}
+                        <small class="text-danger">{{ form.name.errors.0 }}</small>
+                    {% endif %}
+                </div>
+                <div class="form-group">
+                    <input type="email" name="email" class="form-control"
+                           placeholder="Your Email (won't be published)" required
+                           value="{{ form.email.value|default:'' }}">
+                    {% if form.email.errors %}
+                        <small class="text-danger">{{ form.email.errors.0 }}</small>
+                    {% endif %}
+                </div>
+                <div class="form-group">
+                    <textarea name="comment" class="form-control"
+                              rows="4" placeholder="Share your thoughts..." required>{{ form.comment.value|default:'' }}</textarea>
+                    {% if form.comment.errors %}
+                        <small class="text-danger">{{ form.comment.errors.0 }}</small>
+                    {% endif %}
+                </div>
+                <button type="submit" class="submit-btn">
+                    🚀 Post Comment
+                </button>
+            </form>
+        </div>
+    </div>
+</article>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add interactive effects to form controls
+        document.querySelectorAll('.form-control').forEach(input => {
+            input.addEventListener('focus', function() {
+                this.parentElement.style.transform = 'scale(1.02)';
+                this.parentElement.style.transition = 'transform 0.3s ease';
+            });
+
+            input.addEventListener('blur', function() {
+                this.parentElement.style.transform = 'scale(1)';
+            });
+        });
+
+        // Smooth scroll to comments after form submission
+        if (window.location.hash === '#comments') {
+            document.querySelector('.comments-section').scrollIntoView({
+                behavior: 'smooth'
+            });
+        }
+
+        // Character counter for comment textarea
+        const textarea = document.querySelector('textarea[name="comment"]');
+        if (textarea) {
+            const maxLength = 500; // Adjust as needed
+            const counter = document.createElement('small');
+            counter.style.color = '#999';
+            counter.style.float = 'right';
+            counter.style.marginTop = '5px';
+
+            textarea.parentElement.appendChild(counter);
+
+            function updateCounter() {
+                const remaining = maxLength - textarea.value.length;
+                counter.textContent = `${textarea.value.length}/${maxLength} characters`;
+                // Use primary color if near limit, otherwise text-dim
+                counter.style.color = remaining < 50 ? 'var(--primary)' : 'var(--text-dim)';
+            }
+
+            textarea.addEventListener('input', updateCounter);
+            updateCounter();
+        }
+
+        // Auto-expand textarea
+        if (textarea) {
+            textarea.addEventListener('input', function() {
+                this.style.height = 'auto';
+                this.style.height = this.scrollHeight + 'px';
+            });
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', function() {
+    const postContentDiv = document.querySelector('.post-content');
+    if (postContentDiv) {
+        const links = postContentDiv.querySelectorAll('a[target="_blank"]');
+        links.forEach(link => {
+            link.removeAttribute('target');
+        });
+    }
+});
+</script>
+
+<style>
+    /* Using CSS variables defined in core/base.html */
+
+    /* Download Section CSS */
+    .download-section {
+        background: var(--lighter-bg); /* Changed to white */
+        border-radius: 20px;
+        padding: 2rem;
+        margin-top: 2rem;
+        box-shadow:
+            0 10px 30px var(--shadow), /* Lighter shadow */
+            0 0 0 1px var(--border-color); /* Lighter border */
+        /* REMOVED backdrop-filter */
+        border: 1px solid var(--border-color); /* Lighter border */
+        position: relative;
+        overflow: hidden;
+        will-change: transform, box-shadow; /* Hint for animations */
+    }
+
+    .download-section::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, var(--primary) 0%, var(--primary-hover) 50%, var(--primary) 100%);
+        background-size: 200% 100%;
+        animation: shimmer 3s ease-in-out infinite;
+        will-change: background-position; /* Hint for shimmer animation */
+    }
+
+    @keyframes shimmer {
+        0%, 100% { background-position: -200% 0; }
+        50% { background-position: 200% 0; }
+    }
+
+    .section-title {
+        font-size: 1.8rem;
+        font-weight: 700;
+        margin-bottom: 2rem;
+        color: var(--text); /* Changed to dark text */
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .section-title i {
+        color: var(--primary); /* Netflix red */
+        font-size: 2rem;
+        animation: pulse 2s ease-in-out infinite;
+        will-change: transform; /* Hint for pulse animation */
+    }
+
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); } /* Slightly less aggressive pulse */
+    }
+
+    .quality-section, .subtitle-section {
+        margin-bottom: 2.5rem;
+    }
+
+    .section-heading {
+        font-size: 1.3rem;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+        color: var(--text); /* Changed to dark text */
+        position: relative;
+        padding-left: 1rem;
+    }
+
+    .section-heading::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 4px;
+        height: 20px;
+        background: linear-gradient(180deg, var(--primary) 0%, var(--primary-hover) 100%); /* Netflix red gradient */
+        border-radius: 2px;
+    }
+
+    .quality-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .quality-btn {
+        background: var(--light-bg); /* Changed to light background */
+        border: 1px solid var(--border-color); /* Lighter border */
+        border-radius: 12px;
+        padding: 1.25rem 1.5rem;
+        color: var(--text); /* Changed to dark text */
+        text-decoration: none;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+        will-change: transform, box-shadow, border-color, background; /* Hint for hover */
+    }
+
+    .quality-btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(229, 9, 20, 0.08), transparent); /* Lighter hover shimmer */
+        transition: left 0.5s;
+        will-change: left; /* Hint for shimmer animation */
+    }
+
+    .quality-btn:hover {
+        transform: translateY(-2px);
+        box-shadow:
+            0 8px 25px var(--glow), /* Lighter glow */
+            0 0 0 1px var(--primary-light); /* Lighter primary border */
+        border-color: var(--primary); /* Netflix red border */
+        color: var(--primary); /* Text color becomes red on hover */
+        text-decoration: none;
+        background: var(--lighter-bg); /* Background changes slightly on hover */
+    }
+
+    .quality-btn:hover::before {
+        left: 100%;
+    }
+
+    .quality-info {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .quality-info i {
+        color: var(--primary); /* Netflix red */
+        font-size: 1.2rem;
+    }
+
+    .quality-name {
+        font-weight: 600;
+        font-size: 1.1rem;
+        color: var(--text); /* Dark text */
+    }
+
+    .quality-btn:hover .quality-name {
+        color: var(--primary); /* Text color becomes red on hover */
+    }
+
+    .premium-badge {
+        background: linear-gradient(135deg, #ffd700 0%, #ffed4a 100%);
+        color: #000;
+        padding: 0.25rem 0.75rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-left: 0.5rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        white-space: nowrap; /* Prevents wrapping */
+    }
+
+    .download-count {
+        color: var(--text-dim); /* Dimmer dark text */
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        white-space: nowrap; /* Prevents wrapping */
+    }
+
+    .download-count::before {
+        content: '↓';
+        color: var(--primary); /* Netflix red */
+    }
+
+    .subtitle-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1rem;
+    }
+
+    .subtitle-btn {
+        background: var(--light-bg); /* Changed to light background */
+        border: 1px solid var(--border-color); /* Lighter border */
+        border-radius: 10px;
+        padding: 1rem;
+        color: var(--text); /* Changed to dark text */
+        text-decoration: none;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+        will-change: transform, box-shadow, border-color, background; /* Hint for hover */
+    }
+
+    .subtitle-btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(229, 9, 20, 0.08), transparent); /* Lighter hover shimmer */
+        transition: left 0.5s;
+        will-change: left; /* Hint for shimmer animation */
+    }
+
+    .subtitle-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 5px 15px var(--glow-sm); /* Lighter glow */
+        border-color: var(--primary-light); /* Lighter primary border */
+        color: var(--primary); /* Text color becomes red on hover */
+        text-decoration: none;
+        background: var(--lighter-bg); /* Background changes slightly on hover */
+    }
+
+    .subtitle-btn:hover::before {
+        left: 100%;
+    }
+
+    .subtitle-info {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .subtitle-info i {
+        color: var(--primary); /* Netflix red */
+    }
+
+    .auto-badge {
+        background: linear-gradient(135deg, #17a2b8 0%, #20c997 100%);
+        color: #fff;
+        padding: 0.2rem 0.5rem;
+        border-radius: 8px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        margin-left: 0.5rem;
+        text-transform: uppercase;
+        white-space: nowrap; /* Prevents wrapping */
+    }
+
+    .disclaimer {
+        background: var(--light-bg); /* Changed to light background */
+        border: 1px solid var(--border-color); /* Lighter border */
+        border-radius: 10px;
+        padding: 1rem;
+        margin-top: 2rem;
+        color: var(--text-dim); /* Dimmer dark text */
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05); /* Lighter shadow */
+    }
+
+    .disclaimer i {
+        color: var(--primary); /* Netflix red */
+        font-size: 1.1rem;
+    }
+
+    /* Enhanced Related Posts Section */
+    .related-posts {
+        background: var(--lighter-bg); /* Changed to white */
+        border-radius: 20px;
+        padding: 2rem;
+        margin-top: 3rem;
+        border: 1px solid var(--border-color); /* Lighter border */
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 10px 30px var(--shadow); /* Lighter shadow */
+    }
+
+    .related-posts::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, var(--primary) 0%, var(--primary-hover) 100%); /* Netflix red gradient */
+    }
+
+    .related-posts h3 {
+        color: var(--text); /* Changed to dark text */
+        font-weight: 700;
+        margin-bottom: 2rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .related-posts h3::before {
+        content: '🎬'; /* Unicode character */
+        font-size: 1.5rem;
+        margin-right: 5px; /* Adjust spacing */
+        color: var(--text-dim); /* Make emoji color consistent with text */
+    }
+
+    .related-posts .card {
+        background: var(--light-bg); /* Changed to light background */
+        border: 1px solid var(--border-color); /* Lighter border */
+        border-radius: 15px;
+        transition: all 0.3s ease;
+        overflow: hidden;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.05); /* Lighter shadow */
+        will-change: transform, box-shadow; /* Hint for hover */
+    }
+
+    .related-posts .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px var(--shadow), 0 0 10px var(--glow-sm); /* Lighter shadow and subtle glow */
+        border-color: var(--primary-light); /* Lighter primary border */
+    }
+
+    .related-posts .card-img-top {
+        transition: transform 0.3s ease;
+    }
+
+    .related-posts .card:hover .card-img-top {
+        transform: scale(1.03); /* Slightly less aggressive scale */
+    }
+
+    .related-posts .card-body {
+        background: transparent;
+        color: var(--text); /* Changed to dark text */
+    }
+
+    .related-posts .card-title {
+        color: var(--text); /* Changed to dark text */
+        font-weight: 600;
+    }
+
+    .related-posts .btn-outline-primary {
+        border-color: var(--primary); /* Netflix red */
+        color: var(--primary); /* Netflix red */
+        transition: all 0.3s ease;
+        will-change: background-color, color, border-color, transform; /* Hint for hover */
+    }
+
+    .related-posts .btn-outline-primary:hover {
+        background-color: var(--primary); /* Netflix red */
+        border-color: var(--primary); /* Netflix red */
+        color: white;
+        transform: translateY(-1px);
+    }
+
+    /* Enhanced Post Header */
+    .post-header .display-4 {
+        color: var(--text); /* Changed to dark text */
+        font-weight: 700;
+        text-shadow: none; /* Removed heavy shadow for light theme */
+    }
+
+    .post-header .badge {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%) !important; /* Netflix red gradient */
+        border-radius: 12px;
+        padding: 0.5rem 1rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: white !important; /* Ensure text is white on red badge */
+    }
+
+    .post-header .text-muted {
+        color: var(--text-dim) !important; /* Dimmer dark text */
+        font-size: 1.1rem;
+    }
+
+    /* Enhanced Featured Image */
+    .featured-image {
+        position: relative;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 10px 30px var(--shadow); /* Lighter shadow */
+    }
+
+    .featured-image::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.1) 100%); /* Lighter overlay */
+        pointer-events: none;
+    }
+
+    /* Enhanced Post Content */
+    .post-content {
+        color: var(--text); /* Changed to dark text */
+        font-size: 1.1rem;
+        line-height: 1.8;
+        background: var(--lighter-bg); /* Changed to white */
+        padding: 2rem;
+        border-radius: 15px;
+        border: 1px solid var(--border-color); /* Lighter border */
+        box-shadow: 0 5px 20px var(--shadow-sm); /* Subtle shadow */
+    }
+
+    /* Comments Section */
+    .comments-section {
+        max-width: 800px;
+        margin: 3rem auto 0;
+        padding: 0 15px;
+    }
+
+    .comments-header {
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid var(--border-color); /* Lighter border */
+    }
+
+    .comments-header h4 {
+        color: var(--text); /* Changed to dark text */
+        font-size: 1.8rem;
+        font-weight: 600;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .comment-count {
+        background: var(--primary); /* Netflix red */
+        color: white;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+
+    .comment-list {
+        margin-bottom: 3rem;
+    }
+
+    .comment {
+        background: var(--lighter-bg); /* Changed to white */
+        border: 1px solid var(--border-color); /* Lighter border */
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+        animation: slideUp 0.4s ease-out;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.03); /* Subtle shadow */
+        will-change: transform, box-shadow, border-color; /* Hint for hover */
+    }
+
+    .comment::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: linear-gradient(180deg, var(--primary) 0%, var(--primary-hover) 100%); /* Netflix red gradient */
+    }
+
+    .comment:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px var(--shadow), 0 0 10px var(--glow-sm); /* Lighter shadow and subtle glow */
+        border-color: var(--primary-light); /* Lighter primary border */
+    }
+
+    .comment-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .comment-author {
+        color: var(--primary); /* Netflix red */
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
+
+    .comment-date {
+        color: var(--text-dim); /* Dimmer dark text */
+        font-size: 0.9rem;
+        opacity: 0.8;
+    }
+
+    .comment-text {
+        color: var(--text); /* Changed to dark text */
+        margin: 0;
+        line-height: 1.6;
+    }
+
+    .no-comments {
+        text-align: center;
+        padding: 3rem 2rem;
+        background: var(--lighter-bg); /* Changed to white */
+        border-radius: 12px;
+        border: 2px dashed var(--border-color); /* Lighter dashed border */
+        color: var(--text-dim); /* Dimmer dark text */
+        font-style: italic;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.03); /* Subtle shadow */
+    }
+
+    .comment-form {
+        background: var(--lighter-bg); /* Changed to white */
+        border: 1px solid var(--border-color); /* Lighter border */
+        border-radius: 16px;
+        padding: 2rem;
+        box-shadow: 0 10px 40px var(--shadow); /* Lighter shadow */
+        position: relative;
+        overflow: hidden;
+        animation: slideUp 0.6s ease-out;
+        will-change: transform, box-shadow; /* Hint for animation */
+    }
+
+    .comment-form::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--primary) 0%, var(--primary-hover) 50%, var(--primary) 100%); /* Netflix red gradient */
+    }
+
+    .form-title {
+        color: var(--text); /* Changed to dark text */
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+        text-align: center;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+        position: relative;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 1rem 1.25rem;
+        background: var(--light-bg); /* Light background */
+        border: 2px solid var(--border-color); /* Lighter border */
+        border-radius: 8px;
+        color: var(--text); /* Dark text */
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        font-family: inherit;
+        will-change: border-color, box-shadow, background; /* Hint for focus */
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: var(--primary); /* Netflix red */
+        box-shadow: 0 0 0 3px var(--glow-xsm); /* Subtle glow */
+        background: var(--lighter-bg); /* Background gets brighter on focus */
+    }
+
+    .form-control::placeholder {
+        color: var(--text-dim); /* Dimmer dark text */
+        transition: all 0.3s ease;
+    }
+
+    .form-control:focus::placeholder {
+        color: var(--text-muted); /* More muted on focus */
+        transform: translateY(-2px);
+    }
+
+    textarea.form-control {
+        resize: vertical;
+        min-height: 120px;
+        font-family: inherit;
+    }
+
+    .submit-btn {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%); /* Netflix red gradient */
+        color: white;
+        border: none;
+        padding: 1rem 2rem;
+        border-radius: 8px;
+        font-size: 1.1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        width: 100%;
+        position: relative;
+        overflow: hidden;
+        will-change: transform, box-shadow, background; /* Hint for hover */
+    }
+
+    .submit-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px var(--glow); /* Lighter glow */
+    }
+
+    .submit-btn:active {
+        transform: translateY(0);
+    }
+
+    .submit-btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+        transition: left 0.5s;
+        will-change: left; /* Hint for shimmer animation */
+    }
+
+    .submit-btn:hover::before {
+        left: 100%;
+    }
+
+    /* Success/Error Messages */
+    .messages {
+        margin-bottom: 2rem;
+    }
+
+    .alert {
+        padding: 1rem 1.25rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        border: 1px solid transparent;
+    }
+
+    .alert-success {
+        background: var(--success-bg-light); /* Lighter green background */
+        border-color: var(--success-border); /* Green border */
+        color: var(--success-text); /* Green text */
+    }
+
+    .alert-error {
+        background: var(--danger-bg-light); /* Lighter red background */
+        border-color: var(--danger-border); /* Red border */
+        color: var(--danger-text); /* Red text */
+    }
+
+    /* Mobile Responsive */
+    @media (max-width: 768px) {
+        .download-section {
+            padding: 1.5rem;
+            margin-top: 1rem;
+            border-radius: 15px;
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .section-heading {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+        }
+
+        .quality-btn {
+            padding: 1rem;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+
+        .quality-info {
+            width: 100%;
+        }
+
+        .download-count {
+            align-self: flex-end;
+            font-size: 0.8rem;
+        }
+
+        .subtitle-grid {
+            grid-template-columns: 1fr;
+            gap: 0.75rem;
+        }
+
+        .subtitle-btn {
+            padding: 0.75rem;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+
+        .subtitle-info {
+            width: 100%;
+        }
+
+        .related-posts {
+            padding: 1.5rem;
+        }
+
+        .post-content {
+            padding: 1.5rem;
+        }
+
+        /* --- NEW CSS for fitting content --- */
+        .post-content img {
+            max-width: 100%; /* Ensure images don't overflow */
+            height: auto; /* Maintain aspect ratio */
+            display: block; /* Remove extra space below images */
+            margin-left: auto; /* Center images if smaller than container */
+            margin-right: auto;
+            border-radius: 8px; /* Consistent styling */
+        }
+
+        /* Responsive embeds (like YouTube iframes) */
+        .post-content iframe,
+        .post-content video {
+            max-width: 100%; /* Limit width to parent container */
+            height: auto; /* Maintain aspect ratio */
+            display: block; /* Important for preventing extra space */
+            margin-left: auto; /* Center iframes if smaller than container */
+            margin-right: auto;
+        }
+
+        /* A common pattern for truly responsive iframes (like YouTube)
+           This creates an aspect ratio box to prevent collapsing iframes.
+           You might need to wrap your iframe in a div with this class
+           in your content editor if it's not already. */
+        .post-content .video-responsive {
+            position: relative;
+            padding-bottom: 56.25%; /* 16:9 aspect ratio (height / width = 9 / 16 = 0.5625) */
+            height: 0;
+            overflow: hidden;
+            margin-bottom: 1rem; /* Add some space below the video */
+            border-radius: 8px;
+        }
+
+        .post-content .video-responsive iframe,
+        .post-content .video-responsive object,
+        .post-content .video-responsive embed {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        /* --- END NEW CSS --- */
+    }
+
+    @media (max-width: 480px) {
+        .section-title {
+            font-size: 1.3rem;
+        }
+        .section-title i {
+            font-size: 1.7rem;
+        }
+        .section-heading {
+            font-size: 1rem;
+        }
+        .quality-name {
+            font-size: 1rem;
+        }
+        .premium-badge, .auto-badge {
+            font-size: 0.65rem;
+            padding: 0.15rem 0.6rem;
+        }
+        .disclaimer {
+            font-size: 0.85rem;
+            padding: 0.8rem;
+        }
+        .comments-header h4 {
+            font-size: 1.5rem;
+        }
+        .comment-author {
+            font-size: 1rem;
+        }
+        .comment-text {
+            font-size: 0.95rem;
+        }
+        .form-control {
+            padding: 0.8rem 1rem;
+            font-size: 0.95rem;
+        }
+        .submit-btn {
+            padding: 0.8rem 1.5rem;
+            font-size: 1rem;
+        }
+    }
+</style>
+{% endblock content %} 
