@@ -11,6 +11,19 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db.models import Q
 from django.conf import settings
 
+
+def wordpress_redirect_view(request, year, month, day, slug):
+    """
+    Redirects old WordPress URLs like /2025/07/25/post-slug/
+    to the new Django structure like /movies/post-slug/.
+    """
+    # Construct the new URL path
+    new_path = f'/movies/{slug}/'
+
+    # Issue a permanent redirect (HTTP 301)
+    return redirect(new_path, permanent=True)
+
+    
 def home(request):
     # Get all active homepage sections
     sections = HomepageSection.objects.filter(enabled=True)

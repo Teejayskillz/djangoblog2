@@ -15,5 +15,8 @@ pip-delete-this-directory.txt
 *.mo
 local_settings.py
 db.sqlite3
-
+staticfiles/ 
 .env 
+media/
+static/core/migrations/0008_alter_downloadquality_quality.py
+static/
