@@ -47,17 +47,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     
-   
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-3QKYHLCB32');
-    </script>
-
+    
     <style>
         :root {
-            /* --- NEW: Dark Theme with Teal Accent --- */
+            /* --- Dark Theme with Teal Accent --- */
             --dark-bg: #1A1A1A;
             --darker-bg: #0F0F0F;
             --card-bg: #27344D;
@@ -69,8 +62,6 @@
             --border-color: #3F516C;
             --shadow: rgba(0, 0, 0, 0.6);
             --glow: rgba(0, 128, 128, 0.4); /* Teal glow */
-
-            /* RGB versions for transparent backgrounds */
             --card-bg-rgb: 39, 52, 77;
         }
 
@@ -79,7 +70,6 @@
         }
 
         body {
-            /* --- NEW --- */
             background: linear-gradient(135deg, var(--darker-bg) 0%, var(--dark-bg) 100%);
             color: var(--text);
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -97,7 +87,6 @@
 
         a:hover {
             color: var(--primary-hover);
-            /* --- NEW --- */
             text-shadow: 0 0 5px var(--glow);
         }
 
@@ -109,7 +98,6 @@
         }
 
         .main-wrapper {
-            /* --- NEW --- */
             background: rgba(var(--card-bg-rgb), 0.3);
             border-radius: 15px;
             border: 1px solid var(--border-color);
@@ -120,26 +108,17 @@
         }
 
         .ad-section {
-            /* --- NEW --- */
             background: linear-gradient(45deg, var(--card-bg), var(--dark-bg));
             border-bottom: 1px solid var(--border-color);
             padding: 15px 20px;
             text-align: center;
         }
 
-        .main-wrapper > *:first-child {
-            border-top-left-radius: 15px;
-            border-top-right-radius: 15px;
-        }
-
-        .main-wrapper > *:last-child {
-            border-bottom-left-radius: 15px;
-            border-bottom-right-radius: 15px;
-        }
+        .main-wrapper > *:first-child { border-top-left-radius: 15px; border-top-right-radius: 15px; }
+        .main-wrapper > *:last-child { border-bottom-left-radius: 15px; border-bottom-right-radius: 15px; }
 
         .main-wrapper header,
         .main-wrapper footer {
-            /* --- NEW --- */
             background: var(--card-bg);
             border-bottom: 1px solid var(--border-color);
             padding: 15px 20px;
@@ -168,28 +147,23 @@
             margin: 20px 0 15px;
             font-size: 1.2rem;
             font-weight: 700;
-            color: #ffffff; /* White text looks good on the teal gradient */
+            color: #ffffff;
             border-radius: 25px;
             position: relative;
             text-transform: uppercase;
             letter-spacing: 1px;
-            /* --- NEW --- */
             box-shadow: 0 4px 15px var(--glow);
         }
 
         .category-header::before {
             content: '';
             position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            top: 0; left: 0; right: 0; bottom: 0;
             background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
             border-radius: 25px;
         }
 
         .post-card {
-            /* --- NEW --- */
             background: var(--card-bg);
             border: 1px solid var(--border-color);
             border-radius: 12px;
@@ -201,7 +175,6 @@
         }
 
         .post-card:hover {
-            /* --- NEW --- */
             transform: translateY(-8px) scale(1.02);
             box-shadow: 0 20px 40px var(--shadow), 0 0 20px var(--glow);
             border-color: var(--primary);
@@ -212,14 +185,12 @@
             padding-bottom: 60%;
             position: relative;
             overflow: hidden;
-            /* --- NEW --- */
             background: linear-gradient(45deg, var(--dark-bg), var(--card-bg));
         }
 
         .post-card-img-container img {
             position: absolute;
-            top: 0;
-            left: 0;
+            top: 0; left: 0;
             width: 100%;
             height: 100%;
             object-fit: cover;
@@ -227,18 +198,14 @@
         }
 
         .post-card:hover .post-card-img-container img {
-             /* --- NEW --- */
             transform: scale(1.1);
         }
 
         .post-card-img-container::after {
             content: '';
             position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
+            bottom: 0; left: 0; right: 0;
             height: 50%;
-            /* --- NEW: Fading to black instead of white --- */
             background: linear-gradient(transparent, rgba(0,0,0,0.8));
             pointer-events: none;
         }
@@ -268,13 +235,17 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
-
+        
+        /* --- CORRECTED AND FINAL GRID CSS --- */
+        /* This is the main, default rule for desktops and larger screens */
         .latest-updates-grid {
-    grid-template-columns: repeat(2, 1fr); /* This line forces two columns */
-    gap: 15px;
-}
+            display: grid; /* This ensures the grid layout is applied */
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+            padding: 10px 0;
+        }
+
         .sidebar-section {
-            /* --- NEW --- */
             background: var(--card-bg);
             border: 1px solid var(--border-color);
             border-radius: 12px;
@@ -310,7 +281,6 @@
         }
 
         .sidebar-list-item:hover {
-            /* --- NEW --- */
             background: var(--dark-bg);
             transform: translateX(5px);
         }
@@ -363,19 +333,16 @@
         .trending-buttons .btn-primary {
             background: linear-gradient(45deg, var(--primary), var(--primary-hover));
             border: none;
-            /* --- NEW --- */
             box-shadow: 0 4px 15px var(--glow);
         }
 
         .trending-buttons .btn-secondary {
-            /* --- NEW --- */
             background: var(--dark-bg);
             border: 1px solid var(--border-color);
             color: var(--text-muted);
         }
 
         .trending-buttons .btn-secondary:hover {
-            /* --- NEW --- */
             background: var(--border-color);
             color: var(--text);
             transform: translateY(-2px);
@@ -394,7 +361,6 @@
         }
 
         .popular-search-list li:hover {
-            /* --- NEW --- */
             background: var(--dark-bg);
             transform: translateX(5px);
         }
@@ -404,23 +370,17 @@
             font-size: 0.8rem;
         }
 
-        /* --- Responsive Design (Largely Unchanged) --- */
+        /* --- ALL RESPONSIVE OVERRIDES --- */
+
+        /* For Small Mobile Phones (Forces 2 columns) */
         @media (max-width: 575.98px) {
-            .custom-container {
-                padding: 0 10px;
-            }
-            .main-wrapper {
-                margin: 10px auto;
-                border-radius: 10px;
-            }
-            .content-area {
-                padding: 15px;
-            }
-            .ad-section {
-                padding: 10px 15px;
-            }
+            .custom-container { padding: 0 10px; }
+            .main-wrapper { margin: 10px auto; border-radius: 10px; }
+            .content-area { padding: 15px; }
+            .ad-section { padding: 10px 15px; }
             .latest-updates-grid {
-                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+                /* This forces a 2-column layout on mobile */
+                grid-template-columns: repeat(2, 1fr);
                 gap: 15px;
             }
             .post-card-img-container { padding-bottom: 70%; }
@@ -432,36 +392,47 @@
             .trending-buttons { justify-content: center; }
             .trending-buttons .btn { min-width: 60px; font-size: 0.65rem; padding: 5px 10px; }
         }
+
+        /* For Small Tablets */
         @media (min-width: 576px) and (max-width: 767.98px) {
             .main-wrapper { margin: 15px auto; }
-            .latest-updates-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+            .latest-updates-grid {
+                grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            }
         }
+
+        /* For Tablets */
         @media (min-width: 768px) and (max-width: 991.98px) {
             .main-wrapper { margin: 20px auto; }
-            .latest-updates-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+            .latest-updates-grid {
+                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            }
         }
+
+        /* For Small Desktops */
         @media (min-width: 992px) and (max-width: 1199.98px) {
             .custom-container { max-width: 1080px; }
-            .latest-updates-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+            .latest-updates-grid {
+                grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            }
         }
+
+        /* For Large Desktops */
         @media (min-width: 1200px) {
             .custom-container { max-width: 1400px; }
-            .latest-updates-grid { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
+            .latest-updates-grid {
+                grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            }
         }
+        
         @media (min-width: 1400px) {
             .custom-container { max-width: 1600px; }
         }
 
         /* Animation keyframes */
         @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .post-card, .sidebar-section {
@@ -469,19 +440,10 @@
         }
 
         /* Scrollbar styling */
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: var(--dark-bg);
-        }
-        ::-webkit-scrollbar-thumb {
-            background: var(--primary);
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: var(--primary-hover);
-        }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--dark-bg); }
+        ::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--primary-hover); }
     </style>
 </head>
 <body>
@@ -525,7 +487,7 @@
                                         {% if post.thumbnail %}
                                             <img src="{{ post.thumbnail.url }}" alt="{{ post.title }}" width="100" height="100" style="object-fit: cover; border-radius: 5px;" loading="lazy">
                                         {% else %}
-                                            <img src="{% static 'images/default_thumbnail.jpg' %}" alt="No Image" width="100" height="100" style="object-fit: cover; border-radius: 5px;" loading="lazy">
+                                            <img src="{% static 'images/default_thumbnail.jpg' %}" alt="Default thumbnail for {{ post.title }}" width="100" height="100" style="object-fit: cover; border-radius: 5px;" loading="lazy">
                                         {% endif %}
                                         <div class="sidebar-list-item-details">
                                             <a href="{{ post.get_absolute_url }}">{{ post.title }}</a>
@@ -549,7 +511,7 @@
                                         {% if post.thumbnail %}
                                             <img src="{{ post.thumbnail.url }}" alt="{{ post.title }}" width="100" height="100" style="object-fit: cover; border-radius: 5px;" loading="lazy">
                                         {% else %}
-                                            <img src="{% static 'images/default_thumbnail.jpg' %}" alt="No Image" width="100" height="100" style="object-fit: cover; border-radius: 5px;" loading="lazy">
+                                            <img src="{% static 'images/default_thumbnail.jpg' %}" alt="Default thumbnail for {{ post.title }}" width="100" height="100" style="object-fit: cover; border-radius: 5px;" loading="lazy">
                                         {% endif %}
                                         <div class="sidebar-list-item-details">
                                             <a href="{{ post.get_absolute_url }}">{{ post.title }}</a>
