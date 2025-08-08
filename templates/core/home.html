@@ -1,37 +1,23 @@
 {% extends 'core/base.html' %}
-{% load static %} {# Make sure this is loaded for static files #}
 
 {% block content %}
 {% for section in sections %}
 <div class="section">
     <div class="category-header">
-        <h2 class="section-title">
-            {% if section.link %}
-            <a href="{{ section.link }}" class="text-decoration-none">
-                {{ section.title }} <i class="bi bi-arrow-right-circle ms-2"></i>
-            </a>
-            {% else %}
-            {{ section.title }}
-            {% endif %}
-        </h2>
+        <h2>{{ section.title }}</h2>
     </div>
     <div class="latest-updates-grid">
         {% for post in section.posts %}
-        {# .post-card styling is inherited from base.html #}
-        <a href="{% url 'post_detail' category=post.category.slug slug=post.slug %}" class="post-card">
+        <a href="{% url 'post_detail' post.slug %}" class="post-card">
             {% if post.thumbnail %}
             <div class="post-card-img-container">
                 <img src="{{ post.thumbnail.url }}" alt="{{ post.title }}" loading="lazy">
-            </div>
-            {% else %}
-            <div class="post-card-img-container">
-                <img src="{% static 'images/default_thumbnail.jpg' %}" alt="No Image" loading="lazy">
             </div>
             {% endif %}
             <div class="post-card-content">
                 <h3>{{ post.title }}</h3>
                 {% if post.category %}
-                <span class="category-badge">{{ post.category.name }}</span>
+                <span class="category">{{ post.category.name }}</span>
                 {% endif %}
             </div>
         </a>
@@ -43,7 +29,7 @@
 {% if page_obj %}
 <div class="section">
     <div class="category-header">
-        <h2 class="section-title">
+        <h2>
             {% if query %}
                 Search Results for "{{ query }}"
             {% else %}
@@ -67,15 +53,11 @@
             <div class="post-card-img-container">
                 <img src="{{ post.thumbnail.url }}" alt="{{ post.title }}" loading="lazy">
             </div>
-            {% else %}
-            <div class="post-card-img-container">
-                <img src="{% static 'images/default_thumbnail.jpg' %}" alt="No Image" loading="lazy">
-            </div>
             {% endif %}
             <div class="post-card-content">
                 <h3>{{ post.title }}</h3>
                 {% if post.category %}
-                <span class="category-badge">{{ post.category.name }}</span>
+                <span class="category">{{ post.category.name }}</span>
                 {% endif %}
             </div>
         </a>
@@ -111,7 +93,7 @@
                     <li class="page-item">
                         <a class="page-link" href="?page={{ num }}{% if query %}&q={{ query }}{% endif %}">{{ num }}</a>
                     </li>
-                    {% elif num == 1 and page_obj.number > 3 %}
+                    {% elif num == 1 %}
                     <li class="page-item">
                         <a class="page-link" href="?page={{ num }}{% if query %}&q={{ query }}{% endif %}">{{ num }}</a>
                     </li>
@@ -120,7 +102,7 @@
                         <span class="page-link">...</span>
                     </li>
                     {% endif %}
-                    {% elif num == page_obj.paginator.num_pages and page_obj.number < page_obj.paginator.num_pages|add:'-3' %}
+                    {% elif num == page_obj.paginator.num_pages %}
                     {% if page_obj.number < page_obj.paginator.num_pages|add:'-3' %}
                     <li class="page-item disabled">
                         <span class="page-link">...</span>
@@ -159,79 +141,42 @@
     {% endif %}
     
     {% else %}
-    <div class="no-results">
-        <div class="text-center py-5">
-            <i class="bi bi-search" style="font-size: 3rem; color: var(--text-dim);"></i>
-            <h3 class="mt-3" style="color: var(--text);">No posts found</h3>
-            {% if query %}
-            <p class="text-muted">No results found for "{{ query }}". Try different keywords.</p>
-            {# --- NEW: Changed to a primary button consistent with the theme --- #}
-            <a href="{% url 'home' %}" class="btn btn-primary-themed mt-3">
-                <i class="bi bi-arrow-left me-2"></i>Back to Home
-            </a>
-            {% else %}
-            <p class="text-muted">No additional posts available at the moment.</p>
-            {% endif %}
-        </div>
+    <div class="no-results text-center py-5">
+        <i class="bi bi-search" style="font-size: 3rem; color: var(--text-dim);"></i> {# Using text-dim for icon #}
+        <h3 class="mt-3" style="color: var(--text);">No posts found</h3> {# Using text color #}
+        {% if query %}
+        <p class="text-muted">No results found for "{{ query }}". Try different keywords.</p>
+        <a href="{% url 'home' %}" class="btn btn-outline-primary mt-3"> {# Changed to btn-outline-primary #}
+            <i class="bi bi-arrow-left me-2"></i>Back to Home
+        </a>
+        {% else %}
+        <p class="text-muted">No additional posts available at the moment.</p>
+        {% endif %}
     </div>
     {% endif %}
 </div>
 {% endif %}
 
 <style>
-/* --- NEW: Custom styles adapted for the Dark/Teal Theme --- */
-
-/* Section Title for Homepage Sections */
-.section-title {
-    /* --- UPDATED: Teal gradient background --- */
-    background: linear-gradient(135deg, var(--primary), var(--primary-hover));
-    color: #ffffff; /* White text on gradient */
-    padding: 20px 30px;
-    border-radius: 15px;
-    font-weight: 800;
-    font-size: 2.5rem;
-    margin-bottom: 15px;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-    box-shadow: 0 5px 20px var(--glow);
-    border: 2px solid rgba(255, 255, 255, 0.1);
-    position: relative;
-    overflow: hidden;
-    display: block;
-    width: 100%;
-    text-align: center;
-}
-
-/* Link inside section-title */
-.section-title a {
-    color: #ffffff !important;
-    transition: opacity 0.3s ease;
-}
-
-.section-title a:hover {
-    opacity: 0.85; /* Slight fade on hover for feedback */
+/* Helper to convert hex to RGB for rgba() */
+/* This needs to be defined once, preferably in base.html's style or a main CSS file */
+:root {
+    --card-bg-rgb: 39, 52, 77; /* RGB equivalent of #27344D */
 }
 
 .results-info {
     margin-top: 8px;
     font-size: 0.9rem;
-    color: var(--text-muted);
-    text-align: center;
+    color: var(--text-muted); /* Consistent with muted text */
 }
 
-/* Themed Pagination (Consistent with category.html) */
 .pagination-container {
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin-top: 50px;
-    padding: 30px;
-    gap: 20px;
-    /* --- NEW: Dark, glassy background --- */
-    background: rgba(39, 52, 77, 0.5); /* --card-bg with transparency */
-    backdrop-filter: blur(5px);
-    border-radius: 20px;
-    border: 1px solid var(--border-color);
-    box-shadow: 0 5px 20px var(--shadow);
+    margin-top: 40px;
+    padding: 20px 0;
+    gap: 15px;
 }
 
 .pagination-list {
@@ -252,20 +197,19 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    min-width: 48px;
-    height: 48px;
-    padding: 10px 18px;
-    /* --- NEW: Dark background --- */
-    background: var(--dark-bg);
-    border: 2px solid var(--border-color);
+    min-width: 44px;
+    height: 44px;
+    padding: 8px 16px;
+    background: rgba(var(--card-bg-rgb), 0.3); /* Using transparent card-bg */
+    border: 2px solid var(--border-color); /* Using border-color */
     border-radius: 12px;
-    color: var(--text-muted);
+    color: var(--text); /* Using text color */
     text-decoration: none;
-    font-weight: 600;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    font-weight: 500;
+    transition: all var(--transition-speed); /* Standardized transition */
+    backdrop-filter: blur(10px);
     position: relative;
     overflow: hidden;
-    z-index: 1;
 }
 
 .page-link::before {
@@ -275,17 +219,16 @@
     left: 0;
     width: 0;
     height: 100%;
-    /* --- UPDATED: Teal fill effect --- */
-    background: linear-gradient(45deg, var(--primary), var(--primary-hover));
-    transition: width 0.3s ease;
+    background: linear-gradient(45deg, var(--primary), var(--primary-hover)); /* Using new primary gradient */
+    transition: width var(--transition-speed);
     z-index: -1;
 }
 
 .page-link:hover {
-    color: #ffffff;
-    border-color: var(--primary);
+    color: white; /* Ensure white text on hover */
+    border-color: var(--primary); /* Using primary color on hover */
     transform: translateY(-2px);
-    box-shadow: 0 5px 15px var(--glow);
+    box-shadow: 0 8px 25px var(--glow); /* Using new glow */
 }
 
 .page-link:hover::before {
@@ -293,96 +236,91 @@
 }
 
 .page-link.current {
-    background: linear-gradient(45deg, var(--primary), var(--primary-hover));
-    border-color: var(--primary);
-    color: #ffffff;
-    font-weight: 800;
-    box-shadow: 0 3px 10px var(--glow);
-    transform: scale(1.05);
+    background: linear-gradient(45deg, var(--primary), var(--primary-hover)); /* Using new primary gradient */
+    border-color: var(--primary); /* Using primary color */
+    color: white; /* Ensure white text */
+    font-weight: 700;
+    box-shadow: 0 4px 15px var(--glow); /* Using new glow */
 }
 
 .page-link.prev-next {
-    padding: 10px 24px;
+    padding: 8px 20px;
     gap: 8px;
-    font-weight: 700;
+    font-weight: 600;
     min-width: auto;
 }
 
 .page-link.disabled {
-    opacity: 0.6;
+    opacity: 0.5;
     cursor: not-allowed;
-    background: var(--darker-bg);
-    border-color: var(--border-color);
-    color: var(--text-dim);
+    background: rgba(var(--card-bg-rgb), 0.1); /* Lighter transparent card-bg */
+    border-color: var(--border-color); /* Using border-color */
 }
 
 .page-link.disabled:hover {
     transform: none;
     box-shadow: none;
-    border-color: var(--border-color);
-}
-.page-link.disabled:hover::before {
-    width: 0;
+    border-color: var(--border-color); /* Maintain border color */
 }
 
 .page-info {
-    color: var(--text-muted);
-    font-size: 1rem;
+    color: var(--text-muted); /* Consistent with muted text */
+    font-size: 0.9rem;
     font-weight: 500;
-    background: var(--dark-bg);
-    padding: 10px 20px;
-    border-radius: 25px;
-    border: 1px solid var(--border-color);
 }
 
-/* No Results Styling */
 .no-results {
-    background: rgba(39, 52, 77, 0.3); /* --card-bg with transparency */
-    backdrop-filter: blur(5px);
-    border-radius: 20px;
-    margin: 40px 0;
-    border: 1px solid var(--border-color);
-    box-shadow: 0 5px 15px var(--shadow);
+    background: rgba(var(--card-bg-rgb), 0.15); /* Transparent card-bg for no-results */
+    border: 1px solid var(--border-color); /* Consistent border */
+    border-radius: 15px;
+    margin: 20px 0;
+    padding: 30px; /* Added padding for better appearance */
 }
 
-/* --- NEW: Themed primary button for "Back to Home" --- */
-.btn-primary-themed {
-    background: linear-gradient(45deg, var(--primary), var(--primary-hover));
-    border: none;
-    color: #ffffff;
-    padding: 12px 24px;
-    border-radius: 25px;
-    font-weight: 600;
-    text-decoration: none;
-    transition: all 0.3s ease;
-    display: inline-flex;
-    align-items: center;
-}
-.btn-primary-themed:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px var(--glow);
-    color: #ffffff;
-}
-
-/* Mobile Responsive Adjustments */
+/* Mobile Responsive */
 @media (max-width: 768px) {
-    .section-title {
-        font-size: 1.8rem; /* Adjusted for mobile */
-        padding: 15px 20px;
-    }
     .pagination-list {
         gap: 4px;
     }
     
     .page-link {
-        min-width: 42px;
-        height: 42px;
-        padding: 8px 14px;
+        min-width: 40px;
+        height: 40px;
+        padding: 6px 12px;
         font-size: 0.9rem;
     }
     
     .page-link.prev-next {
-        padding: 8px 18px;
+        padding: 6px 16px;
+    }
+    
+    .results-info {
+        text-align: center;
+    }
+    
+    .no-results {
+        padding: 20px; /* Adjust padding for smaller screens */
+    }
+    
+    .no-results .btn { /* Style for the "Back to Home" button */
+        font-size: 0.9rem;
+        padding: 8px 15px;
+    }
+}
+
+/* Animation for page transitions */
+.latest-updates-grid {
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }
 </style>
