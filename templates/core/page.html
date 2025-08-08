@@ -2,14 +2,14 @@
 {% load static %} {# If you need to use static files like CSS/JS/images specific to this page #}
 
 {% block title %}
-    {{ page.title|default:"Page Title" }} {# Assumes you pass a 'page' object with a 'title' attribute #}
-{% end block title %}
+    {{ page.title|default:"Page Title" }} - Nzdworld
+{% endblock title %}
 
 {% block content %}
 <div class="container my-5"> {# Using Bootstrap container for responsiveness and spacing #}
     <div class="row justify-content-center">
         <div class="col-lg-8 col-md-10">
-            <h1 class="text-center mb-4">{{ page.title|default:"Welcome to Our Page" }}</h1>
+            <h1 class="page-main-title text-center mb-4">{{ page.title|default:"Welcome to Our Page" }}</h1>
 
             <div class="page-content">
                 {# This is where the main content of your page will go #}
@@ -22,12 +22,9 @@
                         This is a placeholder page. The content for this page is yet to be added.
                         Please check back later!
                     </p>
-                    <p>You can define the actual content for this page in your Django admin or view.</p>
+                    <p class="text-center">You can define the actual content for this page in your Django admin or view.</p>
                 {% endif %}
             </div>
-
-            {# You can add more sections here if needed, e.g., a contact form or additional info #}
-
         </div>
     </div>
 </div>
@@ -46,33 +43,58 @@
 {% block extra_css %}
 {# Add any page-specific CSS here if necessary #}
 <style>
-    /* Basic styling for the page content, feel free to customize */
+    /* --- NEW: Custom styles adapted for the Dark/Teal Theme --- */
+
+    .page-main-title {
+        color: var(--primary); /* Main title in accent color */
+        font-weight: 700;
+        text-shadow: 0 0 15px var(--glow);
+    }
+    
     .page-content {
-        background-color: var(--lighter-bg); /* Use your theme's background */
-        padding: 2rem;
-        border-radius: 12px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.05); /* Subtle shadow */
+        /* --- NEW: Dark, glassy background --- */
+        background: rgba(39, 52, 77, 0.4); /* --card-bg with transparency */
+        backdrop-filter: blur(5px);
+        padding: 2.5rem;
+        border-radius: 15px;
+        box-shadow: 0 5px 20px var(--shadow);
+        border: 1px solid var(--border-color);
         line-height: 1.8;
-        color: var(--text);
+        color: var(--text); /* Automatically uses light text */
     }
 
-    .page-content h2, .page-content h3 {
-        color: var(--primary); /* Style headings within content */
-        margin-top: 1.5rem;
+    /* Style headings inside the rich text content */
+    .page-content h2, .page-content h3, .page-content h4 {
+        color: var(--primary); /* Teal headings */
+        margin-top: 2rem;
         margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid var(--border-color);
+        font-weight: 600;
     }
 
     .page-content p {
-        margin-bottom: 1rem;
+        margin-bottom: 1.2rem;
     }
 
     .page-content ul, .page-content ol {
-        margin-bottom: 1rem;
+        margin-bottom: 1.2rem;
         padding-left: 1.5rem;
     }
 
     .page-content li {
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.6rem;
+    }
+
+    .page-content a {
+        color: var(--primary-hover); /* Make links stand out a bit more */
+        text-decoration: underline;
+        text-decoration-thickness: 1px;
+        text-underline-offset: 3px;
+    }
+    
+    .page-content a:hover {
+        color: var(--primary);
     }
 
     /* Responsive images within the content */
@@ -80,9 +102,9 @@
         max-width: 100%;
         height: auto;
         display: block;
-        margin: 1.5rem auto; /* Center images and add vertical space */
+        margin: 2rem auto; /* Center images and add vertical space */
         border-radius: 8px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 20px var(--shadow); /* Stronger shadow for dark theme */
     }
 
     /* Responsive iframes (e.g., for embedded videos) */
@@ -93,8 +115,9 @@
         overflow: hidden;
         max-width: 100%;
         background: #000; /* Fallback background for video area */
-        margin: 1.5rem 0;
+        margin: 2rem 0;
         border-radius: 8px;
+        border: 1px solid var(--border-color);
     }
 
     .page-content .responsive-iframe-container iframe,
@@ -112,8 +135,8 @@
         .page-content {
             padding: 1.5rem;
         }
-        .page-content h1 {
-            font-size: 2rem;
+        .page-main-title {
+            font-size: 2.2rem;
         }
     }
 </style>

@@ -1,55 +1,42 @@
 <style>
-/* Ensure these variables are defined in your core/base.html or a global CSS file for consistency */
-/*
-:root {
-    --background: #f0f2f5; // Very light background
-    --light-bg: #ffffff; // Pure white for cards/elements
-    --lighter-bg: #fdfefe; // Even lighter, almost white
-    --text: #1a1a1a; // Dark text
-    --text-muted: #555555; // Muted dark text
-    --text-dim: #777777; // Even dimmer dark text
-    --border-color: #e0e0e0; // Light border
-    --shadow: rgba(0,0,0,0.1); // Subtle dark shadow
-    --shadow-sm: rgba(0,0,0,0.05); // Even subtler dark shadow
-    --primary: #e50914; // Netflix red
-    --primary-hover: #ff1744; // Brighter red on hover
-    --primary-light: #ff6b6b; // Lighter red
-    --primary-alpha: rgba(229, 9, 20, 0.1); // Transparent red
-    --glow: rgba(229, 9, 20, 0.3); // Red glow for shadows
-}
+/* This component assumes the dark/teal theme :root variables 
+  are defined in your base.html and are available globally.
 */
 
 .netflix-footer {
-    background: var(--light-bg); /* Changed to light background */
-    color: var(--text); /* Changed to dark text */
+    /* --- NEW: Dark, solid background for a grounded feel --- */
+    background: var(--darker-bg);
+    color: var(--text);
     padding: 4rem 0 1rem;
     margin-top: 5rem;
     position: relative;
     overflow: hidden;
-    border-top: 4px solid var(--primary); /* Keep Netflix red */
-    box-shadow: 0 -5px 20px var(--shadow-sm); /* Subtle shadow at the top */
+    /* --- UPDATED: Teal top border --- */
+    border-top: 4px solid var(--primary);
+    box-shadow: 0 -5px 20px var(--shadow);
+}
+
+.netflix-footer::before,
+.netflix-footer::after {
+    content: '';
+    position: absolute;
+    border-radius: 50%;
+    /* --- NEW: Teal radial glows --- */
+    background: radial-gradient(circle, rgba(0, 128, 128, 0.1) 0%, transparent 70%);
 }
 
 .netflix-footer::before {
-    content: '';
-    position: absolute;
     top: -50px;
     right: -50px;
     width: 200px;
     height: 200px;
-    background: radial-gradient(circle, var(--primary-alpha) 0%, transparent 70%); /* Uses alpha red */
-    border-radius: 50%;
 }
 
 .netflix-footer::after {
-    content: '';
-    position: absolute;
     bottom: -30px;
     left: -30px;
     width: 150px;
     height: 150px;
-    background: radial-gradient(circle, rgba(229, 9, 20, 0.03) 0%, transparent 70%); /* Even lighter alpha red */
-    border-radius: 50%;
 }
 
 .footer-brand {
@@ -62,30 +49,27 @@
 .footer-logo {
     width: 50px;
     height: 50px;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%); /* Keep red gradient */
+    /* --- UPDATED: Teal gradient --- */
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
     border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 1.5rem;
     font-weight: bold;
-    color: white; /* Keep white on red logo */
-    text-shadow: 0 1px 2px rgba(0,0,0,0.1); /* Lighter text shadow */
+    color: white;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
 
 .brand-text {
     font-size: 1.8rem;
     font-weight: 700;
-    /* Temporarily removed text gradient effect to make it visible */
-    /* background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%); */
-    /* -webkit-background-clip: text; */
-    /* -webkit-text-fill-color: transparent; */
-    /* background-clip: text; */
-    color: var(--primary); /* FOR TESTING: Force to Netflix red */
+    /* --- UPDATED: Teal color --- */
+    color: var(--primary);
 }
 
 .footer-section h5 {
-    color: var(--text); /* Changed to dark text */
+    color: var(--text);
     font-size: 1.3rem;
     font-weight: 600;
     margin-bottom: 1.5rem;
@@ -100,12 +84,14 @@
     left: 0;
     width: 30px;
     height: 2px;
-    background: linear-gradient(90deg, var(--primary) 0%, var(--primary-light) 100%); /* Keep red gradient */
+    /* --- UPDATED: Teal gradient underline --- */
+    background: linear-gradient(90deg, var(--primary) 0%, var(--primary-hover) 100%);
     border-radius: 1px;
 }
 
 .footer-description {
-    color: var(--text-muted); /* Changed to muted dark text */
+    /* --- UPDATED: Uses light muted text --- */
+    color: var(--text-muted);
     font-size: 0.95rem;
     line-height: 1.6;
     margin-bottom: 1.5rem;
@@ -122,7 +108,8 @@
 }
 
 .footer-links a {
-    color: var(--text-dim); /* Changed to dimmer dark text */
+    /* --- UPDATED: Uses light dimmed text --- */
+    color: var(--text-dim);
     text-decoration: none;
     font-size: 0.95rem;
     transition: all 0.3s ease;
@@ -132,7 +119,8 @@
 }
 
 .footer-links a:hover {
-    color: var(--primary); /* Keep Netflix red on hover */
+    /* --- UPDATED: Teal hover color --- */
+    color: var(--primary);
     transform: translateX(5px);
 }
 
@@ -156,33 +144,35 @@
 .social-link {
     width: 45px;
     height: 45px;
-    background: var(--light-bg); /* Changed to light background */
-    border: 2px solid var(--border-color); /* Changed to light border */
+    /* --- NEW: Dark, glassy social buttons --- */
+    background: var(--card-bg);
+    border: 2px solid var(--border-color);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--text-dim); /* Changed to dimmer dark text */
+    color: var(--text-dim);
     text-decoration: none;
     font-size: 1.2rem;
     transition: all 0.3s ease;
-    box-shadow: 0 2px 8px var(--shadow-sm); /* Subtle shadow for buttons */
 }
 
 .social-link:hover {
-    background: var(--primary); /* Keep red on hover */
-    border-color: var(--primary); /* Keep red border on hover */
-    color: white; /* Keep white text on red hover */
+    /* --- UPDATED: Teal hover state --- */
+    background: var(--primary);
+    border-color: var(--primary);
+    color: white;
     transform: translateY(-3px);
-    box-shadow: 0 5px 15px var(--glow); /* Red glow for shadow */
+    box-shadow: 0 5px 15px var(--glow);
 }
 
 .telegram-btn {
-    background: linear-gradient(135deg, #0088cc 0%, #00aaff 100%); /* Keep blue gradient */
+    /* NOTE: This button's blue gradient is intentionally preserved for brand identity. */
+    background: linear-gradient(135deg, #0088cc 0%, #00aaff 100%);
     border: none;
     padding: 12px 24px;
     border-radius: 25px;
-    color: white; /* Keep white text */
+    color: white;
     font-weight: 600;
     text-decoration: none;
     display: inline-flex;
@@ -191,12 +181,12 @@
     font-size: 0.95rem;
     transition: all 0.3s ease;
     margin-bottom: 1rem;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1); /* Subtle shadow */
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
 
 .telegram-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(0, 136, 204, 0.4); /* Blue glow */
+    box-shadow: 0 8px 25px rgba(0, 136, 204, 0.4);
     color: white;
 }
 
@@ -210,22 +200,23 @@
 .stat-item {
     text-align: center;
     padding: 1rem;
-    background: var(--lighter-bg); /* Changed to lighter background */
+    /* --- NEW: Dark, glassy stats cards --- */
+    background: var(--card-bg);
     border-radius: 8px;
-    border: 1px solid var(--border-color); /* Changed to light border */
-    box-shadow: 0 2px 8px var(--shadow-sm); /* Subtle shadow */
+    border: 1px solid var(--border-color);
 }
 
 .stat-number {
     font-size: 1.5rem;
     font-weight: 700;
-    color: var(--primary); /* Keep Netflix red */
+    /* --- UPDATED: Teal stat number --- */
+    color: var(--primary);
     display: block;
 }
 
 .stat-label {
     font-size: 0.8rem;
-    color: var(--text-muted); /* Changed to muted dark text */
+    color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -233,13 +224,14 @@
 .footer-divider {
     border: none;
     height: 1px;
-    background: linear-gradient(90deg, transparent, var(--border-color), transparent); /* Lighter divider */
+    /* --- UPDATED: Uses dark theme border color --- */
+    background: linear-gradient(90deg, transparent, var(--border-color), transparent);
     margin: 3rem 0 2rem;
 }
 
 .copyright-section {
     text-align: center;
-    color: var(--text-muted); /* Changed to muted dark text */
+    color: var(--text-muted);
     font-size: 0.9rem;
     position: relative;
     z-index: 2;
@@ -252,110 +244,69 @@
 
 .disclaimer {
     font-size: 0.8rem;
-    color: var(--text-dim); /* Changed to dimmer dark text */
+    color: var(--text-dim);
     font-style: italic;
 }
 
 .footer-newsletter {
-    background: var(--primary-alpha); /* Keep light red alpha background */
+    /* --- NEW: Teal alpha background --- */
+    background: rgba(0, 128, 128, 0.1);
     padding: 1.5rem;
     border-radius: 12px;
-    border: 1px solid rgba(229, 9, 20, 0.1); /* Lighter red border */
+    border: 1px solid rgba(0, 128, 128, 0.2);
     margin-bottom: 1.5rem;
-    box-shadow: 0 4px 15px var(--shadow-sm); /* Subtle shadow */
 }
 
 .newsletter-input {
-    background: var(--lighter-bg); /* Changed to lighter background */
-    border: 2px solid var(--border-color); /* Changed to light border */
+    /* --- NEW: Dark input field --- */
+    background: var(--dark-bg);
+    border: 2px solid var(--border-color);
     border-radius: 25px;
     padding: 10px 20px;
-    color: var(--text); /* Changed to dark text */
+    color: var(--text);
     width: 100%;
     margin-bottom: 10px;
-    box-shadow: inset 0 1px 3px var(--shadow-sm); /* Subtle inner shadow */
 }
 
 .newsletter-input:focus {
     outline: none;
-    border-color: var(--primary); /* Keep red border on focus */
-    background: var(--light-bg); /* Slightly lighter on focus */
+    border-color: var(--primary); /* Teal focus border */
+    background: var(--darker-bg);
 }
 
 .newsletter-btn {
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%); /* Keep red gradient */
+    /* --- UPDATED: Teal gradient button --- */
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
     border: none;
     padding: 10px 20px;
     border-radius: 20px;
-    color: white; /* Keep white text */
+    color: white;
     font-weight: 600;
     width: 100%;
     cursor: pointer;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 12px var(--glow-sm); /* Subtle red glow shadow */
 }
 
 .newsletter-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 5px 15px var(--glow); /* More pronounced red glow */
+    box-shadow: 0 5px 15px var(--glow); /* Teal glow */
 }
 
-/* Mobile Responsive */
+/* --- Mobile Responsive (Unchanged) --- */
 @media (max-width: 768px) {
-    .netflix-footer {
-        padding: 3rem 0 1rem;
-        margin-top: 3rem;
-    }
-
-    .footer-brand {
-        justify-content: center;
-        text-align: center;
-        flex-direction: column;
-        gap: 10px;
-    }
-
-    .brand-text {
-        font-size: 1.5rem;
-    }
-
-    .footer-section h5::after {
-        left: 50%;
-        transform: translateX(-50%);
-    }
-
-    .social-links {
-        justify-content: center;
-    }
-
-    .stats-grid {
-        grid-template-columns: 1fr;
-    }
+    .netflix-footer { padding: 3rem 0 1rem; margin-top: 3rem; }
+    .footer-brand { justify-content: center; text-align: center; flex-direction: column; gap: 10px; }
+    .brand-text { font-size: 1.5rem; }
+    .footer-section h5::after { left: 50%; transform: translateX(-50%); }
+    .social-links { justify-content: center; }
+    .stats-grid { grid-template-columns: 1fr; }
 }
-
 @media (max-width: 480px) {
-    .footer-logo {
-        width: 40px;
-        height: 40px;
-        font-size: 1.2rem;
-    }
-
-    .brand-text {
-        font-size: 1.3rem;
-    }
-
-    .footer-section h5 {
-        font-size: 1.1rem;
-    }
-
-    .social-links {
-        gap: 10px;
-    }
-
-    .social-link {
-        width: 40px;
-        height: 40px;
-        font-size: 1rem;
-    }
+    .footer-logo { width: 40px; height: 40px; font-size: 1.2rem; }
+    .brand-text { font-size: 1.3rem; }
+    .footer-section h5 { font-size: 1.1rem; }
+    .social-links { gap: 10px; }
+    .social-link { width: 40px; height: 40px; font-size: 1rem; }
 }
 </style>
 
@@ -372,7 +323,6 @@
                         🎬 Your premier destination for movies, TV series, and entertainment news. 
                         Experience unlimited streaming with no login required - enjoy anonymous Browse and discover your next favorite show!
                     </p>
-                    
                     <div class="stats-grid">
                         <div class="stat-item">
                             <span class="stat-number">10K+</span>
@@ -385,7 +335,6 @@
                     </div>
                 </div>
             </div>
-            
             <div class="col-lg-2 col-md-6 mb-4">
                 <div class="footer-section">
                     <h5>🔗 Quick Links</h5>
@@ -398,7 +347,6 @@
                     </ul>
                 </div>
             </div>
-            
             <div class="col-lg-2 col-md-6 mb-4">
                 <div class="footer-section">
                     <h5>⚖️ Legal</h5>
@@ -411,49 +359,35 @@
                     </ul>
                 </div>
             </div>
-            
             <div class="col-lg-4 col-md-6 mb-4">
                 <div class="footer-section">
                     <h5>🌟 Join Our Community</h5>
-                    
                     <div class="social-links">
-                        <a href="#" class="social-link" title="Facebook">
-                            <i class="bi bi-facebook"></i>
-                        </a>
-                        <a href="#" class="social-link" title="Twitter">
-                            <i class="bi bi-twitter"></i>
-                        </a>
-                        <a href="#" class="social-link" title="Instagram">
-                            <i class="bi bi-instagram"></i>
-                        </a>
-                        <a href="#" class="social-link" title="YouTube">
-                            <i class="bi bi-youtube"></i>
-                        </a>
+                        <a href="#" class="social-link" title="Facebook"><i class="bi bi-facebook"></i></a>
+                        <a href="#" class="social-link" title="Twitter"><i class="bi bi-twitter"></i></a>
+                        <a href="#" class="social-link" title="Instagram"><i class="bi bi-instagram"></i></a>
+                        <a href="#" class="social-link" title="YouTube"><i class="bi bi-youtube"></i></a>
                     </div>
-                    
                     <a href="https://t.me/nzdworld" class="telegram-btn">
                         <i class="bi bi-telegram"></i>
                         Join Telegram Channel
                     </a>
-                    
                     <div class="footer-newsletter">
-                        <h6 style="color: var(--primary); margin-bottom: 1rem; font-weight: 600;">📧 Stay Updated</h6> {# Using var(--primary) #}
+                        <h6 style="color: var(--primary); margin-bottom: 1rem; font-weight: 600;">📧 Stay Updated</h6>
                         <input type="email" class="newsletter-input" placeholder="Enter your email">
                         <button class="newsletter-btn">Subscribe to Updates</button>
-                        <small style="color: var(--text-dim); font-size: 0.8rem; display: block; margin-top: 0.5rem;"> {# Using var(--text-dim) #}
+                        <small style="color: var(--text-dim); font-size: 0.8rem; display: block; margin-top: 0.5rem;">
                             Get instant notifications for new releases!
                         </small>
                     </div>
                 </div>
             </div>
         </div>
-        
         <hr class="footer-divider">
-        
         <div class="copyright-section">
             <div class="copyright-main">
                 &copy; {% now "Y" %} <strong>Nzdworld</strong> - All rights reserved. 
-                Made with ❤️ for movie lovers worldwide
+                Made with ❤️ for movie lovers worldwide. You can get stunning website templates from my site.
             </div>
             <div class="disclaimer">
                 ⚠️ Disclaimer: We do not host any files on our servers. All content is embedded from third-party sources.
@@ -471,14 +405,14 @@ document.addEventListener('DOMContentLoaded', function() {
         newsletterBtn.addEventListener('click', function() {
             const email = newsletterInput.value.trim();
             if (email && email.includes('@')) {
-                // Add your newsletter signup logic here
+                // This logic is theme-agnostic and remains the same.
                 this.innerHTML = '✅ Subscribed!';
-                this.style.background = '#28a745'; // Green for success
+                this.style.background = '#28a745'; // Green for success is universal.
                 newsletterInput.value = '';
                 
                 setTimeout(() => {
                     this.innerHTML = 'Subscribe to Updates';
-                    // Reset background to original gradient defined in CSS
+                    // The CSS variables will correctly restore the teal gradient.
                     this.style.background = 'linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%)'; 
                 }, 3000);
             } else {
@@ -494,7 +428,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Smooth scroll for internal links
+    // Smooth scroll for internal links, also theme-agnostic.
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
         anchor.addEventListener('click', function (e) {
             e.preventDefault();
