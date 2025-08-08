@@ -270,12 +270,9 @@
         }
 
         .latest-updates-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 20px;
-            padding: 10px 0;
-        }
-
+    grid-template-columns: repeat(2, 1fr); /* This line forces two columns */
+    gap: 15px;
+}
         .sidebar-section {
             /* --- NEW --- */
             background: var(--card-bg);
