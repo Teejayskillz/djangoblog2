@@ -19,7 +19,15 @@
     <meta property="og:image" content="{{ thumbnail_absolute_url }}">
     <meta property="og:image:url" content="{{ thumbnail_absolute_url }}">
     <meta property="og:image:secure_url" content="{{ thumbnail_absolute_url }}">
-    
+    <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-8W2ZWQYVMQ"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-8W2ZWQYVMQ');
+</script>
     {% if post.thumbnail %}
         <meta property="og:image:width" content="1200">
         <meta property="og:image:height" content="630">
