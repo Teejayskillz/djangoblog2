@@ -306,7 +306,7 @@ def PageView(request, slug):
     context = {
         'page': page
     }
-    return render(request, 'core/page.html', {'slug': slug})   
+    return render(request, 'core/page.html', context)   
 
 class MediaListView(ListView):
     model = Media
