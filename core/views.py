@@ -1,6 +1,6 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views.generic import ListView, DetailView
-from .models import Post, Category, Comment, HomepageSection, DownloadQuality, Subtitle, Media
+from .models import Post, Category, Comment, HomepageSection, DownloadQuality, Subtitle, Media, Page
 from .forms import CommentForm
 from django.db.models import Q
 from django.core.paginator import Paginator
