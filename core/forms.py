@@ -11,3 +11,7 @@ class CommentForm(forms.ModelForm):
                 'placeholder': 'Write your comment here...'
             }),
         }
+
+
+class PasswordForm(forms.Form):
+    password = forms.CharField(label="Enter Password", widget=forms.PasswordInput)        

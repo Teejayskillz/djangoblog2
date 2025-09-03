@@ -1,7 +1,7 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views.generic import ListView, DetailView
 from .models import Post, Category, Comment, HomepageSection, DownloadQuality, Subtitle, Media, Page
-from .forms import CommentForm
+from .forms import CommentForm, PasswordForm
 from django.db.models import Q
 from django.core.paginator import Paginator
 from django.http import HttpResponseRedirect
@@ -115,12 +115,49 @@ class CategoryView(ListView):
         return context
 
 
-
 class PostDetailView(DetailView):
     model = Post
     template_name = 'core/post_detail.html'
     context_object_name = 'post'
-    
+
+    def dispatch(self, request, *args, **kwargs):
+        self.object = self.get_object()  # Get the post object before anything else
+
+        if self.object.is_protected:
+            session_key = f'post_{self.object.slug}_access'
+            # If a password has not been entered for this post
+            if not request.session.get(session_key):
+                # Handle POST request for password submission
+                if request.method == 'POST':
+                    form = PasswordForm(request.POST)
+                    if form.is_valid():
+                        if self.object.check_password(form.cleaned_data['password']):
+                            request.session[session_key] = True # Grant access for this session
+                            return super().dispatch(request, *args, **kwargs) # Continue to original view
+                        else:
+                            # Incorrect password
+                            return render(request, 'core/password_form.html', {
+                                'form': form,
+                                'post': self.object,
+                                'error': 'Incorrect password.'
+                            })
+                    # Invalid form submission
+                    return render(request, 'core/password_form.html', {
+                        'form': form,
+                        'post': self.object,
+                        'error': 'Invalid form submission.'
+                    })
+                
+                # For GET request, show the password form
+                form = PasswordForm()
+                return render(request, 'core/password_form.html', {
+                    'form': form,
+                    'post': self.object
+                })
+
+        # If not protected or password is in session, continue as normal
+        return super().dispatch(request, *args, **kwargs)
+
     def get_object(self, queryset=None):
         """
         Handles both URL patterns:
@@ -145,18 +182,14 @@ class PostDetailView(DetailView):
 
         # --- START: ADDED OG/Twitter Absolute URL Logic ---
         # Calculate absolute URL for the post
-        # post.get_absolute_url() returns a relative URL, e.g., /hollywood-movie/tornado-2025/
         post_absolute_url = self.request.build_absolute_uri(post.get_absolute_url())
         context['post_absolute_url'] = post_absolute_url
 
         # Calculate absolute URL for the thumbnail
         if post.thumbnail:
-            # post.thumbnail.url returns a relative URL, e.g., /media/thumbnails/my_image.jpg
             thumbnail_absolute_url = self.request.build_absolute_uri(post.thumbnail.url)
             context['thumbnail_absolute_url'] = thumbnail_absolute_url
         else:
-            # Construct the absolute URL for the default static image
-            # Assumes your STATIC_URL leads to a publicly accessible directory
             default_image_relative_url = settings.STATIC_URL + 'images/default_poster.jpg'
             context['thumbnail_absolute_url'] = self.request.build_absolute_uri(default_image_relative_url)
         # --- END: ADDED OG/Twitter Absolute URL Logic ---
@@ -209,6 +242,7 @@ class PostDetailView(DetailView):
         context = self.get_context_data()
         context['comment_form'] = form
         return self.render_to_response(context)
+
 def search(request):
     query = request.GET.get('q')
     results = Post.objects.filter(

@@ -13,6 +13,7 @@ from django.conf import settings
 from django.core.files.base import ContentFile
 from PIL import Image
 from io import BytesIO
+from django.contrib.auth.hashers import make_password, check_password
 
 class Category(models.Model):
     name = models.CharField(max_length=100, unique=True)
@@ -49,10 +50,10 @@ class Post(models.Model):
         blank=True,
         help_text="A brief summary of the post, used for previews (e.g., on index pages, social media, Telegram)."
     )
-
-    # ADD THIS LINE FOR THE VIEWS COUNT
+    is_password_protected = models.BooleanField(default=False, help_text="Check if this post is password protected")
+   
+    password = models.CharField(max_length=200, blank=True, null=True, help_text="Optional password for protected posts")
     views = models.IntegerField(default=0) # Added this line for tracking views
-    # END ADDITION
 
     enable_downloads = models.BooleanField(
         default=True,
@@ -81,6 +82,14 @@ class Post(models.Model):
     tags = TaggableManager()  # Tags using django-taggit
     published_date = models.DateTimeField(auto_now_add=True)
     is_published = models.BooleanField(default=True)
+
+    def set_password(self, raw_password):
+        self.password = make_password(raw_password)
+        self.save(update_fields=['password'])
+
+    def check_password(self, raw_password):
+        return check_password(raw_password, self.password)
+        
 
 
     def get_absolute_url(self):
