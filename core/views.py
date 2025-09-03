@@ -123,7 +123,7 @@ class PostDetailView(DetailView):
     def dispatch(self, request, *args, **kwargs):
         self.object = self.get_object()  # Get the post object before anything else
 
-        if self.object.is_protected:
+        if self.object.is_password_protected:
             session_key = f'post_{self.object.slug}_access'
             # If a password has not been entered for this post
             if not request.session.get(session_key):
