@@ -54,6 +54,7 @@ class PostAdmin(admin.ModelAdmin):
         'get_has_downloads',
         'get_thumbnail_preview',
         'get_total_downloads'
+        'is_password_protected'
     )
     list_filter = (
         'category',
