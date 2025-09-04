@@ -88,7 +88,9 @@ class PostAdmin(admin.ModelAdmin):
                 'author',
                 'category',
                 'tags',
-                'is_published'
+                'is_published',
+                'is_password_protected',
+                'password'
             )
         }),
         ('Download Settings', {
