@@ -279,14 +279,7 @@ class MediaAdmin(admin.ModelAdmin):
         }),
     )
 
-# blog/admin.py
-from django.contrib import admin, messages
-from django.shortcuts import redirect, render
-from django.urls import path
-from io import TextIOWrapper
-import csv
-from .models import Subscriber
-
+    
 @admin.register(Subscriber)
 class SubscriberAdmin(admin.ModelAdmin):
     list_display = ('email', 'created_at')
@@ -299,11 +292,15 @@ class SubscriberAdmin(admin.ModelAdmin):
         ]
         return custom_urls + urls
 
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        extra_context['show_import_link'] = True
+        return super().changelist_view(request, extra_context=extra_context)
+
     def import_view(self, request):
         if request.method == 'POST':
-            # Check if a file was uploaded
             if 'csv_file' not in request.FILES:
-                messages.error(request, 'No file was uploaded. Please select a file to import.')
+                messages.error(request, 'No file was uploaded.')
                 return redirect('admin:blog_subscriber_changelist')
 
             csv_file = TextIOWrapper(request.FILES['csv_file'].file, encoding='utf-8')
@@ -311,15 +308,11 @@ class SubscriberAdmin(admin.ModelAdmin):
             imported_count = 0
             skipped_count = 0
 
-            # Skip the header row if one exists
-            next(reader, None)
-
             for row in reader:
                 if len(row) > 0:
                     email = row[0].strip()
                     if email:
                         try:
-                            # Use get_or_create to prevent duplicates
                             Subscriber.objects.get_or_create(email=email)
                             imported_count += 1
                         except Exception as e:
@@ -335,10 +328,4 @@ class SubscriberAdmin(admin.ModelAdmin):
             'opts': self.model._meta,
             'has_view_permission': self.has_view_permission(request),
         }
-        
         return render(request, 'admin/import_subscribers.html', context)
-
-    def changelist_view(self, request, extra_context=None):
-        extra_context = extra_context or {}
-        extra_context['show_import_link'] = True
-        return super().changelist_view(request, extra_context=extra_context)
