@@ -21,7 +21,8 @@ from django.conf.urls.static import static
 from django.views.static import serve
 from core.sitemaps import PostSitemap, CategorySitemap, TagSitemap, StaticViewSitemap
 from django.contrib.sitemaps.views import sitemap
-from core.views import robots_txt
+from core.views import robots_txt ,  import_subscribers_view
+
 
 sitemaps = {
     'blog': PostSitemap, 
@@ -33,6 +34,7 @@ sitemaps = {
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('admin/import-subscribers/', import_subscribers_view, name='import_subscribers'),
     path('media/<path:path>', serve, {'document_root': settings.MEDIA_ROOT}),
     path('ckeditor5/', include('django_ckeditor_5.urls')),
     path('robots.txt', robots_txt),

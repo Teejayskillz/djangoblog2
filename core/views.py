@@ -10,6 +10,11 @@ from taggit.models import Tag
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db.models import Q
 from django.conf import settings
+from django.contrib.auth.decorators import user_passes_test
+from django.contrib import messages
+from io import TextIOWrapper
+import csv
+from .models import Subscriber
 
 
 def wordpress_redirect_view(request, year, month, day, slug):
@@ -353,3 +358,34 @@ class MediaDetailView(DetailView):
     template_name = 'media/media_detail.html' # Path to your template
     context_object_name = 'media_item' # The name of the variable that will contain the single media object
 
+
+def is_superuser(user):
+    return user.is_superuser
+
+@user_passes_test(is_superuser)
+def import_subscribers_view(request):
+    if request.method == 'POST':
+        if 'csv_file' not in request.FILES:
+            messages.error(request, 'No file was uploaded.')
+            return redirect('import_subscribers')
+
+        csv_file = TextIOWrapper(request.FILES['csv_file'].file, encoding='utf-8')
+        reader = csv.reader(csv_file)
+        imported_count = 0
+        skipped_count = 0
+
+        for row in reader:
+            if len(row) > 0:
+                email = row[0].strip()
+                if email:
+                    try:
+                        Subscriber.objects.get_or_create(email=email)
+                        imported_count += 1
+                    except Exception as e:
+                        messages.error(request, f'Could not import {email}: {e}')
+                        skipped_count += 1
+        
+        messages.success(request, f'Successfully imported {imported_count} subscribers. Skipped {skipped_count} invalid emails.')
+        return redirect('import_subscribers')
+
+    return render(request, 'core/import_subscribers.html')
