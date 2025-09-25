@@ -5,10 +5,11 @@ from django.utils.html import format_html
 from django import forms
 from django.urls import path
 from django.shortcuts import render, redirect
-from django.contrib import messages
+from django.contrib import messages, admin
 import os
+import csv
 from django_ckeditor_5.widgets import CKEditor5Widget
-from .models import Post, Category, Comment, HomepageSection, DownloadQuality, Subtitle, Page, Media 
+from .models import Post, Subscriber,Category, Comment, HomepageSection, DownloadQuality, Subtitle, Page, Media 
 
 # WordPress Import Form and Functionality
 class ImportForm(forms.Form):
@@ -280,37 +281,16 @@ class MediaAdmin(admin.ModelAdmin):
 
 # blog/admin.py
 from django.contrib import admin, messages
-from .models import Subscriber
+from django.shortcuts import redirect, render
+from django.urls import path
 from io import TextIOWrapper
 import csv
+from .models import Subscriber
 
-@admin.action(description='Import subscribers from a CSV file')
-def import_subscribers(modeladmin, request, queryset):
-    if request.method == 'POST' and request.FILES.get('csv_file'):
-        csv_file = TextIOWrapper(request.FILES['csv_file'].file, encoding='utf-8')
-        reader = csv.reader(csv_file)
-        imported_count = 0
-        skipped_count = 0
-        for row in reader:
-            email = row[0].strip()
-            if email:
-                try:
-                    Subscriber.objects.get_or_create(email=email)
-                    imported_count += 1
-                except Exception as e:
-                    messages.error(request, f'Could not import {email}: {e}')
-                    skipped_count += 1
-
-        messages.success(request, f'Successfully imported {imported_count} subscribers. Skipped {skipped_count} invalid emails.')
-    return
-
-# Optional: Display a form in the admin page for the file upload
-from django.urls import path
-from django.shortcuts import render
-
+@admin.register(Subscriber)
 class SubscriberAdmin(admin.ModelAdmin):
     list_display = ('email', 'created_at')
-    actions = [import_subscribers]
+    search_fields = ['email']
 
     def get_urls(self):
         urls = super().get_urls()
@@ -321,8 +301,33 @@ class SubscriberAdmin(admin.ModelAdmin):
 
     def import_view(self, request):
         if request.method == 'POST':
-            # Re-use the existing action logic
-            return import_subscribers(self, request, Subscriber.objects.none())
+            # Check if a file was uploaded
+            if 'csv_file' not in request.FILES:
+                messages.error(request, 'No file was uploaded. Please select a file to import.')
+                return redirect('admin:blog_subscriber_changelist')
+
+            csv_file = TextIOWrapper(request.FILES['csv_file'].file, encoding='utf-8')
+            reader = csv.reader(csv_file)
+            imported_count = 0
+            skipped_count = 0
+
+            # Skip the header row if one exists
+            next(reader, None)
+
+            for row in reader:
+                if len(row) > 0:
+                    email = row[0].strip()
+                    if email:
+                        try:
+                            # Use get_or_create to prevent duplicates
+                            Subscriber.objects.get_or_create(email=email)
+                            imported_count += 1
+                        except Exception as e:
+                            messages.error(request, f'Could not import {email}: {e}')
+                            skipped_count += 1
+            
+            messages.success(request, f'Successfully imported {imported_count} subscribers. Skipped {skipped_count} invalid emails.')
+            return redirect('admin:blog_subscriber_changelist')
 
         context = {
             'title': 'Import Subscribers',
@@ -330,6 +335,10 @@ class SubscriberAdmin(admin.ModelAdmin):
             'opts': self.model._meta,
             'has_view_permission': self.has_view_permission(request),
         }
+        
         return render(request, 'admin/import_subscribers.html', context)
 
-admin.site.register(Subscriber, SubscriberAdmin)
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        extra_context['show_import_link'] = True
+        return super().changelist_view(request, extra_context=extra_context)

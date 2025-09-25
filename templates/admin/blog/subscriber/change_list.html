@@ -1,0 +1,13 @@
+{% extends "admin/change_list.html" %}
+{% load i18n admin_urls static %}
+
+{% block object-tools %}
+  {{ block.super }}
+  {% if show_import_link %}
+    <li class="import-link">
+      <a href="{% url 'admin:subscriber_import' %}">
+        Import Subscribers
+      </a>
+    </li>
+  {% endif %}
+{% endblock %}
