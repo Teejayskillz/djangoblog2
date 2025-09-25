@@ -319,3 +319,13 @@ CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
+
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'mail.nzdworld.com' # Replace with your email provider's SMTP server (e.g., smtp.mailgun.org, smtp.sendgrid.net)
+EMAIL_PORT = 465
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'update@nzdworld.com' 
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_PASS'), 
+DEFAULT_FROM_EMAIL = 'Nzdworld <update@nzdworld.com>' 
+SERVER_EMAIL = EMAIL_HOST_USER
