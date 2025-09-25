@@ -279,3 +279,11 @@ class MediaAdmin(admin.ModelAdmin):
         }),
     )
 
+
+
+@admin.register(Subscriber)
+class SubscriberAdmin(admin.ModelAdmin):
+    list_display = ('email', 'created_at')
+    search_fields = ['email']
+
+    # Your custom methods (get_urls, import_view, etc.) go here
