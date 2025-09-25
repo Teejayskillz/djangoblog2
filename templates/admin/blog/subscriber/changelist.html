@@ -1,10 +1,8 @@
 {% extends "admin/change_list.html" %}
 
 {% block object-tools %}
-    {% if show_import_link %}
-        <li class="addlink">
-            <a href="{% url 'admin:subscriber_import' %}">Import from CSV</a>
-        </li>
-    {% endif %}
+    <li class="addlink">
+        <a href="{% url 'admin:subscriber_import' %}">Import from CSV</a>
+    </li>
     {{ block.super }}
 {% endblock %}
