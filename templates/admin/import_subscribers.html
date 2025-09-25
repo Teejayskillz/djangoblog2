@@ -1,0 +1,13 @@
+{% extends 'admin/base_site.html' %}
+{% block content %}
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div>
+        <label for="id_csv_file">CSV file:</label>
+        <input type="file" name="csv_file" required id="id_csv_file">
+    </div>
+    <div class="submit-row">
+        <input type="submit" value="Import" class="default">
+    </div>
+</form>
+{% endblock %}

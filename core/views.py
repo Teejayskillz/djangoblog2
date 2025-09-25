@@ -352,3 +352,4 @@ class MediaDetailView(DetailView):
     model = Media
     template_name = 'media/media_detail.html' # Path to your template
     context_object_name = 'media_item' # The name of the variable that will contain the single media object
+

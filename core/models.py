@@ -335,4 +335,11 @@ class Media(models.Model):
                 super().save(update_fields=['thumbnail']) # Persist change
 
         # No need for a final super().save(*args, **kwargs) outside, as we either call it with update_fields
-        # or the initial super().save() was sufficient.
+        # or the initial super().save() was sufficient.\
+
+class Subscriber(models.Model):
+    email = models.EmailField(unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)        
+
+    def __str__(self):
+        return self.email 

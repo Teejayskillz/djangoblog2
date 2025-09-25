@@ -112,3 +112,11 @@ def auto_post_to_telegram(sender, instance, **kwargs):
             loop.run_until_complete(send_telegram_message_async())
     else:
         logger.info(f"Post '{instance.title}' not published, skipping Telegram post.")
+
+from .tasks import send_new_post_notification
+
+@receiver(post_save, sender=Post)
+def post_saved_handler(sender, instance, created, **kwargs):
+    if created:
+        # Trigger the Celery task only for newly created posts
+        send_new_post_notification.delay(instance.pk)

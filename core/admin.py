@@ -277,3 +277,59 @@ class MediaAdmin(admin.ModelAdmin):
             'fields': ('title', 'file', 'thumbnail_preview_detail', 'file_link_field', 'uploaded_at')
         }),
     )
+
+# blog/admin.py
+from django.contrib import admin, messages
+from .models import Subscriber
+from io import TextIOWrapper
+import csv
+
+@admin.action(description='Import subscribers from a CSV file')
+def import_subscribers(modeladmin, request, queryset):
+    if request.method == 'POST' and request.FILES.get('csv_file'):
+        csv_file = TextIOWrapper(request.FILES['csv_file'].file, encoding='utf-8')
+        reader = csv.reader(csv_file)
+        imported_count = 0
+        skipped_count = 0
+        for row in reader:
+            email = row[0].strip()
+            if email:
+                try:
+                    Subscriber.objects.get_or_create(email=email)
+                    imported_count += 1
+                except Exception as e:
+                    messages.error(request, f'Could not import {email}: {e}')
+                    skipped_count += 1
+
+        messages.success(request, f'Successfully imported {imported_count} subscribers. Skipped {skipped_count} invalid emails.')
+    return
+
+# Optional: Display a form in the admin page for the file upload
+from django.urls import path
+from django.shortcuts import render
+
+class SubscriberAdmin(admin.ModelAdmin):
+    list_display = ('email', 'created_at')
+    actions = [import_subscribers]
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path('import/', self.admin_site.admin_view(self.import_view), name='subscriber_import'),
+        ]
+        return custom_urls + urls
+
+    def import_view(self, request):
+        if request.method == 'POST':
+            # Re-use the existing action logic
+            return import_subscribers(self, request, Subscriber.objects.none())
+
+        context = {
+            'title': 'Import Subscribers',
+            'app_label': self.model._meta.app_label,
+            'opts': self.model._meta,
+            'has_view_permission': self.has_view_permission(request),
+        }
+        return render(request, 'admin/import_subscribers.html', context)
+
+admin.site.register(Subscriber, SubscriberAdmin)
