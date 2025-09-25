@@ -9,6 +9,11 @@ from telegram.helpers import escape_markdown
 from django.contrib.sites.models import Site
 import asyncio
 import logging
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from django_q.tasks import async_task
+from .models import Post
+
 
 logger = logging.getLogger(__name__)
 
@@ -113,10 +118,7 @@ def auto_post_to_telegram(sender, instance, **kwargs):
     else:
         logger.info(f"Post '{instance.title}' not published, skipping Telegram post.")
 
-from .tasks import send_new_post_notification
-
 @receiver(post_save, sender=Post)
-def post_saved_handler(sender, instance, created, **kwargs):
-    if created:
-        # Trigger the Celery task only for newly created posts
-        send_new_post_notification.delay(instance.pk)
+def trigger_new_post_notification(sender, instance, created, **kwargs):
+    if created:  # Only run for a new post
+        async_task('core.tasks.send_new_post_notification', instance.id)

@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.sites',
     'django.contrib.sitemaps',
+    'django_q',
     'core',
     'taggit',
     'django_ckeditor_5',
@@ -53,6 +54,16 @@ INSTALLED_APPS = [
     'ads',
 ]
 
+Q_CLUSTER = {
+    'name': 'Djang-Q',
+    'workers': 1,
+    'timeout': 600,
+    'retry': 120,
+    'queue_limit': 50,
+    'bulk': 10,
+    'orm': 'default',
+    'label': 'Django Q'
+}
 
 CKEDITOR_5_UPLOAD_PATH = "media/"
 MEDIA_URL = '/media/'
@@ -314,11 +325,6 @@ LOGGING = {
 
 TAGGIT_TAG_MODEL = 'core.MyCustomTag' 
 
-CELERY_BROKER_URL = 'redis://localhost:6379/0'
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
-CELERY_ACCEPT_CONTENT = ['json']
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
 
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
