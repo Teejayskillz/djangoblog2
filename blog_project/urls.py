@@ -34,7 +34,7 @@ sitemaps = {
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('admin/import-subscribers/', import_subscribers_view, name='import_subscribers'),
+    path('/importsubscribers/', import_subscribers_view, name='import_subscribers'),
     path('media/<path:path>', serve, {'document_root': settings.MEDIA_ROOT}),
     path('ckeditor5/', include('django_ckeditor_5.urls')),
     path('robots.txt', robots_txt),
