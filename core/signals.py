@@ -118,12 +118,3 @@ def auto_post_to_telegram(sender, instance, **kwargs):
         logger.info(f"Post '{instance.title}' not published, skipping Telegram post.")
 
 
-from django.db.models.signals import post_save
-from django.dispatch import receiver
-from django_q.tasks import async_task
-from .models import Post
-
-@receiver(post_save, sender=Post)
-def trigger_new_post_notification(sender, instance, created, **_kwargs):
-    if created:  
-        async_task('blog.tasks.send_new_post_notification', instance.id)
