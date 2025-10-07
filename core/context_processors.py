@@ -1,4 +1,4 @@
-# core/context_processors.py
+ # core/context_processors.py
 from .models import Post, Category
 from taggit.models import Tag, TaggedItem # Import TaggedItem
 from django.db.models import Count, Q # Ensure Q is imported for filtering

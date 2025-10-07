@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.sites',
     'django.contrib.sitemaps',
+    'anymail',
     'core',
     'taggit',
     'django_ckeditor_5',
@@ -53,16 +54,13 @@ INSTALLED_APPS = [
     'ads',
 ]
 
-Q_CLUSTER = {
-    'name': 'Djang-Q',
-    'workers': 1,
-    'timeout': 600,
-    'retry': 120,
-    'queue_limit': 50,
-    'bulk': 10,
-    'orm': 'default',
-    'label': 'Django Q'
-}
+EMAIL_BACKEND = "anymail.backends.mailgun.EmailBackend"
+
+DEFAULT_FROM_EMAIL = "noreply@nzdworld.com"
+
+# The email address for server-generated emails (like error reports)
+SERVER_EMAIL = "server-alerts@nzdworld.com"
+
 
 CKEDITOR_5_UPLOAD_PATH = "media/"
 MEDIA_URL = '/media/'
@@ -158,6 +156,7 @@ TAGGIT_CASE_INSENSITIVE = True
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -165,6 +164,8 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 ROOT_URLCONF = 'blog_project.urls'
 
@@ -197,7 +198,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': os.getenv('DB_NAME'),        # Read from .env
         'USER': os.getenv('DB_USER'),        # Read from .env
-        'PASSWORD': os.getenv('DB_PASSWORD'), # Read from .env
+        'PASSWORD': os.getenv('DB_PASSWORD'), # Read from .e nv
         'HOST': os.getenv('DB_HOST'),        # Read from .env
         'PORT': os.getenv('DB_PORT'),        # Read from .env
         'CONN_MAX_AGE': 60, 
