@@ -27,8 +27,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv('SECRET_KEY') # Read from .env
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DEBUG', 'False').lower() == 'true' # Read from .env, default to False
+DEBUG = os.getenv('DEBUG', 'False').lower() == 'true' 
+
+if DEBUG:
+    # Use default storage in development
+    STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
+else:
+    STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # Handle ALLOWED_HOSTS for production deployments and local testing
 ALLOWED_HOSTS_STR = os.getenv('ALLOWED_HOSTS', '').split(',')
@@ -165,7 +170,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
 
 ROOT_URLCONF = 'blog_project.urls'
 
@@ -338,3 +343,4 @@ TAGGIT_TAG_MODEL = 'core.MyCustomTag'
 
 
 WHITENOISE_MAX_THREADS = 1
+
