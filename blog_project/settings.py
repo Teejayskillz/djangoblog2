@@ -335,3 +335,6 @@ EMAIL_HOST_USER = 'update@nzdworld.com'
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_PASS'), 
 DEFAULT_FROM_EMAIL = 'Nzdworld <update@nzdworld.com>' 
 SERVER_EMAIL = EMAIL_HOST_USER
+
+
+WHITENOISE_MAX_THREADS = 1
