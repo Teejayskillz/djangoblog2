@@ -34,14 +34,6 @@
              style="max-height: 500px; object-fit: cover;"
              loading="lazy">
     </div>
-    {% else %}
-    <div class="featured-image">
-        <img src="{% static 'images/default_thumbnail.jpg' %}"
-             alt="No Image"
-             class="img-fluid w-100 rounded"
-             style="max-height: 500px; object-fit: cover;"
-             loading="lazy">
-    </div>
     {% endif %}
 
     <div class="ad-slot-container header-ad-container">
@@ -130,10 +122,6 @@
                 {% if related.thumbnail %}
                 <div class="post-card-img-container">
                     <img src="{{ related.thumbnail.url }}" alt="{{ related.title }}" loading="lazy">
-                </div>
-                {% else %}
-                <div class="post-card-img-container">
-                    <img src="{% static 'images/default_thumbnail.jpg' %}" alt="No Image" loading="lazy">
                 </div>
                 {% endif %}
                 <div class="post-card-content">
