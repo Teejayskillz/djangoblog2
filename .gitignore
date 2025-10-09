@@ -15,7 +15,6 @@ pip-delete-this-directory.txt
 *.mo
 local_settings.py
 db.sqlite3
-staticfiles/ 
 .env 
 media/
 
