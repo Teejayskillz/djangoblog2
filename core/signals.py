@@ -121,29 +121,53 @@ def auto_post_to_telegram(sender, instance, **kwargs):
         logger.info(f"Post '{instance.title}' not published, skipping Telegram post.")
 
 
-
-
 @receiver(post_save, sender=Post)
 def send_post_to_emailhub(sender, instance, created, **kwargs):
     """
-    Send post to EmailHub when it is published for the first time.
-    Avoids re-sending if already published before.
+    Send post to EmailHub when it's published and marked for sharing via email.
+    Includes thumbnail and 'Read More' link.
     """
-    # Only send if post is published and was just created
     if instance.shared_via_email and instance.is_published:
-        url = "http://mailhub.nzdworld.com/api/receive-post/"
+        # Build the absolute post link
+        try:
+            site_url = getattr(settings, "SITE_URL", "https://nzdworld.com")
+            post_url = f"{site_url}{instance.get_absolute_url()}"
+        except Exception:
+            post_url = "#"
+
+        # Build image URL if thumbnail exists
+        thumbnail_url = ""
+        if instance.thumbnail:
+            if hasattr(instance.thumbnail, "url"):
+                thumbnail_url = f"{site_url}{instance.thumbnail.url}"
+
+        # Build preview HTML content (with Read More + thumbnail)
+        preview_content = f"""
+            <div style='font-family: Arial, sans-serif;'>
+                <h2>{instance.title}</h2>
+                {'<img src="'+thumbnail_url+'" alt="Thumbnail" style="max-width:100%; border-radius:8px; margin-bottom:15px;">' if thumbnail_url else ''}
+                <p>{instance.content[:500]}...</p>
+                <a href="{post_url}" style="display:inline-block; background:#007bff; color:#fff; padding:10px 20px; text-decoration:none; border-radius:5px;">
+                    Read More →
+                </a>
+            </div>
+        """
+
+        # Prepare data payload
         data = {
             "title": instance.title,
-            "content": instance.excerpt or instance.content[:500],  # use excerpt or short content
+            "content": preview_content,
         }
 
+        # Send to EmailHub
         try:
+            url = "http://mailhub.nzdworld.com/api/receive-post/"
             response = requests.post(
                 url,
                 data=json.dumps(data),
                 headers={"Content-Type": "application/json"},
                 timeout=10
             )
-            print(" Post sent to EmailHub:", response.json())
+            print("✅ Post sent to EmailHub:", response.json())
         except Exception as e:
-            print(" Error sending to EmailHub:", str(e))
+            print("❌ Error sending to EmailHub:", str(e))
