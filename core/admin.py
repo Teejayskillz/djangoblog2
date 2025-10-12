@@ -227,6 +227,34 @@ class PostAdmin(admin.ModelAdmin):
     get_has_downloads.boolean = True
     get_has_downloads.short_description = 'Downloads'
 
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+
+        # When the admin checks the "shared_via_email" box
+        if obj.shared_via_email:
+            url = "https://mailhub.nzdworld.com/api/receive-post/"
+            data = {
+                "title": obj.title,
+                "content": obj.excerpt or obj.content[:500],
+            }
+
+            try:
+                response = requests.post(
+                    url,
+                    data=json.dumps(data),
+                    headers={"Content-Type": "application/json"},
+                    timeout=10
+                )
+                resp_data = response.json()
+                messages.success(request, f"✅ Sent '{obj.title}' to EmailHub: {resp_data.get('message', 'OK')}")
+
+                # Auto-uncheck the box after sharing
+                obj.shared_via_email = False
+                obj.save(update_fields=["shared_via_email"])
+
+            except Exception as e:
+                messages.error(request, f"❌ Failed to send '{obj.title}': {e}")
+
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
     list_display = ('name', 'slug')
