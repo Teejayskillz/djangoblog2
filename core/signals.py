@@ -144,6 +144,6 @@ def send_post_to_emailhub(sender, instance, created, **kwargs):
                 headers={"Content-Type": "application/json"},
                 timeout=10
             )
-            print("✅ Post sent to EmailHub:", response.json())
+            print(" Post sent to EmailHub:", response.json())
         except Exception as e:
-            print("❌ Error sending to EmailHub:", str(e))
+            print(" Error sending to EmailHub:", str(e))
