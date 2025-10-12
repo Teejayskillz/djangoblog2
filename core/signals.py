@@ -155,9 +155,11 @@ def send_post_to_emailhub(sender, instance, created, **kwargs):
 
         # Prepare data payload
         data = {
-            "title": instance.title,
-            "content": preview_content,
-        }
+    "title": instance.title,
+    "content": instance.content[:500],
+    "thumbnail_url": instance.thumbnail.url if instance.thumbnail else "",
+    "read_more_url": f"https://nzdworld.com/posts/{instance.slug}/",
+}
 
         # Send to EmailHub
         try:

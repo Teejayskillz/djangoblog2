@@ -46,19 +46,28 @@ class SubtitleInline(admin.TabularInline):
 # blog/admin.py
 import json
 import requests
-from django.contrib import admin
-from django.contrib import messages
+from django.contrib import admin, messages
+from django.conf import settings
 from .models import Post
 
 @admin.action(description="Share selected posts via EmailHub")
 def share_via_email(modeladmin, request, queryset):
+    site_url = getattr(settings, "SITE_URL", "https://nzdworld.com")
     url = "https://mailhub.nzdworld.com/api/receive-post/"
 
     for post in queryset:
+        # Build thumbnail URL if available
+        thumbnail_url = f"{site_url}{post.thumbnail.url}" if post.thumbnail else ""
+        read_more_url = f"{site_url}{post.get_absolute_url()}"
+
+        # Prepare data payload
         data = {
             "title": post.title,
             "content": post.excerpt or post.content[:500],
+            "thumbnail_url": thumbnail_url,
+            "read_more_url": read_more_url,
         }
+
         try:
             response = requests.post(
                 url,
@@ -67,12 +76,9 @@ def share_via_email(modeladmin, request, queryset):
                 timeout=10
             )
             resp_data = response.json()
-            messages.success(request, f"✅ Sent '{post.title}' to EmailHub: {resp_data['message']}")
+            messages.success(request, f"✅ Sent '{post.title}' to EmailHub: {resp_data.get('message', 'OK')}")
         except Exception as e:
             messages.error(request, f"❌ Failed to send '{post.title}': {e}")
-
-
-
 
 
 @admin.register(Post)
