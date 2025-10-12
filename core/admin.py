@@ -43,6 +43,38 @@ class SubtitleInline(admin.TabularInline):
     extra = 1
     fields = ('language', 'download_url', 'is_auto_generated')
 
+# blog/admin.py
+import json
+import requests
+from django.contrib import admin
+from django.contrib import messages
+from .models import Post
+
+@admin.action(description="Share selected posts via EmailHub")
+def share_via_email(modeladmin, request, queryset):
+    url = "https://mailhub.nzdworld.com/api/receive-post/"
+
+    for post in queryset:
+        data = {
+            "title": post.title,
+            "content": post.excerpt or post.content[:500],
+        }
+        try:
+            response = requests.post(
+                url,
+                data=json.dumps(data),
+                headers={"Content-Type": "application/json"},
+                timeout=10
+            )
+            resp_data = response.json()
+            messages.success(request, f"✅ Sent '{post.title}' to EmailHub: {resp_data['message']}")
+        except Exception as e:
+            messages.error(request, f"❌ Failed to send '{post.title}': {e}")
+
+
+
+
+
 @admin.register(Post)
 class PostAdmin(admin.ModelAdmin):
     form = PostAdminForm
@@ -57,6 +89,7 @@ class PostAdmin(admin.ModelAdmin):
         'get_total_downloads',
         'is_password_protected',
     )
+    actions = [share_via_email]
     list_filter = (
         'category',
         'tags',

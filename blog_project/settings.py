@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.sites',
     'django.contrib.sitemaps',
+    'whitenoise.runserver_nostatic',
     'anymail',
     'core',
     'taggit',

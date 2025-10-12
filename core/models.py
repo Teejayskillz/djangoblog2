@@ -36,6 +36,8 @@ class Post(models.Model):
         null=True,
         help_text="(e.g., 'Henry Danger S1 EP20 - Series Download'). If left blank, the main title will be used."
     )
+    shared_via_email = models.BooleanField(default=False)
+
     thumbnail = ResizedImageField(
         size=[300, 450],
         quality=85,

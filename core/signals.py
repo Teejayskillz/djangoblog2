@@ -13,6 +13,9 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from .models import Post
 
+import json
+import requests
+from django.db.models.signals import post_save
 
 logger = logging.getLogger(__name__)
 
@@ -118,3 +121,29 @@ def auto_post_to_telegram(sender, instance, **kwargs):
         logger.info(f"Post '{instance.title}' not published, skipping Telegram post.")
 
 
+
+
+@receiver(post_save, sender=Post)
+def send_post_to_emailhub(sender, instance, created, **kwargs):
+    """
+    Send post to EmailHub when it is published for the first time.
+    Avoids re-sending if already published before.
+    """
+    # Only send if post is published and was just created
+    if instance.shared_via_email and instance.is_published:
+        url = "http://mailhub.nzdworld.com/api/receive-post/"
+        data = {
+            "title": instance.title,
+            "content": instance.excerpt or instance.content[:500],  # use excerpt or short content
+        }
+
+        try:
+            response = requests.post(
+                url,
+                data=json.dumps(data),
+                headers={"Content-Type": "application/json"},
+                timeout=10
+            )
+            print("✅ Post sent to EmailHub:", response.json())
+        except Exception as e:
+            print("❌ Error sending to EmailHub:", str(e))
