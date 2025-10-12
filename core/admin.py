@@ -123,6 +123,7 @@ class PostAdmin(admin.ModelAdmin):
                 'category',
                 'tags',
                 'is_published',
+                'shared_via_email',
                 'is_password_protected',
                 'password'
             )
