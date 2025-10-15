@@ -120,46 +120,71 @@ def auto_post_to_telegram(sender, instance, **kwargs):
     else:
         logger.info(f"Post '{instance.title}' not published, skipping Telegram post.")
 
+from django.conf import settings
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+import requests
+import json
+from .models import Post
 
 @receiver(post_save, sender=Post)
 def send_post_to_emailhub(sender, instance, created, **kwargs):
     """
-    Send post to EmailHub when it's published and marked for sharing via email.
-    Includes thumbnail and 'Read More' link.
+    Send post to EmailHub when published and marked for sharing via email.
+    Includes thumbnail, styled content, and 'Read More' link with category path.
     """
     if instance.shared_via_email and instance.is_published:
-        # Build the absolute post link
-        try:
-            site_url = getattr(settings, "SITE_URL", "https://nzdworld.com")
-            post_url = f"{site_url}{instance.get_absolute_url()}"
-        except Exception:
-            post_url = "#"
+        site_url = getattr(settings, "SITE_URL", "https://nzdworld.com")
 
-        # Build image URL if thumbnail exists
-        thumbnail_url = ""
-        if instance.thumbnail:
-            if hasattr(instance.thumbnail, "url"):
-                thumbnail_url = f"{site_url}{instance.thumbnail.url}"
+        # Build post URL dynamically based on category slug
+        if instance.category:
+            post_url = f"{site_url}/{instance.category.slug}/{instance.slug}/"
+        else:
+            post_url = f"{site_url}/{instance.slug}/"
 
-        # Build preview HTML content (with Read More + thumbnail)
+        # Build absolute thumbnail URL
+        thumbnail_url = f"{site_url}{instance.thumbnail.url}" if instance.thumbnail else ""
+
+        # Prepare styled HTML content for email
         preview_content = f"""
-            <div style='font-family: Arial, sans-serif;'>
-                <h2>{instance.title}</h2>
-                {'<img src="'+thumbnail_url+'" alt="Thumbnail" style="max-width:100%; border-radius:8px; margin-bottom:15px;">' if thumbnail_url else ''}
-                <p>{instance.content[:500]}...</p>
-                <a href="{post_url}" style="display:inline-block; background:#007bff; color:#fff; padding:10px 20px; text-decoration:none; border-radius:5px;">
-                    Read More →
-                </a>
+        <div style="font-family: Arial, Helvetica, sans-serif; background-color:#f9f9f9; padding:20px 0;">
+            <div style="max-width:600px; margin:0 auto; background:#fff; border-radius:10px; overflow:hidden; box-shadow:0 4px 10px rgba(0,0,0,0.1);">
+                
+                <!-- Header -->
+                <div style="background-color:#007bff; color:#fff; text-align:center; padding:15px;">
+                    <h2 style="margin:0; font-size:20px;">{instance.title}</h2>
+                </div>
+
+                <!-- Thumbnail -->
+                {'<img src="'+thumbnail_url+'" alt="Thumbnail" style="width:100%; height:auto; display:block;">' if thumbnail_url else ''}
+
+                <!-- Content -->
+                <div style="padding:20px; color:#333; font-size:16px; line-height:1.5;">
+                    <p>{instance.content[:500]}...</p>
+                    <div style="text-align:center; margin-top:20px;">
+                        <a href="{post_url}" 
+                           style="display:inline-block; background:#007bff; color:#fff; padding:12px 24px; text-decoration:none; border-radius:5px; font-weight:bold;">
+                            Read Full Post →
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div style="background-color:#f1f1f1; text-align:center; padding:15px; font-size:12px; color:#666;">
+                    <p>You're receiving this email because you're subscribed to updates from <strong>NZDWorld</strong>.</p>
+                    <p>© 2025 NZDWorld. All rights reserved.</p>
+                </div>
             </div>
+        </div>
         """
 
         # Prepare data payload
         data = {
-    "title": instance.title,
-    "content": instance.content[:500],
-    "thumbnail_url": instance.thumbnail.url if instance.thumbnail else "",
-    "read_more_url": f"https://nzdworld.com/posts/{instance.slug}/",
-}
+            "title": instance.title,
+            "content": preview_content,  # send HTML content with styling
+            "thumbnail_url": thumbnail_url,
+            "read_more_url": post_url,
+        }
 
         # Send to EmailHub
         try:
