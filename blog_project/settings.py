@@ -94,7 +94,7 @@ CKEDITOR_5_CONFIGS = {
         },
         'placeholder': 'Start typing here...',
         'mediaEmbed': {
-            'previewsInData': True,
+            'previewsInData': False,
         },
         'htmlEmbed': {
             'showPreviews': True,
