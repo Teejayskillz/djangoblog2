@@ -140,7 +140,7 @@ CKEDITOR_5_CONFIGS = {
                 {'name': 'br'},
 
                 # Allow iframes for media embeds, specify allowed attributes
-                {'name': 'iframe', 'attributes': {'src': True, 'width': True, 'height': True, 'frameborder': True, 'allowfullscreen': True, 'class': True}},
+                {'name': 'iframe', 'attributes': {'src': True, 'width': True, 'height': True, 'frameborder': True, 'allow': True,   'allowfullscreen': True, 'class': True}},
             ],
             'disallow': [
                 # Explicitly disallow the 'style' attribute on ALL elements (very important for your goal)
