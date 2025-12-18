@@ -5,6 +5,7 @@
 <div class="section">
     <div class="category-header">
         <h2>{{ section.title }}</h2>
+        <div class="underline"></div>
     </div>
     <div class="movie-grid">
         {% for post in section.posts %}
@@ -34,8 +35,14 @@
                 Latest Updates
             {% endif %}
         </h2>
+        <div class="underline"></div>
+        {% if page_obj.paginator.count > 0 %}
+        <div class="results-info">
+            Showing {{ page_obj.start_index }} - {{ page_obj.end_index }} of {{ page_obj.paginator.count }} movies
+        </div>
+        {% endif %}
     </div>
-    
+
     {% if page_obj.object_list %}
     <div class="movie-grid">
         {% for post in page_obj %}
@@ -86,6 +93,7 @@
         </nav>
     </div>
     {% endif %}
+
     {% else %}
     <div class="no-results text-center py-5">
         <i class="bi bi-search" style="font-size: 3rem; color: var(--text-dim);"></i>
@@ -104,6 +112,32 @@
 {% endif %}
 
 <style>
+/* ---------------- Section Header ---------------- */
+.category-header {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    margin-bottom: 20px;
+}
+.category-header h2 {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin: 0;
+}
+.category-header .underline {
+    width: 50px;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary), var(--primary-hover));
+    border-radius: 2px;
+    margin-top: 6px;
+}
+.results-info {
+    margin-top: 8px;
+    font-size: 0.95rem;
+    color: var(--text-muted);
+}
+
+/* ---------------- Movie Grid ---------------- */
 .movie-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -127,17 +161,18 @@
 
 .movie-card:hover {
     transform: scale(1.05);
-    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    box-shadow: 0 12px 28px rgba(0,0,0,0.6);
 }
 
 .movie-info {
     position: absolute;
     bottom: 0;
     width: 100%;
-    background: linear-gradient(to top, rgba(0,0,0,0.8), rgba(0,0,0,0));
+    background: linear-gradient(to top, rgba(0,0,0,0.85), rgba(0,0,0,0));
     color: white;
     padding: 10px;
     text-align: center;
+    transition: all 0.3s ease;
 }
 
 .movie-info h3 {
@@ -145,12 +180,72 @@
     margin: 0;
     line-height: 1.2;
 }
-
 .movie-info .category {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     color: #ccc;
 }
 
+/* ---------------- Pagination ---------------- */
+.pagination-container {
+    display: flex;
+    justify-content: center;
+    margin-top: 40px;
+}
+.pagination-list {
+    display: flex;
+    gap: 10px;
+    list-style: none;
+    padding: 0;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+.page-item {}
+.page-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: rgba(39, 52, 77, 0.3);
+    color: var(--text);
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+.page-link:hover {
+    background: var(--primary);
+    color: #fff;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(0,0,0,0.4);
+}
+.page-link.current {
+    background: var(--primary);
+    color: white;
+    font-weight: 700;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+}
+.page-link.prev-next {
+    padding: 0 12px;
+    gap: 5px;
+}
+.page-link.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: rgba(39, 52, 77, 0.1);
+}
+
+/* ---------------- No Results ---------------- */
+.no-results {
+    background: rgba(39, 52, 77, 0.15);
+    border: 1px solid var(--border-color);
+    border-radius: 15px;
+    margin: 20px 0;
+    padding: 30px;
+    text-align: center;
+}
+
+/* ---------------- Responsive ---------------- */
 @media (max-width: 768px) {
     .movie-grid {
         grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
