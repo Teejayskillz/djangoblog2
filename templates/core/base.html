@@ -1,257 +1,247 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ post.get_page_title|default:'Online Entertainment Brand for showcasing Cool Contents to viewers across the globe.' }}{% endblock %} - Nzdworld</title>
+    <meta name="description" content="{% block meta_description %}{{ post.excerpt|default:'Online Entertainment Brand for showcasing Cool Contents to viewers across the globe.' }}{% endblock %}">
 
-<title>
-{% block title %}
-{{ post.get_page_title|default:'Online Entertainment Brand for showcasing Cool Contents to viewers across the globe.' }}
-{% endblock %} - Nzdworld
-</title>
+    {# Open Graph Tags (for Facebook, WhatsApp, LinkedIn) #}
+    <meta property="og:locale" content="en_US"/>
+    <meta property="og:site_name" content="Nzdworld"/>
+    <meta property="og:title" content="{% block og_title %}{{ post.get_page_title|default:'Online Entertainment Brand for showcasing Cool Contents to viewers across the globe.' }}{% endblock %} - Nzdworld">
+    
+    <meta property="og:url" content="{{ post_absolute_url }}">
+    <meta property="og:type" content="article">
+    <meta property="og:description" content="{% block og_description %}{{ post.excerpt|default:'Online Entertainment Brand for showcasing Cool Contents to viewers across the globe.' }}{% endblock %}">
+    
+    <meta property="og:image" content="{{ thumbnail_absolute_url }}">
+    <meta property="og:image:url" content="{{ thumbnail_absolute_url }}">
+    <meta property="og:image:secure_url" content="{{ thumbnail_absolute_url }}">
+    <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-8W2ZWQYVMQ"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
 
-<meta name="description" content="{% block meta_description %}{{ post.excerpt|default:'Online Entertainment Brand for showcasing Cool Contents to viewers across the globe.' }}{% endblock %}">
+  gtag('config', 'G-8W2ZWQYVMQ');
+</script>
+    {% if post.thumbnail %}
+        <meta property="og:image:width" content="1200">
+        <meta property="og:image:height" content="630">
+    {% endif %}
 
-<!-- Open Graph -->
-<meta property="og:site_name" content="Nzdworld"/>
-<meta property="og:type" content="article"/>
-<meta property="og:title" content="{{ post.get_page_title }} - Nzdworld"/>
-<meta property="og:url" content="{{ post_absolute_url }}"/>
-<meta property="og:description" content="{{ post.excerpt }}"/>
-<meta property="og:image" content="{{ thumbnail_absolute_url }}"/>
+    {% if post.published_date %}<meta property="article:published_time" content="{{ post.published_date|date:'c' }}"/>{% endif %}
+    {% if post.published_date %}<meta property="article:modified_time" content="{{ post.published_date|date:'c' }}" />{% endif %}
+    {% if post.published_date %}<meta property="og:updated_time" content="{{ post.published_date|date:'c' }}" />{% endif %}
+    {% if post.category %}<meta property="article:section" content="{{ post.category.name }}" />{% endif %}
 
-<link rel="canonical" href="{{ post_absolute_url }}"/>
+    {# Twitter Card Tags #}
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{% block twitter_title %}{{ post.get_page_title|default:'Online Entertainment Brand for showcasing Cool Contents to viewers across the globe.' }}{% endblock %} - Nzdworld">
+    <meta name="twitter:url" content="{{ post_absolute_url }}">
+    <meta name="twitter:description" content="{% block twitter_description %}{{ post.excerpt|default:'Online Entertainment Brand for showcasing Cool Contents to viewers across the globe.' }}{% endblock %}">
+    <meta name="twitter:image" content="{{ thumbnail_absolute_url }}">
+    <meta name="twitter:site" content="@nzdworld">
+    <meta name="twitter:creator" content="@YourCreatorHandle">
+    
+    <link rel="canonical" href="{{ post_absolute_url }}" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    
+    <style>
+        /* ===================== FIXED SAFE THEME ===================== */
+        :root {
+            --bg-main: #0b0b0b;
+            --bg-secondary: #141414;
+            --bg-card: #1c1c1c;
+            --accent: #00e676;
+            --accent-hover: #1aff84;
+            --text-main: #e6e6e6;
+            --text-muted: #9a9a9a;
+            --border-soft: #2a2a2a;
+            --shadow-soft: rgba(0,0,0,.55);
+        }
 
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+        * { box-sizing: border-box; }
 
-<style>
-/* ===============================
-   NETFLIX-STYLE THEME
-================================ */
-:root {
-    --bg-main: #0b0b0b;
-    --bg-secondary: #121212;
-    --bg-card: #181818;
+        body {
+            background: var(--bg-main);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0; padding: 0;
+        }
 
-    --accent: #00e676;
-    --accent-hover: #1aff84;
+        a { color: var(--accent); text-decoration: none; transition: 0.3s; }
+        a:hover { color: var(--accent-hover); }
 
-    --text-main: #e5e5e5;
-    --text-muted: #9e9e9e;
+        .custom-container { max-width: 1400px; margin: 0 auto; padding: 0 20px; }
 
-    --border-soft: #222;
-    --shadow-soft: rgba(0,0,0,.7);
-}
+        .main-wrapper {
+            background: var(--bg-main);
+            border-radius: 10px;
+            margin: 20px auto;
+            overflow: hidden;
+        }
 
-* { box-sizing: border-box; }
+        .ad-section { background: var(--bg-secondary); border-bottom: 1px solid var(--border-soft); padding: 15px 20px; text-align: center; }
 
-body {
-    background: var(--bg-main);
-    color: var(--text-main);
-    font-family: Inter, system-ui, sans-serif;
-    margin: 0;
-}
+        .content-area { padding: 20px; }
 
-/* Links */
-a {
-    color: var(--accent);
-    text-decoration: none;
-}
-a:hover { color: var(--accent-hover); }
+        .category-header {
+            background: none;
+            border-left: 4px solid var(--accent);
+            border-radius: 6px;
+            color: var(--text-main);
+            font-weight: 700;
+            margin: 20px 0 15px;
+            padding: 10px 15px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
 
-/* Layout */
-.custom-container {
-    max-width: 1400px;
-    margin: auto;
-    padding: 0 16px;
-}
+        .post-card {
+            background: var(--bg-card);
+            border-radius: 10px;
+            border: 1px solid var(--border-soft);
+            transition: transform .2s ease, box-shadow .2s ease;
+        }
 
-.main-wrapper {
-    background: var(--bg-main);
-}
+        .post-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 25px var(--shadow-soft);
+        }
 
-/* Ads */
-.ad-section {
-    padding: 14px 0;
-    border-bottom: 1px solid var(--border-soft);
-}
+        .post-card-img-container { background: #000; overflow: hidden; position: relative; padding-bottom: 60%; }
+        .post-card-img-container img { width: 100%; height: 100%; object-fit: cover; }
 
-/* Content */
-.content-area { padding: 20px 0; }
+        .post-card h3 { font-size: 0.95rem; font-weight: 500; color: var(--text-main); margin-bottom: 8px; }
 
-/* Category Header */
-.category-header {
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--text-main);
-    margin: 20px 0 10px;
-}
+        .post-card .category { font-size: 0.65rem; color: var(--accent); font-weight: 600; text-transform: uppercase; }
 
-/* ===============================
-   POST CARDS
-================================ */
-.latest-updates-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill,minmax(220px,1fr));
-    gap: 18px;
-}
+        .latest-updates-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+            padding: 10px 0;
+        }
 
-.post-card {
-    background: var(--bg-card);
-    border-radius: 6px;
-    overflow: hidden;
-    transition: transform .25s ease, box-shadow .25s ease;
-}
+        .sidebar-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-soft);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
 
-.post-card:hover {
-    transform: scale(1.04);
-    box-shadow: 0 12px 30px var(--shadow-soft);
-}
+        .sidebar-section h4 { color: var(--accent); margin-bottom: 15px; font-size: 1rem; font-weight: 700; padding-bottom: 5px; border-bottom: 2px solid var(--accent); }
 
-.post-card-img-container {
-    aspect-ratio: 16/9;
-    background: #000;
-}
+        .sidebar-list-item { display: flex; align-items: center; margin-bottom: 12px; padding: 8px; border-radius: 8px; transition: all .3s ease; }
+        .sidebar-list-item:hover { background: rgba(255,255,255,0.05); }
+        .sidebar-list-item img { width: 50px; height: 50px; border-radius: 8px; margin-right: 12px; object-fit: cover; border: 2px solid var(--border-soft); }
+        .sidebar-list-item-details a { color: var(--text-main); font-size: 0.85rem; font-weight: 500; line-height: 1.4; }
 
-.post-card-img-container img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
+        .trending-buttons { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 15px; }
+        .trending-buttons .btn { flex: 1; font-size: 0.7rem; padding: 6px 12px; border-radius: 20px; font-weight: 600; min-width: 70px; }
+        .trending-buttons .btn-primary { background: var(--accent); border: none; color: #000; }
+        .trending-buttons .btn-secondary { background: var(--bg-secondary); border: 1px solid var(--border-soft); color: var(--text-muted); }
+        .trending-buttons .btn-secondary:hover { color: var(--text-main); transform: translateY(-2px); }
 
-.post-card-content {
-    padding: 12px;
-}
+        .popular-search-list { padding-left: 0; list-style: none; }
+        .popular-search-list li { margin-bottom: 8px; padding: 4px 8px; border-radius: 6px; transition: all .3s ease; }
+        .popular-search-list li:hover { background: rgba(255,255,255,0.05); }
 
-.post-card h3 {
-    font-size: .95rem;
-    font-weight: 500;
-    line-height: 1.3;
-    color: var(--text-main);
-}
-
-.post-card .category {
-    font-size: .65rem;
-    color: var(--accent);
-    letter-spacing: .08em;
-}
-
-/* ===============================
-   SIDEBAR
-================================ */
-.sidebar-section {
-    background: var(--bg-secondary);
-    border-radius: 6px;
-    padding: 14px;
-    margin-bottom: 16px;
-}
-
-.sidebar-section h4 {
-    font-size: .9rem;
-    color: var(--text-main);
-    margin-bottom: 12px;
-}
-
-.sidebar-list-item {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 12px;
-}
-
-.sidebar-list-item img {
-    width: 46px;
-    height: 46px;
-    border-radius: 4px;
-    object-fit: cover;
-}
-
-.sidebar-list-item-details a {
-    font-size: .85rem;
-    color: var(--text-main);
-}
-
-.sidebar-list-item-details span {
-    font-size: .7rem;
-    color: var(--text-muted);
-}
-
-/* Buttons */
-.btn-primary {
-    background: var(--accent);
-    color: #000;
-    border: none;
-    font-size: .75rem;
-    font-weight: 600;
-}
-
-.btn-primary:hover {
-    background: var(--accent-hover);
-}
-
-.btn-secondary {
-    background: #222;
-    color: var(--text-muted);
-    border: none;
-}
-
-/* Scrollbar */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-thumb { background: #333; }
-</style>
+        @media (max-width: 575.98px) {
+            .latest-updates-grid { grid-template-columns: repeat(2, 1fr); gap: 15px; }
+            .post-card-img-container { padding-bottom: 70%; }
+            .post-card h3 { font-size: 0.8rem; }
+            .sidebar-list-item img { width: 40px; height: 40px; }
+        }
+    </style>
 </head>
-
 <body>
-<div class="custom-container">
-<div class="main-wrapper">
+    <div class="custom-container">
+        <div class="main-wrapper">
+            {% include 'core/includes/header.html' %}
+            
+            <div class="ad-section">
+                <div class="ad-slot-container">{{ ads_by_slug.header1|safe }}</div>
+                <div class="ad-slot-container">{{ ads_by_slug.header2|safe }}</div>
+            </div>
+            
+            <div class="content-area">
+                <div class="row"> 
+                    <div class="col-lg-8">{% block content %}{% endblock %}</div>
+                    <div class="col-lg-4">{% block sidebar %}
+                        <div class="sidebar-section">
+                            <h4><i class="fas fa-ad"></i> Sponsored</h4>
+                            <div class="text-center" style="padding: 30px; border: 2px dashed var(--border-soft); border-radius: 8px; color: var(--text-muted);">
+                               {{ ads_by_slug.sidebar1|safe }}
+                            </div>
+                        </div>
 
-{% include 'core/includes/header.html' %}
+                        <div class="sidebar-section">
+                            <h4><i class="fas fa-fire"></i> Trending</h4>
+                            <div class="trending-buttons">
+                                <a href="?time=24hrs" class="btn {% if selected_time_frame == '24hrs' %}btn-primary{% else %}btn-secondary{% endif %}">🔥 24Hrs</a>
+                                <a href="?time=7days" class="btn {% if selected_time_frame == '7days' %}btn-primary{% else %}btn-secondary{% endif %}">⭐ 7Days</a>
+                            </div>
+                            <div class="list-unstyled">
+                                {% for post in trending_posts %}
+                                <div class="sidebar-list-item">
+                                    {% if post.thumbnail %}
+                                        <img src="{{ post.thumbnail.url }}" alt="{{ post.title }}" loading="lazy">
+                                    {% endif %}
+                                    <div class="sidebar-list-item-details">
+                                        <a href="{{ post.get_absolute_url }}">{{ post.title }}</a>
+                                        <span>{{ post.published_date|date:"M d, Y" }}</span>
+                                    </div>
+                                </div>
+                                {% empty %}
+                                <p style="color: var(--text-muted);">No trending posts available.</p>
+                                {% endfor %}
+                            </div>
+                        </div>
 
-<div class="ad-section">
-    {{ ads_by_slug.header1|safe }}
-    {{ ads_by_slug.header2|safe }}
-</div>
+                        <div class="sidebar-section">
+                            <h4><i class="fas fa-clock"></i> Recent</h4>
+                            <div class="trending-buttons"><button class="btn btn-primary">All</button></div>
+                            <div class="list-unstyled">
+                                {% for post in recent_posts %}
+                                <div class="sidebar-list-item">
+                                    {% if post.thumbnail %}
+                                        <img src="{{ post.thumbnail.url }}" alt="{{ post.title }}" loading="lazy">
+                                    {% endif %}
+                                    <div class="sidebar-list-item-details">
+                                        <a href="{{ post.get_absolute_url }}">{{ post.title }}</a>
+                                        <span>{{ post.published_date }}</span>
+                                    </div>
+                                </div>
+                                {% empty %}
+                                <p style="color: var(--text-muted);">No recent posts available.</p>
+                                {% endfor %}
+                            </div>
+                        </div>
 
-<div class="content-area">
-<div class="row">
-<div class="col-lg-8">
-{% block content %}{% endblock %}
-</div>
-
-<div class="col-lg-4">
-{% block sidebar %}
-
-<div class="sidebar-section">
-<h4>Trending</h4>
-{% for post in trending_posts %}
-<div class="sidebar-list-item">
-<img src="{{ post.thumbnail.url }}">
-<div class="sidebar-list-item-details">
-<a href="{{ post.get_absolute_url }}">{{ post.title }}</a>
-<span>{{ post.published_date|date:"M d, Y" }}</span>
-</div>
-</div>
-{% endfor %}
-</div>
-
-<div class="sidebar-section">
-<h4>Popular Tags</h4>
-{% for tag in popular_tags %}
-<a href="{% url 'tag_detail' tag.slug %}" class="d-block mb-1">#{{ tag.name }}</a>
-{% endfor %}
-</div>
-
-{% endblock %}
-</div>
-</div>
-</div>
-
-{% include 'core/includes/footer.html' %}
-
-</div>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" defer></script>
+                        <div class="sidebar-section">
+                            <h4><i class="fas fa-search"></i> Popular</h4>
+                            <ul class="popular-search-list">
+                                {% for tag in popular_tags %}
+                                <li><a href="{% url 'tag_detail' tag.slug %}"><i class="fas fa-hashtag"></i> {{ tag.name }}</a></li>
+                                {% empty %}<li>No popular tags found.</li>{% endfor %}
+                            </ul>
+                        </div>
+                    {% endblock %}</div>
+                </div>
+            </div>
+            
+            {% include 'core/includes/footer.html' %}
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" defer></script>
 </body>
 </html>
