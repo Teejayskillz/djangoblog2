@@ -1,259 +1,236 @@
 <style>
-  /* --- NEW: Dark Theme with Teal Accent --- */
-  :root {
-      --dark-bg: #1A1A1A;
-      --darker-bg: #0F0F0F;
-      --card-bg: #27344D;
-      --primary: #008080;      /* Teal */
-      --primary-hover: #00A3A3; /* Brighter Teal */
-      --text: #E0E0E0;         /* Light text for dark background */
-      --text-muted: #A0A0A0;
-      --text-dim: #707070;
-      --border-color: #3F516C;
-      --shadow: rgba(0, 0, 0, 0.6);
-      --glow: rgba(0, 128, 128, 0.4); /* Teal glow */
-  }
+/* ---------------- Root Colors ---------------- */
+:root {
+    --dark-bg: #1A1A1A;
+    --darker-bg: #0F0F0F;
+    --card-bg: #27344D;
+    --primary: #008080;
+    --primary-hover: #00A3A3;
+    --text: #E0E0E0;
+    --text-muted: #A0A0A0;
+    --text-dim: #707070;
+    --border-color: #3F516C;
+    --shadow: rgba(0,0,0,0.6);
+    --glow: rgba(0,128,128,0.4);
+}
 
-  .header-gradient {
-    /* --- NEW: Dark, glassy background --- */
-    background: rgba(39, 52, 77, 0.3); /* Uses --card-bg with transparency */
-    backdrop-filter: blur(10px);
+/* ---------------- Header ---------------- */
+.header-gradient {
+    background: rgba(39, 52, 77, 0.35);
+    backdrop-filter: blur(12px);
     box-shadow: 0 4px 20px var(--shadow);
-    border-bottom: 3px solid var(--primary); /* Now a teal accent */
+    border-bottom: 3px solid var(--primary);
     position: relative;
     overflow: hidden;
-  }
+}
 
-  .header-gradient::before {
+.header-gradient::before {
     content: '';
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    /* --- NEW: Subtle teal gradient overlay --- */
-    background: linear-gradient(45deg, transparent 0%, rgba(0, 128, 128, 0.05) 50%, transparent 100%);
+    inset: 0;
+    background: linear-gradient(45deg, transparent 0%, rgba(0,128,128,0.05) 50%, transparent 100%);
     pointer-events: none;
-  }
+}
 
-  .logo-brand {
+/* ---------------- Logo & Tagline ---------------- */
+.logo-brand {
     font-family: 'Arial Black', sans-serif;
     font-weight: 900;
-    font-size: 2.2rem;
-    /* --- UPDATED: Automatically uses teal gradient --- */
+    font-size: 2.5rem;
     background: linear-gradient(45deg, var(--primary), var(--primary-hover));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    background-clip: text;
-    text-shadow: 0 0 10px var(--glow); /* Now a teal glow */
+    text-shadow: 0 0 15px var(--glow);
     transition: all 0.3s ease;
-    position: relative;
-  }
+}
 
-  .logo-brand:hover {
-    transform: scale(1.03);
-    /* --- NEW: Teal drop-shadow --- */
-    filter: drop-shadow(0 0 10px rgba(0, 128, 128, 0.6));
-  }
+.logo-brand:hover {
+    transform: scale(1.05);
+    filter: drop-shadow(0 0 12px rgba(0,128,128,0.6));
+}
 
-  .tagline {
-    /* --- UPDATED: Automatically uses light muted text --- */
-    color: var(--text-muted) !important;
-    font-size: 0.85rem;
+.tagline {
+    color: var(--text-muted);
+    font-size: 0.9rem;
     font-weight: 300;
     margin-top: 2px;
-  }
+}
 
-  .search-container {
+/* ---------------- Search ---------------- */
+.search-container {
     position: relative;
-  }
+    flex: 1;
+    max-width: 500px;
+}
 
-  .search-input {
-    /* --- NEW: Dark, glassy input field --- */
-    background: rgba(15, 15, 15, 0.5) !important; /* Uses --darker-bg with transparency */
+.search-input {
+    background: rgba(15,15,15,0.5);
     backdrop-filter: blur(5px);
-    border: 2px solid var(--border-color) !important;
-    color: var(--text) !important; /* Light text */
-    border-radius: 25px !important;
-    padding: 12px 20px !important;
+    border: 2px solid var(--border-color);
+    border-radius: 25px 0 0 25px;
+    padding: 12px 20px;
+    color: var(--text);
+    width: 100%;
     transition: all 0.3s ease;
-  }
+}
 
-  .search-input:focus {
-    background: rgba(26, 26, 26, 0.7) !important; /* Slightly lighter on focus */
-    border-color: var(--primary) !important; /* Teal border */
-    box-shadow: 0 0 15px var(--glow) !important; /* Teal glow */
-    color: var(--text) !important;
-  }
+.search-input:focus {
+    background: rgba(26,26,26,0.7);
+    border-color: var(--primary);
+    box-shadow: 0 0 15px var(--glow);
+    outline: none;
+}
 
-  .search-input::placeholder {
-    /* --- UPDATED: Automatically uses light dimmed text --- */
-    color: var(--text-dim) !important;
-  }
+.search-input::placeholder {
+    color: var(--text-dim);
+}
 
-  .search-btn {
-    border: none !important;
-    /* --- UPDATED: Automatically uses teal gradient --- */
-    background: linear-gradient(45deg, var(--primary), var(--primary-hover)) !important;
-    border-radius: 0 25px 25px 0 !important;
-    padding: 12px 20px !important;
+.search-btn {
+    border: none;
+    border-radius: 0 25px 25px 0;
+    padding: 12px 20px;
+    background: linear-gradient(45deg, var(--primary), var(--primary-hover));
+    color: white;
     transition: all 0.3s ease;
-  }
+}
 
-  .search-btn:hover {
+.search-btn:hover {
     transform: translateY(-1px);
-    /* --- UPDATED: Teal shadow --- */
-    box-shadow: 0 5px 10px rgba(0, 128, 128, 0.3);
-  }
+    box-shadow: 0 5px 12px var(--glow);
+}
 
-  .admin-btn {
-    /* --- NEW: Dark, glassy button --- */
-    background: rgba(15, 15, 15, 0.5) !important; /* Uses --darker-bg with transparency */
+/* ---------------- Admin & Telegram Buttons ---------------- */
+.admin-btn {
+    background: rgba(15,15,15,0.5);
     backdrop-filter: blur(5px);
-    border: 2px solid var(--border-color) !important;
-    border-radius: 20px !important;
-    padding: 8px 16px !important;
-    transition: all 0.3s ease;
+    border: 2px solid var(--border-color);
+    border-radius: 20px;
+    padding: 8px 16px;
     font-weight: 500;
-    color: var(--text) !important; /* Light text */
-  }
-
-  .admin-btn:hover {
-    background: var(--border-color) !important; /* Subtle hover background */
+    color: var(--text);
+    transition: all 0.3s ease;
+}
+.admin-btn:hover {
+    background: var(--border-color);
     transform: translateY(-1px);
     box-shadow: 0 3px 10px var(--shadow);
-  }
+}
 
-  .telegram-btn {
-    /* --- UPDATED: Automatically uses teal gradient --- */
-    background: linear-gradient(45deg, var(--primary), var(--primary-hover)) !important;
-    border: none !important;
-    border-radius: 20px !important;
-    padding: 8px 16px !important;
+.telegram-btn {
+    background: linear-gradient(45deg, var(--primary), var(--primary-hover));
+    border: none;
+    border-radius: 20px;
+    padding: 8px 16px;
     font-weight: 600;
     transition: all 0.3s ease;
-    position: relative;
-    overflow: hidden;
-  }
-  
-  .telegram-btn:hover {
+}
+.telegram-btn:hover {
     transform: translateY(-1px);
-    box-shadow: 0 5px 15px var(--glow); /* Teal glow */
-  }
+    box-shadow: 0 5px 15px var(--glow);
+}
 
-  .category-nav {
-    /* --- NEW: Dark, glassy category bar --- */
-    background: rgba(15, 15, 15, 0.3); /* --darker-bg with transparency */
-    backdrop-filter: blur(10px);
+/* ---------------- Category Nav ---------------- */
+.category-nav {
+    background: rgba(15,15,15,0.3);
+    backdrop-filter: blur(12px);
     border-top: 1px solid var(--border-color);
-    padding: 15px 0;
-  }
+    padding: 12px 0;
+}
 
-  .category-btn {
-    /* --- NEW: Transparent "ghost" button style --- */
-    background: transparent !important;
-    border: 1px solid var(--border-color) !important;
-    border-radius: 25px !important;
-    padding: 10px 20px !important;
-    color: var(--text-muted) !important; /* Muted light text */
+.category-btn {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 25px;
+    padding: 10px 20px;
+    color: var(--text-muted);
     font-weight: 500;
-    transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
-    z-index: 1; /* Ensure text stays above pseudo-element */
     margin: 4px;
-  }
-  
-  .category-btn::before {
+    transition: all 0.3s ease;
+}
+
+.category-btn::before {
     content: '';
     position: absolute;
     top: 0;
     left: 0;
     width: 0;
     height: 100%;
-    /* --- UPDATED: Teal fill on hover --- */
     background: linear-gradient(45deg, var(--primary), var(--primary-hover));
     transition: width 0.3s ease;
     z-index: -1;
-  }
+}
 
-  .category-btn:hover {
-    color: #ffffff !important; /* Text turns bright white on hover */
-    border-color: var(--primary) !important;
+.category-btn:hover {
+    color: #fff;
+    border-color: var(--primary);
     transform: translateY(-2px);
-    box-shadow: 0 5px 15px var(--glow); /* Teal glow */
-  }
+    box-shadow: 0 5px 15px var(--glow);
+}
 
-  .category-btn:hover::before {
+.category-btn:hover::before {
     width: 100%;
-  }
+}
 
-  @media (max-width: 768px) {
-    .logo-brand { font-size: 1.8rem; }
-    .search-container { width: 100% !important; margin: 10px 0; }
-    .header-content { flex-direction: column; gap: 15px; }
-    .admin-controls { align-self: stretch; justify-content: center; }
-    .search-btn { border-radius: 0 25px 25px 0 !important; }
-  }
+/* ---------------- Header Layout ---------------- */
+.header-content {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
 
+@media (max-width: 992px) {
+    .header-content {
+        flex-direction: column;
+        gap: 15px;
+    }
+    .logo-brand { font-size: 2rem; }
+    .search-container { width: 100%; }
+}
 </style>
 
 <header class="header-gradient p-3 mb-4">
   <div class="container">
     <div class="d-flex justify-content-between align-items-center header-content">
-      <div class="logo-section">
+      <!-- Logo Section -->
+      <div class="logo-section text-center text-lg-start">
         <h1 class="m-0">
-          <a href="{% url 'home' %}" class="text-decoration-none logo-brand">NZDWORLD</a>
+          <a href="{% url 'home' %}" class="logo-brand text-decoration-none">NZDWORLD</a>
         </h1>
         <small class="tagline">Movies Update & Everything Nice</small>
       </div>
-      
-      <div class="search-container w-50">
+
+      <!-- Search -->
+      <div class="search-container">
         <form action="{% url 'search' %}" method="get">
           <div class="input-group">
-            <input type="text" name="q" class="form-control search-input" 
-                   placeholder="Search movies, series..." aria-label="Search">
-            <button class="btn search-btn" type="submit">
-              <i class="bi bi-search"></i>
-            </button>
+            <input type="text" name="q" class="form-control search-input" placeholder="Search movies, series..." aria-label="Search">
+            <button class="btn search-btn" type="submit"><i class="bi bi-search"></i></button>
           </div>
         </form>
       </div>
-      
-      <div class="admin-controls d-flex gap-2">
+
+      <!-- Admin & Telegram -->
+      <div class="admin-controls d-flex gap-2 justify-content-center">
         {% if user.is_staff %}
-        <a href="{% url 'admin:index' %}" class="btn btn-sm admin-btn">
-          <i class="bi bi-gear-fill me-1"></i>Admin
-        </a>
+        <a href="{% url 'admin:index' %}" class="btn admin-btn"><i class="bi bi-gear-fill me-1"></i>Admin</a>
         {% endif %}
-        <a href="https://t.me/nzdworldhub" class="btn btn-sm telegram-btn text-white">
-          <i class="bi bi-send-fill me-1"></i>Telegram
-        </a>
+        <a href="https://t.me/nzdworldhub" class="btn telegram-btn text-white"><i class="bi bi-send-fill me-1"></i>Telegram</a>
       </div>
     </div>
   </div>
-  
+
+  <!-- Category Navigation -->
   <nav class="category-nav mt-3">
     <div class="container">
-      <div class="d-flex flex-wrap justify-content-center gap-1">
-        <a href="{% url 'category' 'hollywood-movie' %}" class="btn btn-sm category-btn">
-          <i class="bi bi-film me-1"></i>Hollywood
-        </a>
-        <a href="{% url 'category' 'nollywood-movie' %}" class="btn btn-sm category-btn">
-          <i class="bi bi-camera-reels me-1"></i>Nollywood
-        </a>
-        <a href="{% url 'category' 'series' %}" class="btn btn-sm category-btn">
-          <i class="bi bi-camera-reels me-1"></i>Series
-        </a>
-        <a href="{% url 'category' 'korean-drama' %}" class="btn btn-sm category-btn">
-          <i class="bi bi-heart-fill me-1"></i>Korean Drama
-        </a>
-        <a href="{% url 'category' 'indian-Movie' %}" class="btn btn-sm category-btn">
-          <i class="bi bi-globe-asia-australia me-1"></i>Bollywood
-        </a>
-        <a href="{% url 'category' 'animation' %}" class="btn btn-sm category-btn">
-          <i class="bi bi-lightning-fill me-1"></i>Animation
-        </a>
+      <div class="d-flex flex-wrap justify-content-center gap-2">
+        <a href="{% url 'category' 'hollywood-movie' %}" class="btn category-btn"><i class="bi bi-film me-1"></i>Hollywood</a>
+        <a href="{% url 'category' 'nollywood-movie' %}" class="btn category-btn"><i class="bi bi-camera-reels me-1"></i>Nollywood</a>
+        <a href="{% url 'category' 'series' %}" class="btn category-btn"><i class="bi bi-camera-reels me-1"></i>Series</a>
+        <a href="{% url 'category' 'korean-drama' %}" class="btn category-btn"><i class="bi bi-heart-fill me-1"></i>Korean Drama</a>
+        <a href="{% url 'category' 'indian-Movie' %}" class="btn category-btn"><i class="bi bi-globe-asia-australia me-1"></i>Bollywood</a>
+        <a href="{% url 'category' 'animation' %}" class="btn category-btn"><i class="bi bi-lightning-fill me-1"></i>Animation</a>
       </div>
     </div>
   </nav>
