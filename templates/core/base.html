@@ -52,114 +52,403 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     
+    
     <style>
-        /* ===================== FIXED SAFE THEME ===================== */
         :root {
-            --bg-main: #0b0b0b;
-            --bg-secondary: #141414;
-            --bg-card: #1c1c1c;
-            --accent: #00e676;
-            --accent-hover: #1aff84;
-            --text-main: #e6e6e6;
-            --text-muted: #9a9a9a;
-            --border-soft: #2a2a2a;
-            --shadow-soft: rgba(0,0,0,.55);
+            /* --- Dark Theme with Teal Accent --- */
+            --dark-bg: #1A1A1A;
+            --darker-bg: #0F0F0F;
+            --card-bg: #27344D;
+            --primary: #008080; /* Teal */
+            --primary-hover: #00A3A3; /* Brighter Teal */
+            --text: #E0E0E0; /* Light text for dark background */
+            --text-muted: #A0A0A0;
+            --text-dim: #707070;
+            --border-color: #3F516C;
+            --shadow: rgba(0, 0, 0, 0.6);
+            --glow: rgba(0, 128, 128, 0.4); /* Teal glow */
+            --card-bg-rgb: 39, 52, 77;
         }
 
-        * { box-sizing: border-box; }
+        * {
+            box-sizing: border-box;
+        }
 
         body {
-            background: var(--bg-main);
-            color: var(--text-main);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            margin: 0; padding: 0;
+            background: linear-gradient(135deg, var(--darker-bg) 0%, var(--dark-bg) 100%);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
         }
 
-        a { color: var(--accent); text-decoration: none; transition: 0.3s; }
-        a:hover { color: var(--accent-hover); }
+        a {
+            color: var(--primary);
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
 
-        .custom-container { max-width: 1400px; margin: 0 auto; padding: 0 20px; }
+        a:hover {
+            color: var(--primary-hover);
+            text-shadow: 0 0 5px var(--glow);
+        }
+
+        .custom-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+            width: 100%;
+        }
 
         .main-wrapper {
-            background: var(--bg-main);
-            border-radius: 10px;
+            background: rgba(var(--card-bg-rgb), 0.3);
+            border-radius: 15px;
+            border: 1px solid var(--border-color);
             margin: 20px auto;
             overflow: hidden;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 30px var(--shadow);
         }
 
-        .ad-section { background: var(--bg-secondary); border-bottom: 1px solid var(--border-soft); padding: 15px 20px; text-align: center; }
+        .ad-section {
+            background: linear-gradient(45deg, var(--card-bg), var(--dark-bg));
+            border-bottom: 1px solid var(--border-color);
+            padding: 15px 20px;
+            text-align: center;
+        }
 
-        .content-area { padding: 20px; }
+        .main-wrapper > *:first-child { border-top-left-radius: 15px; border-top-right-radius: 15px; }
+        .main-wrapper > *:last-child { border-bottom-left-radius: 15px; border-bottom-right-radius: 15px; }
+
+        .main-wrapper header,
+        .main-wrapper footer {
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 15px 20px;
+        }
+
+        .main-wrapper footer {
+            border-bottom: none;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .ad-slot-container {
+            min-height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 8px 0;
+        }
+
+        .content-area {
+            padding: 20px;
+        }
 
         .category-header {
-            background: none;
-            border-left: 4px solid var(--accent);
-            border-radius: 6px;
-            color: var(--text-main);
-            font-weight: 700;
+            background: linear-gradient(90deg, var(--primary), var(--primary-hover));
+            padding: 12px 20px;
             margin: 20px 0 15px;
-            padding: 10px 15px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #ffffff;
+            border-radius: 25px;
+            position: relative;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 1px;
+            box-shadow: 0 4px 15px var(--glow);
+        }
+
+        .category-header::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            border-radius: 25px;
         }
 
         .post-card {
-            background: var(--bg-card);
-            border-radius: 10px;
-            border: 1px solid var(--border-soft);
-            transition: transform .2s ease, box-shadow .2s ease;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            height: 100%;
+            position: relative;
+            backdrop-filter: blur(10px);
         }
 
         .post-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 10px 25px var(--shadow-soft);
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 20px 40px var(--shadow), 0 0 20px var(--glow);
+            border-color: var(--primary);
         }
 
-        .post-card-img-container { background: #000; overflow: hidden; position: relative; padding-bottom: 60%; }
-        .post-card-img-container img { width: 100%; height: 100%; object-fit: cover; }
+        .post-card-img-container {
+            width: 100%;
+            padding-bottom: 60%;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(45deg, var(--dark-bg), var(--card-bg));
+        }
 
-        .post-card h3 { font-size: 0.95rem; font-weight: 500; color: var(--text-main); margin-bottom: 8px; }
+        .post-card-img-container img {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s ease;
+        }
 
-        .post-card .category { font-size: 0.65rem; color: var(--accent); font-weight: 600; text-transform: uppercase; }
+        .post-card:hover .post-card-img-container img {
+            transform: scale(1.1);
+        }
 
+        .post-card-img-container::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 50%;
+            background: linear-gradient(transparent, rgba(0,0,0,0.8));
+            pointer-events: none;
+        }
+
+        .post-card-content {
+            padding: 12px 15px;
+            position: relative;
+        }
+
+        .post-card h3 {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 8px;
+            line-height: 1.3;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+
+        .post-card .category {
+            font-size: 0.7rem;
+            color: var(--primary);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        /* --- CORRECTED AND FINAL GRID CSS --- */
+        /* This is the main, default rule for desktops and larger screens */
         .latest-updates-grid {
-            display: grid;
+            display: grid; /* This ensures the grid layout is applied */
             grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
             gap: 20px;
             padding: 10px 0;
         }
 
         .sidebar-section {
-            background: var(--bg-card);
-            border: 1px solid var(--border-soft);
-            border-radius: 10px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
             padding: 15px;
             margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
         }
 
-        .sidebar-section h4 { color: var(--accent); margin-bottom: 15px; font-size: 1rem; font-weight: 700; padding-bottom: 5px; border-bottom: 2px solid var(--accent); }
+        .sidebar-section:hover {
+            border-color: var(--primary);
+            box-shadow: 0 8px 25px var(--shadow);
+        }
 
-        .sidebar-list-item { display: flex; align-items: center; margin-bottom: 12px; padding: 8px; border-radius: 8px; transition: all .3s ease; }
-        .sidebar-list-item:hover { background: rgba(255,255,255,0.05); }
-        .sidebar-list-item img { width: 50px; height: 50px; border-radius: 8px; margin-right: 12px; object-fit: cover; border: 2px solid var(--border-soft); }
-        .sidebar-list-item-details a { color: var(--text-main); font-size: 0.85rem; font-weight: 500; line-height: 1.4; }
+        .sidebar-section h4 {
+            color: var(--primary);
+            margin-bottom: 15px;
+            font-size: 1rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--primary);
+        }
 
-        .trending-buttons { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 15px; }
-        .trending-buttons .btn { flex: 1; font-size: 0.7rem; padding: 6px 12px; border-radius: 20px; font-weight: 600; min-width: 70px; }
-        .trending-buttons .btn-primary { background: var(--accent); border: none; color: #000; }
-        .trending-buttons .btn-secondary { background: var(--bg-secondary); border: 1px solid var(--border-soft); color: var(--text-muted); }
-        .trending-buttons .btn-secondary:hover { color: var(--text-main); transform: translateY(-2px); }
+        .sidebar-list-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+            padding: 8px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
 
-        .popular-search-list { padding-left: 0; list-style: none; }
-        .popular-search-list li { margin-bottom: 8px; padding: 4px 8px; border-radius: 6px; transition: all .3s ease; }
-        .popular-search-list li:hover { background: rgba(255,255,255,0.05); }
+        .sidebar-list-item:hover {
+            background: var(--dark-bg);
+            transform: translateX(5px);
+        }
 
+        .sidebar-list-item img {
+            width: 50px;
+            height: 50px;
+            border-radius: 8px;
+            margin-right: 12px;
+            object-fit: cover;
+            border: 2px solid var(--border-color);
+        }
+
+        .sidebar-list-item-details a {
+            color: var(--text);
+            font-size: 0.85rem;
+            font-weight: 500;
+            line-height: 1.4;
+            display: -webkit-box;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+
+        .sidebar-list-item-details span {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            margin-top: 2px;
+        }
+
+        .trending-buttons {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .trending-buttons .btn {
+            flex: 1;
+            font-size: 0.7rem;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            min-width: 70px;
+        }
+
+        .trending-buttons .btn-primary {
+            background: linear-gradient(45deg, var(--primary), var(--primary-hover));
+            border: none;
+            box-shadow: 0 4px 15px var(--glow);
+        }
+
+        .trending-buttons .btn-secondary {
+            background: var(--dark-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+        }
+
+        .trending-buttons .btn-secondary:hover {
+            background: var(--border-color);
+            color: var(--text);
+            transform: translateY(-2px);
+        }
+
+        .popular-search-list {
+            padding-left: 0;
+            list-style: none;
+        }
+
+        .popular-search-list li {
+            margin-bottom: 8px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+        }
+
+        .popular-search-list li:hover {
+            background: var(--dark-bg);
+            transform: translateX(5px);
+        }
+
+        .popular-search-list li a {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
+
+        /* --- ALL RESPONSIVE OVERRIDES --- */
+
+        /* For Small Mobile Phones (Forces 2 columns) */
         @media (max-width: 575.98px) {
-            .latest-updates-grid { grid-template-columns: repeat(2, 1fr); gap: 15px; }
+            .custom-container { padding: 0 10px; }
+            .main-wrapper { margin: 10px auto; border-radius: 10px; }
+            .content-area { padding: 15px; }
+            .ad-section { padding: 10px 15px; }
+            .latest-updates-grid {
+                /* This forces a 2-column layout on mobile */
+                grid-template-columns: repeat(2, 1fr);
+                gap: 15px;
+            }
             .post-card-img-container { padding-bottom: 70%; }
+            .post-card-content { padding: 10px 12px; }
             .post-card h3 { font-size: 0.8rem; }
+            .sidebar-section { margin-bottom: 15px; padding: 12px; }
             .sidebar-list-item img { width: 40px; height: 40px; }
+            .category-header { font-size: 1rem; padding: 10px 15px; margin: 15px 0 10px; }
+            .trending-buttons { justify-content: center; }
+            .trending-buttons .btn { min-width: 60px; font-size: 0.65rem; padding: 5px 10px; }
         }
+
+        /* For Small Tablets */
+        @media (min-width: 576px) and (max-width: 767.98px) {
+            .main-wrapper { margin: 15px auto; }
+            .latest-updates-grid {
+                grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            }
+        }
+
+        /* For Tablets */
+        @media (min-width: 768px) and (max-width: 991.98px) {
+            .main-wrapper { margin: 20px auto; }
+            .latest-updates-grid {
+                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            }
+        }
+
+        /* For Small Desktops */
+        @media (min-width: 992px) and (max-width: 1199.98px) {
+            .custom-container { max-width: 1080px; }
+            .latest-updates-grid {
+                grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            }
+        }
+
+        /* For Large Desktops */
+        @media (min-width: 1200px) {
+            .custom-container { max-width: 1400px; }
+            .latest-updates-grid {
+                grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            }
+        }
+        
+        @media (min-width: 1400px) {
+            .custom-container { max-width: 1600px; }
+        }
+
+        /* Animation keyframes */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .post-card, .sidebar-section {
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--dark-bg); }
+        ::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--primary-hover); }
     </style>
 </head>
 <body>
@@ -168,80 +457,137 @@
             {% include 'core/includes/header.html' %}
             
             <div class="ad-section">
-                <div class="ad-slot-container">{{ ads_by_slug.header1|safe }}</div>
-                <div class="ad-slot-container">{{ ads_by_slug.header2|safe }}</div>
+                <div class="ad-slot-container">
+                    {{ ads_by_slug.header1|safe }}
+                </div>
+                <div class="ad-slot-container">
+                     {{ ads_by_slug.header2|safe }}
+                </div>
             </div>
             
             <div class="content-area">
                 <div class="row"> 
-                    <div class="col-lg-8">{% block content %}{% endblock %}</div>
-                    <div class="col-lg-4">{% block sidebar %}
-                        <div class="sidebar-section">
-                            <h4><i class="fas fa-ad"></i> Sponsored</h4>
-                            <div class="text-center" style="padding: 30px; border: 2px dashed var(--border-soft); border-radius: 8px; color: var(--text-muted);">
-                               {{ ads_by_slug.sidebar1|safe }}
-                            </div>
-                        </div>
-
-                        <div class="sidebar-section">
-                            <h4><i class="fas fa-fire"></i> Trending</h4>
-                            <div class="trending-buttons">
-                                <a href="?time=24hrs" class="btn {% if selected_time_frame == '24hrs' %}btn-primary{% else %}btn-secondary{% endif %}">🔥 24Hrs</a>
-                                <a href="?time=7days" class="btn {% if selected_time_frame == '7days' %}btn-primary{% else %}btn-secondary{% endif %}">⭐ 7Days</a>
-                            </div>
-                            <div class="list-unstyled">
-                                {% for post in trending_posts %}
-                                <div class="sidebar-list-item">
-                                    {% if post.thumbnail %}
-                                        <img src="{{ post.thumbnail.url }}" alt="{{ post.title }}" loading="lazy">
-                                    {% endif %}
-                                    <div class="sidebar-list-item-details">
-                                        <a href="{{ post.get_absolute_url }}">{{ post.title }}</a>
-                                        <span>{{ post.published_date|date:"M d, Y" }}</span>
-                                    </div>
+                    <div class="col-lg-8">
+                        {% block content %}{% endblock %}
+                    </div>
+                    <div class="col-lg-4">
+                        {% block sidebar %}
+                            <div class="sidebar-section">
+                                <h4><i class="fas fa-ad"></i> Sponsored</h4>
+                                <div class="text-center" style="padding: 30px; border: 2px dashed var(--border-color); border-radius: 8px; color: var(--text-dim);">
+                                   {{ ads_by_slug.sidebar1|safe }}
                                 </div>
-                                {% empty %}
-                                <p style="color: var(--text-muted);">No trending posts available.</p>
-                                {% endfor %}
                             </div>
-                        </div>
 
-                        <div class="sidebar-section">
-                            <h4><i class="fas fa-clock"></i> Recent</h4>
-                            <div class="trending-buttons"><button class="btn btn-primary">All</button></div>
-                            <div class="list-unstyled">
-                                {% for post in recent_posts %}
-                                <div class="sidebar-list-item">
-                                    {% if post.thumbnail %}
-                                        <img src="{{ post.thumbnail.url }}" alt="{{ post.title }}" loading="lazy">
-                                    {% endif %}
-                                    <div class="sidebar-list-item-details">
-                                        <a href="{{ post.get_absolute_url }}">{{ post.title }}</a>
-                                        <span>{{ post.published_date }}</span>
-                                    </div>
+                            <div class="sidebar-section">
+                                <h4><i class="fas fa-fire"></i> Trending</h4>
+                                <div class="trending-buttons">
+                                    <a href="?time=24hrs" class="btn {% if selected_time_frame == '24hrs' %}btn-primary{% else %}btn-secondary{% endif %}">🔥 24Hrs</a>
+                                    <a href="?time=7days" class="btn {% if selected_time_frame == '7days' %}btn-primary{% else %}btn-secondary{% endif %}">⭐ 7Days</a>
                                 </div>
-                                {% empty %}
-                                <p style="color: var(--text-muted);">No recent posts available.</p>
-                                {% endfor %}
-                            </div>
-                        </div>
 
-                        <div class="sidebar-section">
-                            <h4><i class="fas fa-search"></i> Popular</h4>
-                            <ul class="popular-search-list">
-                                {% for tag in popular_tags %}
-                                <li><a href="{% url 'tag_detail' tag.slug %}"><i class="fas fa-hashtag"></i> {{ tag.name }}</a></li>
-                                {% empty %}<li>No popular tags found.</li>{% endfor %}
-                            </ul>
-                        </div>
-                    {% endblock %}</div>
+                                <div class="list-unstyled">
+                                    {% for post in trending_posts %}
+                                    <div class="sidebar-list-item">
+                                        {% if post.thumbnail %}
+                                            <img src="{{ post.thumbnail.url }}" alt="{{ post.title }}" width="100" height="100" style="object-fit: cover; border-radius: 5px;" loading="lazy">
+                                        {% endif %}
+                                        <div class="sidebar-list-item-details">
+                                            <a href="{{ post.get_absolute_url }}">{{ post.title }}</a>
+                                            <span>{{ post.published_date|date:"M d, Y" }}</span>
+                                        </div>
+                                    </div>
+                                    {% empty %}
+                                    <p style="color: var(--text-dim);">No trending posts available for this period.</p>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <div class="sidebar-section">
+                                <h4><i class="fas fa-clock"></i> Recent</h4>
+                                <div class="trending-buttons">
+                                    <button class="btn btn-primary">All</button>
+                                </div>
+                                <div class="list-unstyled">
+                                    {% for post in recent_posts %}
+                                    <div class="sidebar-list-item">
+                                        {% if post.thumbnail %}
+                                            <img src="{{ post.thumbnail.url }}" alt="{{ post.title }}" width="100" height="100" style="object-fit: cover; border-radius: 5px;" loading="lazy">
+                                        {% endif %}
+                                        <div class="sidebar-list-item-details">
+                                            <a href="{{ post.get_absolute_url }}">{{ post.title }}</a>
+                                            <span>{{ post.published_date }}</span>
+                                        </div>
+                                    </div>
+                                    {% empty %}
+                                    <p style="color: var(--text-dim);">No recent posts available.</p>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <div class="sidebar-section">
+                                <h4><i class="fas fa-search"></i> Popular</h4>
+                                <ul class="popular-search-list">
+                                    {% for tag in popular_tags %}
+                                    <li>
+                                        <a href="{% url 'tag_detail' tag.slug %}">
+                                            <i class="fas fa-hashtag"></i> {{ tag.name }}
+                                        </a>
+                                    </li>
+                                    {% empty %}
+                                    <li>No popular tags found.</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        {% endblock %}
+                    </div>
                 </div>
             </div>
             
             {% include 'core/includes/footer.html' %}
         </div>
     </div>
-    
+    <script>
+(function() {
+  const POPUNDER_URL = 'https://otieu.com/4/9394021';
+  const THROTTLE_KEY = 'popunderLastShown';
+  const THROTTLE_DELAY = 60 * 60 * 1000; // 1 hour in milliseconds
+
+  function shouldAllowPopunder() {
+    const lastShown = localStorage.getItem(THROTTLE_KEY);
+    if (!lastShown) return true;
+    const elapsed = Date.now() - parseInt(lastShown, 10);
+    return elapsed >= THROTTLE_DELAY;
+  }
+
+  function openPopunder() {
+    if (!shouldAllowPopunder()) return;
+
+    const pu = window.open(POPUNDER_URL, '_blank', 'width=1,height=1,left=0,top=0,scrollbars=0');
+    if (pu) {
+      pu.blur();
+      window.focus();
+      try { pu.opener = null; } catch (e) {}
+      localStorage.setItem(THROTTLE_KEY, Date.now().toString());
+    }
+  }
+
+  // Attach to all link clicks using event delegation
+  document.addEventListener('click', function(e) {
+    let el = e.target;
+    while (el && el.nodeName !== 'A') {
+      el = el.parentElement;
+    }
+    if (el && el.href) {
+      // Only trigger if it's a real navigation click (not just # or javascript:)
+      if (el.href && !el.href.startsWith('#') && !el.href.toLowerCase().startsWith('javascript:')) {
+        setTimeout(openPopunder, 100);
+      }
+    }
+  }, true);
+})();
+</script>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" defer></script>
 </body>
 </html>
