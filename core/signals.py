@@ -121,7 +121,7 @@ from urllib.parse import urlparse
 from .models import DownloadQuality, Subtitle
 from .utils import shorten_url
 
-SHORT_DOMAIN = "dl.jaraflix.com"
+SHORT_DOMAIN = "cdn.nzdworld.com"
 
 
 def is_shortened(url):
