@@ -83,7 +83,6 @@ class Post(models.Model):
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True)
     tags = TaggableManager()  # Tags using django-taggit
     published_date = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True) 
     is_published = models.BooleanField(default=True)
 
     def set_password(self, raw_password):
