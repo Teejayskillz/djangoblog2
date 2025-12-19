@@ -92,6 +92,34 @@ class Post(models.Model):
     def check_password(self, raw_password):
         return check_password(raw_password, self.password)
         
+    def save(self, *args, **kwargs):
+        from .utils import shorten_url
+        from urllib.parse import urlparse
+
+        SHORT_DOMAIN = "cdn.nzdworld.com"
+
+        # Ensure slug is set
+        if not self.slug:
+            from django.utils.text import slugify
+            self.slug = slugify(self.title)
+
+        def is_shortened(url):
+            try:
+                return urlparse(url).netloc.endswith(SHORT_DOMAIN)
+            except:
+                return False
+
+        # Shorten main download link
+        if self.download_url and not is_shortened(self.download_url):
+            self.download_url = shorten_url(self.download_url, self.title)
+
+        # Shorten subtitle link
+        if self.subtitle_url and not is_shortened(self.subtitle_url):
+            self.subtitle_url = shorten_url(self.subtitle_url, f"{self.title} Subtitle")
+
+        super().save(*args, **kwargs)
+    
+        
 
 
     def get_absolute_url(self):

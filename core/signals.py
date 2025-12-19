@@ -9,13 +9,6 @@ from telegram.helpers import escape_markdown
 from django.contrib.sites.models import Site
 import asyncio
 import logging
-from django.db.models.signals import post_save
-from django.dispatch import receiver
-from .models import Post
-
-import json
-import requests
-from django.db.models.signals import post_save
 
 logger = logging.getLogger(__name__)
 
@@ -68,18 +61,18 @@ def auto_post_to_telegram(sender, instance, **kwargs):
         escaped_excerpt_or_content = escape_markdown(content_for_message, version=2)
 
         # --- WhatsApp Channel Information ---
-        whatsapp_channel_url = "https://whatsapp.com/channel/0029VaZdUiBEAKWIhQCJTg1d"
+        whatsapp_channel_url = "https://chat.whatsapp.com/E85YULAhuCT8TIWMFSvQ9M?mode=ac_t"
         # Escape the WhatsApp URL as it will be displayed directly and contains dots
         escaped_whatsapp_channel_url = escape_markdown(whatsapp_channel_url, version=2)
 
         # --- CONSTRUCT CAPTION TEXT ---
         caption_text = f"📢 **{escaped_title}**\n\n"
-        caption_text += f"{escaped_excerpt_or_content}\n\n"
-        caption_text += f"🔗 {escaped_post_url}"
+       # caption_text += f"{escaped_excerpt_or_content}\n\n"
+        caption_text += f"{escaped_post_url}"
         
         # --- ADDING WHATSAPP LINK BELOW POST URL ---
         # Added two newlines (\n\n) for spacing between the post link and the WhatsApp info
-        caption_text += f"\n\nJOIN OUR WHATSAPP MOVIE CHANNEL\n{escaped_whatsapp_channel_url}"
+        caption_text += f"\n\nJOIN OUR WHATSAPP MOVIE GROUP\n{escaped_whatsapp_channel_url}"
 
         async def send_telegram_message_async():
             for chat_id in channel_ids:
@@ -120,81 +113,38 @@ def auto_post_to_telegram(sender, instance, **kwargs):
     else:
         logger.info(f"Post '{instance.title}' not published, skipping Telegram post.")
 
-from django.conf import settings
-from django.db.models.signals import post_save
+
+from django.db.models.signals import pre_save
 from django.dispatch import receiver
-import requests
-import json
-from .models import Post
+from urllib.parse import urlparse
 
-@receiver(post_save, sender=Post)
-def send_post_to_emailhub(sender, instance, created, **kwargs):
-    """
-    Send post to EmailHub when published and marked for sharing via email.
-    Includes thumbnail, styled content, and 'Read More' link with category path.
-    """
-    if instance.shared_via_email and instance.is_published:
-        site_url = getattr(settings, "SITE_URL", "https://nzdworld.com")
+from .models import DownloadQuality, Subtitle
+from .utils import shorten_url
 
-        # Build post URL dynamically based on category slug
-        if instance.category:
-            post_url = f"{site_url}/{instance.category.slug}/{instance.slug}/"
-        else:
-            post_url = f"{site_url}/{instance.slug}/"
+SHORT_DOMAIN = "dl.jaraflix.com"
 
-        # Build absolute thumbnail URL
-        thumbnail_url = f"{site_url}{instance.thumbnail.url}" if instance.thumbnail else ""
 
-        # Prepare styled HTML content for email
-        preview_content = f"""
-        <div style="font-family: Arial, Helvetica, sans-serif; background-color:#f9f9f9; padding:20px 0;">
-            <div style="max-width:600px; margin:0 auto; background:#fff; border-radius:10px; overflow:hidden; box-shadow:0 4px 10px rgba(0,0,0,0.1);">
-                
-                <!-- Header -->
-                <div style="background-color:#007bff; color:#fff; text-align:center; padding:15px;">
-                    <h2 style="margin:0; font-size:20px;">{instance.title}</h2>
-                </div>
+def is_shortened(url):
+    try:
+        return SHORT_DOMAIN in urlparse(url).netloc
+    except Exception:
+        return False
 
-                <!-- Thumbnail -->
-                {'<img src="'+thumbnail_url+'" alt="Thumbnail" style="width:100%; height:auto; display:block;">' if thumbnail_url else ''}
 
-                <!-- Content -->
-                <div style="padding:20px; color:#333; font-size:16px; line-height:1.5;">
-                    <p>{instance.content[:500]}...</p>
-                    <div style="text-align:center; margin-top:20px;">
-                        <a href="{post_url}" 
-                           style="display:inline-block; background:#007bff; color:#fff; padding:12px 24px; text-decoration:none; border-radius:5px; font-weight:bold;">
-                            Read Full Post →
-                        </a>
-                    </div>
-                </div>
+@receiver(pre_save, sender=DownloadQuality)
+def shorten_download_quality_url(sender, instance, **kwargs):
+    if instance.download_url and not is_shortened(instance.download_url):
+        instance.download_url = shorten_url(
+            instance.download_url,
+            f"{instance.post.title} {instance.quality}"
+        )
 
-                <!-- Footer -->
-                <div style="background-color:#f1f1f1; text-align:center; padding:15px; font-size:12px; color:#666;">
-                    <p>You're receiving this email because you're subscribed to updates from <strong>NZDWorld</strong>.</p>
-                    <p>© 2025 NZDWorld. All rights reserved.</p>
-                </div>
-            </div>
-        </div>
-        """
 
-        # Prepare data payload
-        data = {
-            "title": instance.title,
-            "content": preview_content,  # send HTML content with styling
-            "thumbnail_url": thumbnail_url,
-            "read_more_url": post_url,
-        }
+@receiver(pre_save, sender=Subtitle)
+def shorten_subtitle_url(sender, instance, **kwargs):
+    if instance.download_url and not is_shortened(instance.download_url):
+        instance.download_url = shorten_url(
+            instance.download_url,
+            f"{instance.post.title} {instance.language} Subtitle"
+        )
 
-        # Send to EmailHub
-        try:
-            url = "http://mailhub.nzdworld.com/api/receive-post/"
-            response = requests.post(
-                url,
-                data=json.dumps(data),
-                headers={"Content-Type": "application/json"},
-                timeout=10
-            )
-            print("✅ Post sent to EmailHub:", response.json())
-        except Exception as e:
-            print("❌ Error sending to EmailHub:", str(e))
