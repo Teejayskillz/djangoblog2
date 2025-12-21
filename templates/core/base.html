@@ -4,18 +4,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}{{ post.get_page_title|default:'Online Entertainment Media Platform showcasing Cool Contents to Viewers across the Globe.' }}{% endblock %} - Nzdworld</title>
-    <meta name="description" content="{% block meta_description %}{{ post.excerpt|default:'Online Entertainment Brand for showcasing Cool Contents to viewers across the globe.' }}{% endblock %}">
+    <title>{% block title %}{{ post.get_page_title|default:'Online Entertainment Media Platform showcasing Cool Contents to Viewers across the Globe.
+' }}{% endblock %} - Nzdworld</title>
+    <meta name="description" content="{% block meta_description %}{{ post.excerpt|default:'Online Entertainment Media Platform showcasing Cool Contents to Viewers across the Globe.
+' }}{% endblock %}">
 
     {# Open Graph Tags (for Facebook, WhatsApp, LinkedIn) #}
     <meta property="og:locale" content="en_US"/>
     <meta property="og:site_name" content="Nzdworld"/>
-    <meta property="og:title" content="{% block og_title %}{{ post.get_page_title|default:'Online Entertainment Brand for showcasing Cool Contents to viewers across the globe.' }}{% endblock %} - Nzdworld">
+    <meta property="og:title" content="{% block og_title %}{{ post.get_page_title|default:'Online Entertainment Media Platform showcasing Cool Contents to Viewers across the Globe.
+' }}{% endblock %} - Nzdworld">
     
     <meta property="og:url" content="{{ post_absolute_url }}">
     <meta property="og:type" content="article">
-    <meta property="og:description" content="{% block og_description %}{{ post.excerpt|default:'Online Entertainment Brand for showcasing Cool Contents to viewers across the globe.' }}{% endblock %}">
-    
+    <meta property="og:description" content="{% block og_description %}{{ post.excerpt|default:'Online Entertainment Media Platform showcasing Cool Contents to Viewers across the Globe.
+' }}{% endblock %}">
     <meta property="og:image" content="{{ thumbnail_absolute_url }}">
     <meta property="og:image:url" content="{{ thumbnail_absolute_url }}">
     <meta property="og:image:secure_url" content="{{ thumbnail_absolute_url }}">
