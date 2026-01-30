@@ -226,8 +226,11 @@
     <div class="container">
       <div class="d-flex flex-wrap justify-content-center gap-2">
         <a href="{% url 'category' 'hollywood-movie' %}" class="btn category-btn"><i class="bi bi-film me-1"></i>Hollywood</a>
-        <a href="{% url 'category' 'action-movie' %}" class="btn category-btn"><i class="bi bi-film me-1"></i>Action Movies</a>
-        <a href="{% url 'category' 'nollywood-movie' %}" class="btn category-btn"><i class="bi bi-camera-reels me-1"></i>Nollywood</a>
+        <a href="{% url 'category' 'action-movie' %}" class="btn category-btn">
+  <i class="bi bi-fire me-1"></i>Action Movie
+</a>
+
+      <!--     <a href="{% url 'category' 'nollywood-movie' %}" class="btn category-btn"><i class="bi bi-camera-reels me-1"></i>Nollywood</a> -->
         <a href="{% url 'category' 'series' %}" class="btn category-btn"><i class="bi bi-camera-reels me-1"></i>Series</a>
         <a href="{% url 'category' 'korean-drama' %}" class="btn category-btn"><i class="bi bi-heart-fill me-1"></i>Korean Drama</a>
         <a href="{% url 'category' 'indian-Movie' %}" class="btn category-btn"><i class="bi bi-globe-asia-australia me-1"></i>Bollywood</a>
