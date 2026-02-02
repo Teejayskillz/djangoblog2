@@ -1,32 +1,56 @@
-{% load static %}<!DOCTYPE html>
-<html lang="en">
+{% load static %}
+<!DOCTYPE html>
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    {# SEO Optimized Title and Meta Tags (Removed extra line breaks to prevent top-spacing ghosting) #}
-    <title>{% block title %}{{ post.get_page_title|default:"Online Entertainment Media Platform showcasing Cool Contents to Viewers across the Globe." }}{% endblock %} - Nzdworld</title>
-    <meta name="description" content="{% block meta_description %}{{ post.excerpt|default:'Online Entertainment Media Platform showcasing Cool Contents to Viewers across the Globe.' }}{% endblock %}">
-    <meta name="keywords" content="Nzdworld, Entertainment, Trending News, Media Platform, Cool Contents">
+<title>
+    {% block title %}
+        {{ post.get_page_title|default:"Online Entertainment Media Platform showcasing Cool Contents to Viewers across the Globe." }}
+    {% endblock %}
+    - Nzdworld
+</title>
 
-    <meta property="og:locale" content="en_US">
-    <meta property="og:site_name" content="Nzdworld">
-    <meta property="og:title" content="{% block og_title %}{{ post.get_page_title|default:'Online Entertainment Media Platform' }}{% endblock %} - Nzdworld">
-    <meta property="og:url" content="{{ post_absolute_url }}">
-    <meta property="og:type" content="article">
-    <meta property="og:description" content="{% block og_description %}{{ post.excerpt|default:'Online Entertainment Media Platform showcasing Cool Contents to Viewers across the Globe.' }}{% endblock %}">
-    <meta property="og:image" content="{{ thumbnail_absolute_url }}">
-    <meta property="og:image:url" content="{{ thumbnail_absolute_url }}">
-    <meta property="og:image:secure_url" content="{{ thumbnail_absolute_url }}">
+<meta name="description" content="
+    {% block meta_description %}
+        {{ post.excerpt|default:"Online Entertainment Media Platform showcasing Cool Contents to Viewers across the Globe." }}
+    {% endblock %}
+">
 
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-8W2ZWQYVMQ"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-8W2ZWQYVMQ');
-    </script>
+<!-- Open Graph Tags (Facebook, WhatsApp, LinkedIn) -->
+<meta property="og:locale" content="en_US">
+<meta property="og:site_name" content="Nzdworld">
 
+<meta property="og:title" content="
+    {% block og_title %}
+        {{ post.get_page_title|default:"Online Entertainment Media Platform showcasing Cool Contents to Viewers across the Globe." }}
+    {% endblock %}
+    - Nzdworld
+">
+
+<meta property="og:url" content="{{ post_absolute_url }}">
+<meta property="og:type" content="article">
+
+<meta property="og:description" content="
+    {% block og_description %}
+        {{ post.excerpt|default:"Online Entertainment Media Platform showcasing Cool Contents to Viewers across the Globe." }}
+    {% endblock %}
+">
+
+<meta property="og:image" content="{{ thumbnail_absolute_url }}">
+<meta property="og:image:url" content="{{ thumbnail_absolute_url }}">
+<meta property="og:image:secure_url" content="{{ thumbnail_absolute_url }}">
+
+    <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-8W2ZWQYVMQ"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-8W2ZWQYVMQ');
+</script>
     {% if post.thumbnail %}
         <meta property="og:image:width" content="1200">
         <meta property="og:image:height" content="630">
@@ -39,180 +63,673 @@
 
     {# Twitter Card Tags #}
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="{% block twitter_title %}{{ post.get_page_title|default:'Online Entertainment Brand' }}{% endblock %} - Nzdworld">
+    <meta name="twitter:title" content="{% block twitter_title %}{{ post.get_page_title|default:'Online Entertainment Brand for showcasing Cool Contents to viewers across the globe.' }}{% endblock %} - Nzdworld">
     <meta name="twitter:url" content="{{ post_absolute_url }}">
     <meta name="twitter:description" content="{% block twitter_description %}{{ post.excerpt|default:'Online Entertainment Brand for showcasing Cool Contents to viewers across the globe.' }}{% endblock %}">
     <meta name="twitter:image" content="{{ thumbnail_absolute_url }}">
     <meta name="twitter:site" content="@nzdworld">
+    <meta name="twitter:creator" content="@YourCreatorHandle">
     
     <link rel="canonical" href="{{ post_absolute_url }}" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     
+    
     <style>
-        :root {
-            --dark-bg: #1A1A1A;
-            --darker-bg: #0F0F0F;
-            --card-bg: #27344D;
-            --primary: #008080;
-            --primary-hover: #00A3A3;
-            --text: #E0E0E0;
-            --text-muted: #A0A0A0;
-            --text-dim: #707070;
-            --border-color: #3F516C;
-            --shadow: rgba(0, 0, 0, 0.6);
-            --glow: rgba(0, 128, 128, 0.4);
-            --card-bg-rgb: 39, 52, 77;
-        }
+        /* ============================================
+   COMPREHENSIVE THEME FIX FOR NZDWORLD
+   Fixes: White spaces, theme malfunctions, missing presets
+   ============================================ */
 
-        /* FIX: Prevents white flash/strips at edges */
-        html {
-            background-color: var(--darker-bg);
-            margin: 0;
-            padding: 0;
-        }
+/* === 1. CRITICAL: Reset HTML element (stops white background) === */
+html {
+    background: #0F0F0F; /* Match --darker-bg */
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    scroll-behavior: smooth;
+}
 
-        * { box-sizing: border-box; }
+/* === 2. ENHANCED: Body styling with no gaps === */
+body {
+    background: linear-gradient(135deg, #0F0F0F 0%, #1A1A1A 100%);
+    color: #E0E0E0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    /* Ensure body covers full viewport */
+    width: 100%;
+    overflow-x: hidden;
+}
 
-        body {
-            background: linear-gradient(135deg, var(--darker-bg) 0%, var(--dark-bg) 100%);
-            color: var(--text);
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            line-height: 1.6;
-            margin: 0;
-            padding: 0;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
+/* === 3. ROOT VARIABLES - Complete set === */
+:root {
+    /* --- Dark Theme with Teal Accent --- */
+    --dark-bg: #1A1A1A;
+    --darker-bg: #0F0F0F;
+    --card-bg: #27344D;
+    --primary: #008080; /* Teal */
+    --primary-hover: #00A3A3; /* Brighter Teal */
+    --text: #E0E0E0; /* Light text for dark background */
+    --text-muted: #A0A0A0;
+    --text-dim: #707070;
+    --border-color: #3F516C;
+    --shadow: rgba(0, 0, 0, 0.6);
+    --glow: rgba(0, 128, 128, 0.4); /* Teal glow */
+    --card-bg-rgb: 39, 52, 77;
+    
+    /* === ADDITIONAL MISSING PRESETS === */
+    --success: #28a745;
+    --warning: #ffc107;
+    --danger: #dc3545;
+    --info: #17a2b8;
+    --light: #f8f9fa;
+    --dark: #343a40;
+    
+    /* Spacing presets */
+    --spacing-xs: 5px;
+    --spacing-sm: 10px;
+    --spacing-md: 15px;
+    --spacing-lg: 20px;
+    --spacing-xl: 30px;
+    
+    /* Border radius presets */
+    --radius-sm: 6px;
+    --radius-md: 12px;
+    --radius-lg: 15px;
+    --radius-xl: 25px;
+    
+    /* Transition presets */
+    --transition-fast: 0.2s ease;
+    --transition-normal: 0.3s ease;
+    --transition-slow: 0.5s ease;
+}
 
-        a { color: var(--primary); text-decoration: none; transition: all 0.3s ease; }
-        a:hover { color: var(--primary-hover); text-shadow: 0 0 5px var(--glow); }
+/* === 4. UNIVERSAL BOX-SIZING (prevents layout breaks) === */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
 
-        .custom-container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 0 20px;
-            width: 100%;
-            flex-grow: 1; /* Ensures container fills height */
-        }
+/* === 5. CUSTOM CONTAINER - Remove problematic margins === */
+.custom-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 20px;
+    width: 100%;
+    /* Remove any background that might show white */
+    background: transparent;
+}
 
-        .main-wrapper {
-            background: rgba(var(--card-bg-rgb), 0.3);
-            border-radius: 15px;
-            border: 1px solid var(--border-color);
-            margin: 0 auto 20px auto; /* Removed top margin to fix top white gap */
-            overflow: hidden;
-            backdrop-filter: blur(10px);
-            box-shadow: 0 10px 30px var(--shadow);
-            display: flex;
-            flex-direction: column;
-        }
+/* === 6. MAIN WRAPPER - Adjusted margins to prevent white gaps === */
+.main-wrapper {
+    background: rgba(var(--card-bg-rgb), 0.3);
+    border-radius: 15px;
+    border: 1px solid var(--border-color);
+    /* CHANGED: Reduced top/bottom margin to minimize gaps */
+    margin: 10px auto;
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 10px 30px var(--shadow);
+    /* Ensure it doesn't create white space */
+    position: relative;
+}
 
-        .ad-section {
-            background: linear-gradient(45deg, var(--card-bg), var(--dark-bg));
-            border-bottom: 1px solid var(--border-color);
-            padding: 15px 20px;
-            text-align: center;
-        }
+/* === 7. BOOTSTRAP OVERRIDES - Prevent white backgrounds === */
+.container,
+.container-fluid,
+.row,
+.col,
+[class*="col-"] {
+    background: transparent !important;
+}
 
-        .main-wrapper > *:first-child { border-top-left-radius: 15px; border-top-right-radius: 15px; }
-        .main-wrapper > *:last-child { border-bottom-left-radius: 15px; border-bottom-right-radius: 15px; }
+/* Fix Bootstrap row negative margins causing issues */
+.row {
+    margin-left: -10px;
+    margin-right: -10px;
+}
 
-        .main-wrapper header,
-        .main-wrapper footer {
-            background: var(--card-bg);
-            border-bottom: 1px solid var(--border-color);
-            padding: 15px 20px;
-        }
+.row > * {
+    padding-left: 10px;
+    padding-right: 10px;
+}
 
-        .main-wrapper footer { border-bottom: none; border-top: 1px solid var(--border-color); }
+/* === 8. AD SECTION - Ensure dark background === */
+.ad-section {
+    background: linear-gradient(45deg, var(--card-bg), var(--dark-bg));
+    border-bottom: 1px solid var(--border-color);
+    padding: 15px 20px;
+    text-align: center;
+}
 
-        .ad-slot-container {
-            min-height: 40px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin: 8px 0;
-        }
-        /* Hide empty ad slots that might cause white space */
-        .ad-slot-container:empty { display: none; }
+/* === 9. CONTENT AREA - Dark background enforcement === */
+.content-area {
+    padding: 20px;
+    background: transparent;
+    min-height: 400px;
+}
 
-        .content-area { padding: 20px; flex-grow: 1; }
+/* === 10. CATEGORY HEADER - Enhanced === */
+.category-header {
+    background: linear-gradient(90deg, var(--primary), var(--primary-hover));
+    padding: 12px 20px;
+    margin: 20px 0 15px;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #ffffff;
+    border-radius: var(--radius-xl);
+    position: relative;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    box-shadow: 0 4px 15px var(--glow);
+}
 
-        .category-header {
-            background: linear-gradient(90deg, var(--primary), var(--primary-hover));
-            padding: 12px 20px;
-            margin: 20px 0 15px;
-            font-size: 1.2rem;
-            font-weight: 700;
-            color: #ffffff;
-            border-radius: 25px;
-            position: relative;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            box-shadow: 0 4px 15px var(--glow);
-        }
+.category-header::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+    border-radius: var(--radius-xl);
+}
 
-        .post-card {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            overflow: hidden;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            height: 100%;
-            position: relative;
-            backdrop-filter: blur(10px);
-        }
+/* === 11. POST CARD - Complete styling === */
+.post-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    transition: all var(--transition-normal) cubic-bezier(0.4, 0, 0.2, 1);
+    height: 100%;
+    position: relative;
+    backdrop-filter: blur(10px);
+}
 
-        .post-card:hover {
-            transform: translateY(-8px) scale(1.02);
-            box-shadow: 0 20px 40px var(--shadow), 0 0 20px var(--glow);
-            border-color: var(--primary);
-        }
+.post-card:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 20px 40px var(--shadow), 0 0 20px var(--glow);
+    border-color: var(--primary);
+}
 
-        .post-card-img-container {
-            width: 100%;
-            padding-bottom: 60%;
-            position: relative;
-            overflow: hidden;
-            background: linear-gradient(45deg, var(--dark-bg), var(--card-bg));
-        }
+.post-card-img-container {
+    width: 100%;
+    padding-bottom: 60%;
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(45deg, var(--dark-bg), var(--card-bg));
+}
 
-        .post-card-img-container img {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease;
-        }
+.post-card-img-container img {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform var(--transition-normal);
+}
 
-        .latest-updates-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 20px;
-            padding: 10px 0;
-        }
+.post-card:hover .post-card-img-container img {
+    transform: scale(1.1);
+}
 
-        .sidebar-section {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 15px;
-            margin-bottom: 20px;
-            backdrop-filter: blur(10px);
-        }
+.post-card-img-container::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 50%;
+    background: linear-gradient(transparent, rgba(0,0,0,0.8));
+    pointer-events: none;
+}
 
-        /* Keep your existing animation and scrollbar styles */
-        @keyframes fadeInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-        .post-card, .sidebar-section { animation: fadeInUp 0.6s ease-out; }
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: var(--dark-bg); }
-        ::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 4px; }
+.post-card-content {
+    padding: 12px 15px;
+    position: relative;
+    background: var(--card-bg);
+}
 
-        /* Responsive */
-        @media (max-width: 575.98px) {
-            .latest-updates-grid { grid-template-columns: repeat(2, 1fr); gap: 15px; }
-            .main-wrapper { margin: 0 auto 10px auto; }
-        }
+.post-card h3 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 8px;
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.post-card .category {
+    font-size: 0.7rem;
+    color: var(--primary);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* === 12. GRID SYSTEM - Corrected === */
+.latest-updates-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 20px;
+    padding: 10px 0;
+}
+
+/* === 13. SIDEBAR SECTIONS === */
+.sidebar-section {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 15px;
+    margin-bottom: 20px;
+    backdrop-filter: blur(10px);
+    transition: all var(--transition-normal);
+}
+
+.sidebar-section:hover {
+    border-color: var(--primary);
+    box-shadow: 0 8px 25px var(--shadow);
+}
+
+.sidebar-section h4 {
+    color: var(--primary);
+    margin-bottom: 15px;
+    font-size: 1rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--primary);
+}
+
+.sidebar-list-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+    padding: 8px;
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-normal);
+    background: transparent;
+}
+
+.sidebar-list-item:hover {
+    background: var(--dark-bg);
+    transform: translateX(5px);
+}
+
+.sidebar-list-item img {
+    width: 50px;
+    height: 50px;
+    border-radius: var(--radius-sm);
+    margin-right: 12px;
+    object-fit: cover;
+    border: 2px solid var(--border-color);
+}
+
+.sidebar-list-item-details a {
+    color: var(--text);
+    font-size: 0.85rem;
+    font-weight: 500;
+    line-height: 1.4;
+    display: -webkit-box;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.sidebar-list-item-details span {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    margin-top: 2px;
+    display: block;
+}
+
+/* === 14. TRENDING BUTTONS === */
+.trending-buttons {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+}
+
+.trending-buttons .btn {
+    flex: 1;
+    font-size: 0.7rem;
+    padding: 6px 12px;
+    border-radius: var(--radius-xl);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    min-width: 70px;
+    transition: all var(--transition-fast);
+}
+
+.trending-buttons .btn-primary {
+    background: linear-gradient(45deg, var(--primary), var(--primary-hover));
+    border: none;
+    box-shadow: 0 4px 15px var(--glow);
+    color: #ffffff;
+}
+
+.trending-buttons .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px var(--glow);
+}
+
+.trending-buttons .btn-secondary {
+    background: var(--dark-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+}
+
+.trending-buttons .btn-secondary:hover {
+    background: var(--border-color);
+    color: var(--text);
+    transform: translateY(-2px);
+}
+
+/* === 15. POPULAR SEARCH LIST === */
+.popular-search-list {
+    padding-left: 0;
+    list-style: none;
+}
+
+.popular-search-list li {
+    margin-bottom: 8px;
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-normal);
+}
+
+.popular-search-list li:hover {
+    background: var(--dark-bg);
+    transform: translateX(5px);
+}
+
+.popular-search-list li a {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+.popular-search-list li a:hover {
+    color: var(--primary);
+}
+
+/* === 16. LINKS - Global styling === */
+a {
+    color: var(--primary);
+    text-decoration: none;
+    transition: all var(--transition-normal);
+}
+
+a:hover {
+    color: var(--primary-hover);
+    text-shadow: 0 0 5px var(--glow);
+}
+
+/* === 17. AD SLOT CONTAINER === */
+.ad-slot-container {
+    min-height: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 8px 0;
+    background: transparent;
+}
+
+/* === 18. HEADER & FOOTER SECTIONS === */
+.main-wrapper header,
+.main-wrapper footer {
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--border-color);
+    padding: 15px 20px;
+}
+
+.main-wrapper footer {
+    border-bottom: none;
+    border-top: 1px solid var(--border-color);
+}
+
+.main-wrapper > *:first-child { 
+    border-top-left-radius: 15px; 
+    border-top-right-radius: 15px; 
+}
+
+.main-wrapper > *:last-child { 
+    border-bottom-left-radius: 15px; 
+    border-bottom-right-radius: 15px; 
+}
+
+/* === 19. RESPONSIVE DESIGN === */
+
+/* Small Mobile Phones (Forces 2 columns) */
+@media (max-width: 575.98px) {
+    .custom-container { 
+        padding: 0 10px; 
+    }
+    
+    .main-wrapper { 
+        margin: 5px auto; 
+        border-radius: 10px; 
+    }
+    
+    .content-area { 
+        padding: 15px; 
+    }
+    
+    .ad-section { 
+        padding: 10px 15px; 
+    }
+    
+    .latest-updates-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+    }
+    
+    .post-card-img-container { 
+        padding-bottom: 70%; 
+    }
+    
+    .post-card-content { 
+        padding: 10px 12px; 
+    }
+    
+    .post-card h3 { 
+        font-size: 0.8rem; 
+    }
+    
+    .sidebar-section { 
+        margin-bottom: 15px; 
+        padding: 12px; 
+    }
+    
+    .sidebar-list-item img { 
+        width: 40px; 
+        height: 40px; 
+    }
+    
+    .category-header { 
+        font-size: 1rem; 
+        padding: 10px 15px; 
+        margin: 15px 0 10px; 
+    }
+    
+    .trending-buttons { 
+        justify-content: center; 
+    }
+    
+    .trending-buttons .btn { 
+        min-width: 60px; 
+        font-size: 0.65rem; 
+        padding: 5px 10px; 
+    }
+}
+
+/* Small Tablets */
+@media (min-width: 576px) and (max-width: 767.98px) {
+    .main-wrapper { 
+        margin: 8px auto; 
+    }
+    
+    .latest-updates-grid {
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    }
+}
+
+/* Tablets */
+@media (min-width: 768px) and (max-width: 991.98px) {
+    .main-wrapper { 
+        margin: 10px auto; 
+    }
+    
+    .latest-updates-grid {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    }
+}
+
+/* Small Desktops */
+@media (min-width: 992px) and (max-width: 1199.98px) {
+    .custom-container { 
+        max-width: 1080px; 
+    }
+    
+    .latest-updates-grid {
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    }
+}
+
+/* Large Desktops */
+@media (min-width: 1200px) {
+    .custom-container { 
+        max-width: 1400px; 
+    }
+    
+    .latest-updates-grid {
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    }
+}
+
+@media (min-width: 1400px) {
+    .custom-container { 
+        max-width: 1600px; 
+    }
+}
+
+/* === 20. ANIMATIONS === */
+@keyframes fadeInUp {
+    from { 
+        opacity: 0; 
+        transform: translateY(30px); 
+    }
+    to { 
+        opacity: 1; 
+        transform: translateY(0); 
+    }
+}
+
+.post-card, .sidebar-section {
+    animation: fadeInUp 0.6s ease-out;
+}
+
+/* === 21. SCROLLBAR STYLING === */
+::-webkit-scrollbar { 
+    width: 8px; 
+    height: 8px;
+}
+
+::-webkit-scrollbar-track { 
+    background: var(--dark-bg); 
+}
+
+::-webkit-scrollbar-thumb { 
+    background: var(--primary); 
+    border-radius: 4px; 
+}
+
+::-webkit-scrollbar-thumb:hover { 
+    background: var(--primary-hover); 
+}
+
+/* Firefox scrollbar */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary) var(--dark-bg);
+}
+
+/* === 22. PREVENT THEME MALFUNCTIONS === */
+
+/* Ensure no white flashes on page load */
+html, body {
+    background-color: var(--darker-bg) !important;
+}
+
+/* Prevent white backgrounds from appearing anywhere */
+div, section, article, main, aside, nav, footer, header {
+    background-color: transparent;
+}
+
+/* Override any accidental white backgrounds */
+.bg-white,
+.bg-light {
+    background-color: var(--card-bg) !important;
+    color: var(--text) !important;
+}
+
+/* Ensure images don't have white backgrounds */
+img {
+    background-color: transparent;
+}
+
+/* === 23. PRINT STYLES (prevent white page when printing) === */
+@media print {
+    html, body {
+        background: white !important;
+        color: black !important;
+    }
+}
+
+/* === 24. ACCESSIBILITY IMPROVEMENTS === */
+/* Focus states for keyboard navigation */
+a:focus,
+button:focus,
+.btn:focus {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+/* Reduced motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* === 25. FALLBACK COLORS === */
+/* In case CSS variables fail to load */
+body {
+    background-color: #0F0F0F;
+    color: #E0E0E0;
+}
+
+.main-wrapper {
+    background-color: rgba(39, 52, 77, 0.3);
+}
+
+.post-card,
+.sidebar-section {
+    background-color: #27344D;
+}
+
     </style>
 </head>
 <body>
@@ -221,8 +738,12 @@
             {% include 'core/includes/header.html' %}
             
             <div class="ad-section">
-                <div class="ad-slot-container">{{ ads_by_slug.header1|safe }}</div>
-                <div class="ad-slot-container">{{ ads_by_slug.header2|safe }}</div>
+                <div class="ad-slot-container">
+                    {{ ads_by_slug.header1|safe }}
+                </div>
+                <div class="ad-slot-container">
+                     {{ ads_by_slug.header2|safe }}
+                </div>
             </div>
             
             <div class="content-area">
@@ -245,36 +766,63 @@
                                     <a href="?time=24hrs" class="btn {% if selected_time_frame == '24hrs' %}btn-primary{% else %}btn-secondary{% endif %}">🔥 24Hrs</a>
                                     <a href="?time=7days" class="btn {% if selected_time_frame == '7days' %}btn-primary{% else %}btn-secondary{% endif %}">⭐ 7Days</a>
                                 </div>
+
                                 <div class="list-unstyled">
                                     {% for post in trending_posts %}
                                     <div class="sidebar-list-item">
-                                        {% if post.thumbnail %}<img src="{{ post.thumbnail.url }}" alt="{{ post.title }}" width="100" height="100" style="object-fit: cover; border-radius: 5px;" loading="lazy">{% endif %}
+                                        {% if post.thumbnail %}
+                                            <img src="{{ post.thumbnail.url }}" alt="{{ post.title }}" width="100" height="100" style="object-fit: cover; border-radius: 5px;" loading="lazy">
+                                        {% endif %}
                                         <div class="sidebar-list-item-details">
                                             <a href="{{ post.get_absolute_url }}">{{ post.title }}</a>
                                             <span>{{ post.published_date|date:"M d, Y" }}</span>
                                         </div>
                                     </div>
-                                    {% empty %}<p style="color: var(--text-dim);">No trending posts.</p>{% endfor %}
+                                    {% empty %}
+                                    <p style="color: var(--text-dim);">No trending posts available for this period.</p>
+                                    {% endfor %}
                                 </div>
                             </div>
-                            
-                            {# Additional Popular Section #}
+
                             <div class="sidebar-section">
-                                <h4><i class="fas fa-search"></i> Popular Tags</h4>
+                                <h4><i class="fas fa-clock"></i> Recent</h4>
+                                <div class="trending-buttons">
+                                    <button class="btn btn-primary">All</button>
+                                </div>
+                                <div class="list-unstyled">
+                                    {% for post in recent_posts %}
+                                    <div class="sidebar-list-item">
+                                        {% if post.thumbnail %}
+                                            <img src="{{ post.thumbnail.url }}" alt="{{ post.title }}" width="100" height="100" style="object-fit: cover; border-radius: 5px;" loading="lazy">
+                                        {% endif %}
+                                        <div class="sidebar-list-item-details">
+                                            <a href="{{ post.get_absolute_url }}">{{ post.title }}</a>
+                                            <span>{{ post.published_date }}</span>
+                                        </div>
+                                    </div>
+                                    {% empty %}
+                                    <p style="color: var(--text-dim);">No recent posts available.</p>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <div class="sidebar-section">
+                                <h4><i class="fas fa-search"></i> Popular</h4>
                                 <ul class="popular-search-list">
                                     {% for tag in popular_tags %}
-                                    <li><a href="{% url 'tag_detail' tag.slug %}">#{{ tag.name }}</a></li>
+                                    <li>
+                                        <a href="{% url 'tag_detail' tag.slug %}">
+                                            <i class="fas fa-hashtag"></i> {{ tag.name }}
+                                        </a>
+                                    </li>
+                                    {% empty %}
+                                    <li>No popular tags found.</li>
                                     {% endfor %}
                                 </ul>
                             </div>
                         {% endblock %}
                     </div>
                 </div>
-            </div>
-
-            {# SEO Site Link Injection #}
-            <div class="p-3 text-center" style="border-top: 1px solid var(--border-color); font-size: 0.8rem;">
-                Explore more cool content at <a href="https://nzdworld.com" target="_blank" rel="noopener">Nzdworld.com</a> - Your Global Entertainment Hub.
             </div>
             
             {% include 'core/includes/footer.html' %}
