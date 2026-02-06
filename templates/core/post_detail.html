@@ -159,8 +159,7 @@
         </div>
 
         <div class="comment-list">
-            {% for comment in post.comments.filter(is_approved=True) %}
-
+            {% for comment in comments %}
             <div class="comment">
                 <div class="comment-header">
                     <span class="comment-author">{{ comment.name }}</span>
