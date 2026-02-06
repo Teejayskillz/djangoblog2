@@ -2,7 +2,7 @@
 {% load static %} {# Make sure this is loaded for static files #}
 
 {% block title %}
-    {{ post.get_page_title }}
+{{ post.get_page_title }}
 {% endblock %}
 
 {% block content %}
@@ -28,11 +28,8 @@
 
     {% if post.thumbnail %}
     <div class="featured-image">
-        <img src="{{ post.thumbnail.url }}"
-             alt="{{ post.title }}"
-             class="img-fluid w-100 rounded"
-             style="max-height: 500px; object-fit: cover;"
-             loading="lazy">
+        <img src="{{ post.thumbnail.url }}" alt="{{ post.title }}" class="img-fluid w-100 rounded"
+            style="max-height: 500px; object-fit: cover;" loading="lazy">
     </div>
     {% endif %}
 
@@ -59,17 +56,15 @@
             <h5 class="section-heading">Video Quality</h5>
             <div class="quality-buttons">
                 {% for quality in post.qualities.all %}
-                <a href="{% url 'download_quality' quality.pk %}"
-                   class="quality-btn"
-                   >
-                   <div class="quality-info">
-                       <i class="bi bi-film"></i>
-                       <span class="quality-name">{{ quality.get_quality_display }}</span>
-                       {% if quality.is_premium %}
-                       <span class="premium-badge">Premium</span>
-                       {% endif %}
-                   </div>
-                   <div class="download-count">{{ quality.download_count }}</div>
+                <a href="{% url 'download_quality' quality.pk %}" class="quality-btn">
+                    <div class="quality-info">
+                        <i class="bi bi-film"></i>
+                        <span class="quality-name">{{ quality.get_quality_display }}</span>
+                        {% if quality.is_premium %}
+                        <span class="premium-badge">Premium</span>
+                        {% endif %}
+                    </div>
+                    <div class="download-count">{{ quality.download_count }}</div>
                 </a>
                 {% endfor %}
             </div>
@@ -81,17 +76,15 @@
             <h5 class="section-heading">Subtitles</h5>
             <div class="subtitle-grid">
                 {% for sub in post.subtitles.all %}
-                <a href="{% url 'download_subtitle' sub.pk %}"
-                   class="subtitle-btn"
-                   >
-                   <div class="subtitle-info">
-                       <i class="bi bi-translate"></i>
-                       <span class="uppercase-text">DOWNLOAD {{ sub.language }} SUBTITLE</span>
-                       {% if sub.is_auto_generated %}
-                       <span class="auto-badge">Auto</span>
-                       {% endif %}
-                   </div>
-                   <small>{{ sub.download_count }}</small>
+                <a href="{% url 'download_subtitle' sub.pk %}" class="subtitle-btn">
+                    <div class="subtitle-info">
+                        <i class="bi bi-translate"></i>
+                        <span class="uppercase-text">DOWNLOAD {{ sub.language }} SUBTITLE</span>
+                        {% if sub.is_auto_generated %}
+                        <span class="auto-badge">Auto</span>
+                        {% endif %}
+                    </div>
+                    <small>{{ sub.download_count }}</small>
                 </a>
                 {% endfor %}
             </div>
@@ -108,15 +101,19 @@
     <div class="share-buttons mt-5">
         <h5>Share this post:</h5>
         <div class="btn-group" role="group">
-            <a href="https://www.facebook.com/sharer/sharer.php?u={{ request.build_absolute_uri }}" target="_blank" class="btn btn-sm" style="background-color: #1877F2; color: white;"><i class="bi bi-facebook"></i> Facebook</a>
-            <a href="https://twitter.com/intent/tweet?text={{ post.title|urlencode }}&url={{ request.build_absolute_uri }}" target="_blank" class="btn btn-sm" style="background-color: #1DA1F2; color: white;"><i class="bi bi-twitter"></i> Twitter</a>
-            <a href="https://wa.me/?text={{ post.title|urlencode }}%20{{ request.build_absolute_uri }}" target="_blank" class="btn btn-sm" style="background-color: #25D366; color: white;"><i class="bi bi-whatsapp"></i> WhatsApp</a>
+            <a href="https://www.facebook.com/sharer/sharer.php?u={{ request.build_absolute_uri }}" target="_blank"
+                class="btn btn-sm" style="background-color: #1877F2; color: white;"><i class="bi bi-facebook"></i>
+                Facebook</a>
+            <a href="https://twitter.com/intent/tweet?text={{ post.title|urlencode }}&url={{ request.build_absolute_uri }}"
+                target="_blank" class="btn btn-sm" style="background-color: #1DA1F2; color: white;"><i
+                    class="bi bi-twitter"></i> Twitter</a>
+            <a href="https://wa.me/?text={{ post.title|urlencode }}%20{{ request.build_absolute_uri }}" target="_blank"
+                class="btn btn-sm" style="background-color: #25D366; color: white;"><i class="bi bi-whatsapp"></i>
+                WhatsApp</a>
             <a href="https://www.reddit.com/submit?url={{ request.build_absolute_uri }}&title={{ post.title|urlencode }}"
-   target="_blank"
-   class="btn btn-sm"
-   style="background-color: #FF4500; color: white;">
-    <i class="bi bi-reddit"></i> Reddit
-</a>
+                target="_blank" class="btn btn-sm" style="background-color: #FF4500; color: white;">
+                <i class="bi bi-reddit"></i> Reddit
+            </a>
 
         </div>
     </div>
@@ -144,13 +141,13 @@
 
     <div class="comments-section" id="comments">
         {% if messages %}
-            <div class="messages">
-                {% for message in messages %}
-                    <div class="alert alert-{{ message.tags }}">
-                        {{ message }}
-                    </div>
-                {% endfor %}
+        <div class="messages">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">
+                {{ message }}
             </div>
+            {% endfor %}
+        </div>
         {% endif %}
 
         <div class="comments-header">
@@ -162,7 +159,8 @@
         </div>
 
         <div class="comment-list">
-            {% for comment in post.comments.all %}
+            {% for comment in post.comments.filter(is_approved=True) %}
+
             <div class="comment">
                 <div class="comment-header">
                     <span class="comment-author">{{ comment.name }}</span>
@@ -182,16 +180,20 @@
             <form method="post" action="{% url 'post_detail' category=post.category.slug slug=post.slug %}#comments">
                 {% csrf_token %}
                 <div class="form-group">
-                    <input type="text" name="name" class="form-control" placeholder="Your Name" required value="{{ form.name.value|default:'' }}">
+                    <input type="text" name="name" class="form-control" placeholder="Your Name" required
+                        value="{{ form.name.value|default:'' }}">
                     {% if form.name.errors %}<small class="text-danger">{{ form.name.errors.0 }}</small>{% endif %}
                 </div>
                 <div class="form-group">
-                    <input type="email" name="email" class="form-control" placeholder="Your Email (won't be published)" required value="{{ form.email.value|default:'' }}">
+                    <input type="email" name="email" class="form-control" placeholder="Your Email (won't be published)"
+                        required value="{{ form.email.value|default:'' }}">
                     {% if form.email.errors %}<small class="text-danger">{{ form.email.errors.0 }}</small>{% endif %}
                 </div>
                 <div class="form-group">
-                    <textarea name="comment" class="form-control" rows="4" placeholder="Share your thoughts..." required>{{ form.comment.value|default:'' }}</textarea>
-                    {% if form.comment.errors %}<small class="text-danger">{{ form.comment.errors.0 }}</small>{% endif %}
+                    <textarea name="comment" class="form-control" rows="4" placeholder="Share your thoughts..."
+                        required>{{ form.comment.value|default:'' }}</textarea>
+                    {% if form.comment.errors %}<small class="text-danger">{{ form.comment.errors.0 }}</small>{% endif
+                    %}
                 </div>
                 <button type="submit" class="submit-btn">
                     🚀 Post Comment
@@ -203,13 +205,13 @@
 
 
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         document.querySelectorAll('.form-control').forEach(input => {
-            input.addEventListener('focus', function() {
+            input.addEventListener('focus', function () {
                 this.parentElement.style.transform = 'scale(1.02)';
                 this.parentElement.style.transition = 'transform 0.3s ease';
             });
-            input.addEventListener('blur', function() {
+            input.addEventListener('blur', function () {
                 this.parentElement.style.transform = 'scale(1)';
             });
         });
@@ -233,7 +235,7 @@
             textarea.addEventListener('input', updateCounter);
             updateCounter();
 
-            textarea.addEventListener('input', function() {
+            textarea.addEventListener('input', function () {
                 this.style.height = 'auto';
                 this.style.height = (this.scrollHeight) + 'px';
             });
@@ -242,256 +244,470 @@
 </script>
 
 <style>
-/* --- NEW: Custom styles adapted for the Dark/Teal Theme --- */
+    /* --- NEW: Custom styles adapted for the Dark/Teal Theme --- */
 
-/* Post Header */
-.post-header .display-4 {
-    color: var(--primary); /* Teal main title */
-    font-weight: 700;
-    text-shadow: 0 0 15px var(--glow);
-}
-.post-header .badge {
-    background: linear-gradient(135deg, var(--primary), var(--primary-hover)) !important;
-    border-radius: 12px;
-    padding: 0.5rem 1rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: white !important;
-}
-.post-header .text-muted {
-    color: var(--text-dim) !important;
-    font-size: 1.1rem;
-}
+    /* Post Header */
+    .post-header .display-4 {
+        color: var(--primary);
+        /* Teal main title */
+        font-weight: 700;
+        text-shadow: 0 0 15px var(--glow);
+    }
 
-/* Featured Image */
-.featured-image {
-    position: relative;
-    border-radius: 20px;
-    overflow: hidden;
-    box-shadow: 0 10px 30px var(--shadow);
-}
-.featured-image::after {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.3) 100%);
-    pointer-events: none;
-}
+    .post-header .badge {
+        background: linear-gradient(135deg, var(--primary), var(--primary-hover)) !important;
+        border-radius: 12px;
+        padding: 0.5rem 1rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: white !important;
+    }
 
-/* Post Content Area */
-.post-content {
-    background: rgba(39, 52, 77, 0.4); /* --card-bg with transparency */
-    backdrop-filter: blur(5px);
-    padding: 2.5rem;
-    border-radius: 15px;
-    border: 1px solid var(--border-color);
-    box-shadow: 0 5px 20px var(--shadow);
-    color: var(--text);
-    font-size: 1.1rem;
-    line-height: 1.8;
-}
-.post-content img, .post-content video, .post-content iframe {
-    max-width: 100%;
-    height: auto;
-    display: block;
-    margin: 1.5rem auto;
-    border-radius: 8px;
-    box-shadow: 0 4px 15px var(--shadow);
-}
+    .post-header .text-muted {
+        color: var(--text-dim) !important;
+        font-size: 1.1rem;
+    }
 
-/* Download Section */
-.download-section {
-    background: rgba(39, 52, 77, 0.7); /* More solid glass effect */
-    backdrop-filter: blur(10px);
-    border-radius: 20px;
-    padding: 2rem;
-    margin-top: 2rem;
-    box-shadow: 0 10px 30px var(--shadow);
-    border: 1px solid var(--border-color);
-    position: relative;
-    overflow: hidden;
-}
-.download-section::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, var(--primary) 0%, var(--primary-hover) 100%);
-    animation: shimmer 3s ease-in-out infinite;
-    background-size: 200% 100%;
-}
-@keyframes shimmer {
-    0%, 100% { background-position: -200% 0; }
-    50% { background-position: 200% 0; }
-}
-.download-section .section-title {
-    font-size: 1.8rem;
-    font-weight: 700;
-    margin-bottom: 2rem;
-    color: var(--text);
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-}
-.download-section .section-title i {
-    color: var(--primary);
-    font-size: 2rem;
-    animation: pulse 2s ease-in-out infinite;
-}
-@keyframes pulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.1); }
-}
+    /* Featured Image */
+    .featured-image {
+        position: relative;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 10px 30px var(--shadow);
+    }
 
-/* Download Buttons & Sub-sections */
-.quality-section, .subtitle-section { margin-bottom: 2.5rem; }
-.section-heading {
-    font-size: 1.3rem;
-    font-weight: 600;
-    margin-bottom: 1.5rem;
-    color: var(--text);
-    position: relative;
-    padding-left: 1rem;
-}
-.section-heading::before {
-    content: '';
-    position: absolute;
-    left: 0; top: 50%;
-    transform: translateY(-50%);
-    width: 4px; height: 20px;
-    background: linear-gradient(180deg, var(--primary), var(--primary-hover));
-    border-radius: 2px;
-}
-.quality-buttons { display: flex; flex-direction: column; gap: 1rem; }
-.quality-btn, .subtitle-btn {
-    background: var(--dark-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 1.25rem 1.5rem;
-    color: var(--text);
-    text-decoration: none;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    transition: all 0.3s ease;
-    position: relative;
-    overflow: hidden;
-}
-.quality-btn:hover, .subtitle-btn:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 25px var(--glow);
-    border-color: var(--primary);
-    color: var(--primary);
-    background: var(--darker-bg);
-}
-.quality-info, .subtitle-info { display: flex; align-items: center; gap: 0.75rem; }
-.quality-info i, .subtitle-info i { color: var(--primary); font-size: 1.2rem; }
-.quality-name { font-weight: 600; font-size: 1.1rem; color: var(--text); }
-.quality-btn:hover .quality-name { color: var(--primary); }
-.premium-badge { background: linear-gradient(135deg, #ffd700, #ffed4a); color: #000; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
-.auto-badge { background: linear-gradient(135deg, #17a2b8, #20c997); color: #fff; padding: 0.2rem 0.5rem; border-radius: 8px; font-size: 0.7rem; font-weight: 600; }
-.download-count { color: var(--text-dim); font-size: 0.9rem; }
-.download-count::before { content: '↓'; color: var(--primary); margin-right: 5px; }
-.subtitle-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
-.disclaimer {
-    background: var(--dark-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 10px;
-    padding: 1rem;
-    margin-top: 2rem;
-    color: var(--text-dim);
-    font-size: 0.9rem;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-}
-.disclaimer i { color: var(--primary); font-size: 1.1rem; }
+    .featured-image::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.3) 100%);
+        pointer-events: none;
+    }
 
-/* Related Posts Section */
-.related-posts {
-    background: rgba(15, 15, 15, 0.5); /* --darker-bg with transparency */
-    backdrop-filter: blur(5px);
-    border-radius: 20px;
-    padding: 2rem;
-    margin-top: 3rem;
-    border: 1px solid var(--border-color);
-    position: relative;
-}
-.related-posts h3 {
-    color: var(--text);
-    font-weight: 700;
-    margin-bottom: 2rem;
-}
+    /* Post Content Area */
+    .post-content {
+        background: rgba(39, 52, 77, 0.4);
+        /* --card-bg with transparency */
+        backdrop-filter: blur(5px);
+        padding: 2.5rem;
+        border-radius: 15px;
+        border: 1px solid var(--border-color);
+        box-shadow: 0 5px 20px var(--shadow);
+        color: var(--text);
+        font-size: 1.1rem;
+        line-height: 1.8;
+    }
 
-/* Comments Section */
-.comments-section { max-width: 800px; margin: 3rem auto 0; padding: 0 15px; }
-.comments-header { margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 2px solid var(--border-color); }
-.comments-header h4 { color: var(--text); font-size: 1.8rem; display: flex; align-items: center; gap: 10px; }
-.comment-count { background: var(--primary); color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.9rem; }
-.comment-list { margin-bottom: 3rem; }
-.comment {
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-left: 4px solid var(--primary);
-    border-radius: 12px;
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-    transition: all 0.3s ease;
-}
-.comment:hover { transform: translateY(-3px); box-shadow: 0 8px 25px var(--shadow); }
-.comment-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; }
-.comment-author { color: var(--primary); font-weight: 600; font-size: 1.1rem; }
-.comment-date { color: var(--text-dim); font-size: 0.9rem; }
-.comment-text { color: var(--text); line-height: 1.6; }
-.no-comments { text-align: center; padding: 3rem 2rem; background: var(--dark-bg); border-radius: 12px; border: 2px dashed var(--border-color); color: var(--text-dim); }
-.comment-form {
-    background: rgba(39, 52, 77, 0.7); /* --card-bg with transparency */
-    backdrop-filter: blur(10px);
-    border: 1px solid var(--border-color);
-    border-radius: 16px;
-    padding: 2rem;
-    box-shadow: 0 10px 40px var(--shadow);
-}
-.form-title { color: var(--text); font-size: 1.5rem; text-align: center; margin-bottom: 1.5rem; }
-.form-group { margin-bottom: 1.5rem; position: relative; }
-.form-control {
-    width: 100%;
-    padding: 1rem 1.25rem;
-    background: var(--dark-bg);
-    border: 2px solid var(--border-color);
-    border-radius: 8px;
-    color: var(--text);
-    transition: all 0.3s ease;
-}
-.form-control:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--glow); background: var(--darker-bg); }
-.char-counter { float: right; margin-top: 5px; font-size: 0.8rem; }
-.submit-btn {
-    background: linear-gradient(135deg, var(--primary), var(--primary-hover));
-    color: white;
-    border: none;
-    padding: 1rem 2rem;
-    border-radius: 8px;
-    font-size: 1.1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    width: 100%;
-}
-.submit-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px var(--glow); }
+    .post-content img,
+    .post-content video,
+    .post-content iframe {
+        max-width: 100%;
+        height: auto;
+        display: block;
+        margin: 1.5rem auto;
+        border-radius: 8px;
+        box-shadow: 0 4px 15px var(--shadow);
+    }
 
-/* Alert Messages */
-:root {
-    --success-bg: rgba(40, 167, 69, 0.2);
-    --success-border: rgba(40, 167, 69, 0.5);
-    --success-text: #a7d7b9;
-    --danger-bg: rgba(220, 53, 69, 0.2);
-    --danger-border: rgba(220, 53, 69, 0.5);
-    --danger-text: #f5c6cb;
-}
-.messages { margin-bottom: 2rem; }
-.alert { padding: 1rem 1.25rem; border-radius: 8px; margin-bottom: 1rem; border: 1px solid transparent; }
-.alert-success { background-color: var(--success-bg); border-color: var(--success-border); color: var(--success-text); }
-.alert-error, .alert-danger { background-color: var(--danger-bg); border-color: var(--danger-border); color: var(--danger-text); }
+    /* Download Section */
+    .download-section {
+        background: rgba(39, 52, 77, 0.7);
+        /* More solid glass effect */
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        padding: 2rem;
+        margin-top: 2rem;
+        box-shadow: 0 10px 30px var(--shadow);
+        border: 1px solid var(--border-color);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .download-section::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, var(--primary) 0%, var(--primary-hover) 100%);
+        animation: shimmer 3s ease-in-out infinite;
+        background-size: 200% 100%;
+    }
+
+    @keyframes shimmer {
+
+        0%,
+        100% {
+            background-position: -200% 0;
+        }
+
+        50% {
+            background-position: 200% 0;
+        }
+    }
+
+    .download-section .section-title {
+        font-size: 1.8rem;
+        font-weight: 700;
+        margin-bottom: 2rem;
+        color: var(--text);
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .download-section .section-title i {
+        color: var(--primary);
+        font-size: 2rem;
+        animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+
+        0%,
+        100% {
+            transform: scale(1);
+        }
+
+        50% {
+            transform: scale(1.1);
+        }
+    }
+
+    /* Download Buttons & Sub-sections */
+    .quality-section,
+    .subtitle-section {
+        margin-bottom: 2.5rem;
+    }
+
+    .section-heading {
+        font-size: 1.3rem;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+        color: var(--text);
+        position: relative;
+        padding-left: 1rem;
+    }
+
+    .section-heading::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 4px;
+        height: 20px;
+        background: linear-gradient(180deg, var(--primary), var(--primary-hover));
+        border-radius: 2px;
+    }
+
+    .quality-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .quality-btn,
+    .subtitle-btn {
+        background: var(--dark-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 1.25rem 1.5rem;
+        color: var(--text);
+        text-decoration: none;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .quality-btn:hover,
+    .subtitle-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px var(--glow);
+        border-color: var(--primary);
+        color: var(--primary);
+        background: var(--darker-bg);
+    }
+
+    .quality-info,
+    .subtitle-info {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .quality-info i,
+    .subtitle-info i {
+        color: var(--primary);
+        font-size: 1.2rem;
+    }
+
+    .quality-name {
+        font-weight: 600;
+        font-size: 1.1rem;
+        color: var(--text);
+    }
+
+    .quality-btn:hover .quality-name {
+        color: var(--primary);
+    }
+
+    .premium-badge {
+        background: linear-gradient(135deg, #ffd700, #ffed4a);
+        color: #000;
+        padding: 0.25rem 0.75rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .auto-badge {
+        background: linear-gradient(135deg, #17a2b8, #20c997);
+        color: #fff;
+        padding: 0.2rem 0.5rem;
+        border-radius: 8px;
+        font-size: 0.7rem;
+        font-weight: 600;
+    }
+
+    .download-count {
+        color: var(--text-dim);
+        font-size: 0.9rem;
+    }
+
+    .download-count::before {
+        content: '↓';
+        color: var(--primary);
+        margin-right: 5px;
+    }
+
+    .subtitle-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1rem;
+    }
+
+    .disclaimer {
+        background: var(--dark-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        padding: 1rem;
+        margin-top: 2rem;
+        color: var(--text-dim);
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .disclaimer i {
+        color: var(--primary);
+        font-size: 1.1rem;
+    }
+
+    /* Related Posts Section */
+    .related-posts {
+        background: rgba(15, 15, 15, 0.5);
+        /* --darker-bg with transparency */
+        backdrop-filter: blur(5px);
+        border-radius: 20px;
+        padding: 2rem;
+        margin-top: 3rem;
+        border: 1px solid var(--border-color);
+        position: relative;
+    }
+
+    .related-posts h3 {
+        color: var(--text);
+        font-weight: 700;
+        margin-bottom: 2rem;
+    }
+
+    /* Comments Section */
+    .comments-section {
+        max-width: 800px;
+        margin: 3rem auto 0;
+        padding: 0 15px;
+    }
+
+    .comments-header {
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid var(--border-color);
+    }
+
+    .comments-header h4 {
+        color: var(--text);
+        font-size: 1.8rem;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .comment-count {
+        background: var(--primary);
+        color: white;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.9rem;
+    }
+
+    .comment-list {
+        margin-bottom: 3rem;
+    }
+
+    .comment {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-left: 4px solid var(--primary);
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        transition: all 0.3s ease;
+    }
+
+    .comment:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px var(--shadow);
+    }
+
+    .comment-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .comment-author {
+        color: var(--primary);
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
+
+    .comment-date {
+        color: var(--text-dim);
+        font-size: 0.9rem;
+    }
+
+    .comment-text {
+        color: var(--text);
+        line-height: 1.6;
+    }
+
+    .no-comments {
+        text-align: center;
+        padding: 3rem 2rem;
+        background: var(--dark-bg);
+        border-radius: 12px;
+        border: 2px dashed var(--border-color);
+        color: var(--text-dim);
+    }
+
+    .comment-form {
+        background: rgba(39, 52, 77, 0.7);
+        /* --card-bg with transparency */
+        backdrop-filter: blur(10px);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 2rem;
+        box-shadow: 0 10px 40px var(--shadow);
+    }
+
+    .form-title {
+        color: var(--text);
+        font-size: 1.5rem;
+        text-align: center;
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+        position: relative;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 1rem 1.25rem;
+        background: var(--dark-bg);
+        border: 2px solid var(--border-color);
+        border-radius: 8px;
+        color: var(--text);
+        transition: all 0.3s ease;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px var(--glow);
+        background: var(--darker-bg);
+    }
+
+    .char-counter {
+        float: right;
+        margin-top: 5px;
+        font-size: 0.8rem;
+    }
+
+    .submit-btn {
+        background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+        color: white;
+        border: none;
+        padding: 1rem 2rem;
+        border-radius: 8px;
+        font-size: 1.1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        width: 100%;
+    }
+
+    .submit-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px var(--glow);
+    }
+
+    /* Alert Messages */
+    :root {
+        --success-bg: rgba(40, 167, 69, 0.2);
+        --success-border: rgba(40, 167, 69, 0.5);
+        --success-text: #a7d7b9;
+        --danger-bg: rgba(220, 53, 69, 0.2);
+        --danger-border: rgba(220, 53, 69, 0.5);
+        --danger-text: #f5c6cb;
+    }
+
+    .messages {
+        margin-bottom: 2rem;
+    }
+
+    .alert {
+        padding: 1rem 1.25rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        border: 1px solid transparent;
+    }
+
+    .alert-success {
+        background-color: var(--success-bg);
+        border-color: var(--success-border);
+        color: var(--success-text);
+    }
+
+    .alert-error,
+    .alert-danger {
+        background-color: var(--danger-bg);
+        border-color: var(--danger-border);
+        color: var(--danger-text);
+    }
 </style>
 {% endblock content %}
