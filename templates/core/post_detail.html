@@ -159,6 +159,7 @@
 
         <div class="comment-list">
             {% for comment in post.comments.all %}
+            {% if comment.is_approved %}
             <div class="comment">
                 <div class="comment-header">
                     <span class="comment-author">{{ comment.name }}</span>
@@ -166,6 +167,7 @@
                 </div>
                 <p class="comment-text">{{ comment.comment|linebreaks }}</p>
             </div>
+            {% endif %}
             {% empty %}
             <div class="no-comments">
                 <p>💬 No comments yet. Be the first to share your thoughts!</p>
