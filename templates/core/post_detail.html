@@ -159,7 +159,7 @@
         </div>
 
         <div class="comment-list">
-            {% for comment in comments %}
+            {% for comment in post.comments.all %}
             <div class="comment">
                 <div class="comment-header">
                     <span class="comment-author">{{ comment.name }}</span>
