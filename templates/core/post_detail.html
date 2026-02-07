@@ -102,21 +102,19 @@
         <h5>Share this post:</h5>
         <div class="btn-group" role="group">
             <a href="https://www.facebook.com/sharer/sharer.php?u={{ request.build_absolute_uri }}" target="_blank"
-                class="btn btn-sm" style="background-color: #1877F2; color: white;">
-                <i class="bi bi-facebook"></i> Facebook
-            </a>
+                class="btn btn-sm" style="background-color: #1877F2; color: white;"><i class="bi bi-facebook"></i>
+                Facebook</a>
             <a href="https://twitter.com/intent/tweet?text={{ post.title|urlencode }}&url={{ request.build_absolute_uri }}"
-                target="_blank" class="btn btn-sm" style="background-color: #1DA1F2; color: white;">
-                <i class="bi bi-twitter"></i> Twitter
-            </a>
+                target="_blank" class="btn btn-sm" style="background-color: #1DA1F2; color: white;"><i
+                    class="bi bi-twitter"></i> Twitter</a>
             <a href="https://wa.me/?text={{ post.title|urlencode }}%20{{ request.build_absolute_uri }}" target="_blank"
-                class="btn btn-sm" style="background-color: #25D366; color: white;">
-                <i class="bi bi-whatsapp"></i> WhatsApp
-            </a>
+                class="btn btn-sm" style="background-color: #25D366; color: white;"><i class="bi bi-whatsapp"></i>
+                WhatsApp</a>
             <a href="https://www.reddit.com/submit?url={{ request.build_absolute_uri }}&title={{ post.title|urlencode }}"
                 target="_blank" class="btn btn-sm" style="background-color: #FF4500; color: white;">
                 <i class="bi bi-reddit"></i> Reddit
             </a>
+
         </div>
     </div>
 
@@ -144,9 +142,8 @@
         {% if messages %}
         <div class="messages">
             {% for message in messages %}
-            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            <div class="alert alert-{{ message.tags }}">
                 {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
             {% endfor %}
         </div>
@@ -162,7 +159,7 @@
 
         <div class="comment-list">
             {% for comment in post.comments.all %}
-            <div class="comment" data-comment-id="{{ comment.id }}">
+            <div class="comment">
                 <div class="comment-header">
                     <span class="comment-author">{{ comment.name }}</span>
                     <span class="comment-date">{{ comment.created_at|date:"F j, Y g:i A" }}</span>
@@ -178,8 +175,7 @@
 
         <div class="comment-form">
             <h5 class="form-title">✨ Leave a Comment</h5>
-            <form method="post" action="{% url 'post_detail' category=post.category.slug slug=post.slug %}#comments"
-                id="commentForm">
+            <form method="post" action="{% url 'post_detail' category=post.category.slug slug=post.slug %}#comments">
                 {% csrf_token %}
                 <div class="form-group">
                     <input type="text" name="name" class="form-control" placeholder="Your Name" required
@@ -196,8 +192,8 @@
                     {% endif %}
                 </div>
                 <div class="form-group">
-                    <textarea name="comment" class="form-control" rows="4" placeholder="Share your thoughts..." required
-                        maxlength="500">{{ form.comment.value|default:'' }}</textarea>
+                    <textarea name="comment" class="form-control" rows="4" placeholder="Share your thoughts..."
+                        required>{{ form.comment.value|default:'' }}</textarea>
                     {% if form.comment.errors %}
                     <small class="text-danger">{{ form.comment.errors.0 }}</small>
                     {% endif %}
@@ -210,9 +206,9 @@
     </div>
 </article>
 
+
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        // Form input animations
         document.querySelectorAll('.form-control').forEach(input => {
             input.addEventListener('focus', function () {
                 this.parentElement.style.transform = 'scale(1.02)';
@@ -223,17 +219,10 @@
             });
         });
 
-        // Smooth scroll to comments if hash is present
         if (window.location.hash === '#comments') {
-            setTimeout(() => {
-                document.querySelector('.comments-section').scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'start'
-                });
-            }, 100);
+            document.querySelector('.comments-section').scrollIntoView({ behavior: 'smooth' });
         }
 
-        // Character counter for comment textarea
         const textarea = document.querySelector('textarea[name="comment"]');
         if (textarea) {
             const maxLength = 500;
@@ -246,59 +235,26 @@
                 counter.textContent = `${textarea.value.length}/${maxLength}`;
                 counter.style.color = remaining < 50 ? 'var(--primary)' : 'var(--text-dim)';
             }
-
             textarea.addEventListener('input', updateCounter);
             updateCounter();
 
-            // Auto-resize textarea
             textarea.addEventListener('input', function () {
                 this.style.height = 'auto';
                 this.style.height = (this.scrollHeight) + 'px';
             });
         }
-
-        // Auto-dismiss alerts after 5 seconds
-        const alerts = document.querySelectorAll('.alert');
-        alerts.forEach(alert => {
-            setTimeout(() => {
-                const bsAlert = new bootstrap.Alert(alert);
-                bsAlert.close();
-            }, 5000);
-        });
-
-        // Add smooth reveal animation to comments
-        const comments = document.querySelectorAll('.comment');
-        const observerOptions = {
-            threshold: 0.1,
-            rootMargin: '0px 0px -50px 0px'
-        };
-
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.style.opacity = '0';
-                    entry.target.style.transform = 'translateY(20px)';
-                    setTimeout(() => {
-                        entry.target.style.transition = 'all 0.5s ease';
-                        entry.target.style.opacity = '1';
-                        entry.target.style.transform = 'translateY(0)';
-                    }, 100);
-                    observer.unobserve(entry.target);
-                }
-            });
-        }, observerOptions);
-
-        comments.forEach(comment => observer.observe(comment));
     });
 </script>
 
 <style>
+    /* --- NEW: Custom styles adapted for the Dark/Teal Theme --- */
+
     /* Post Header */
     .post-header .display-4 {
         color: var(--primary);
+        /* Teal main title */
         font-weight: 700;
         text-shadow: 0 0 15px var(--glow);
-        margin-bottom: 1rem;
     }
 
     .post-header .badge {
@@ -309,12 +265,6 @@
         text-transform: uppercase;
         letter-spacing: 0.5px;
         color: white !important;
-        transition: all 0.3s ease;
-    }
-
-    .post-header .badge:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 5px 15px var(--glow);
     }
 
     .post-header .text-muted {
@@ -328,7 +278,6 @@
         border-radius: 20px;
         overflow: hidden;
         box-shadow: 0 10px 30px var(--shadow);
-        margin-bottom: 2rem;
     }
 
     .featured-image::after {
@@ -342,17 +291,10 @@
         pointer-events: none;
     }
 
-    .featured-image img {
-        transition: transform 0.3s ease;
-    }
-
-    .featured-image:hover img {
-        transform: scale(1.05);
-    }
-
     /* Post Content Area */
     .post-content {
         background: rgba(39, 52, 77, 0.4);
+        /* --card-bg with transparency */
         backdrop-filter: blur(5px);
         padding: 2.5rem;
         border-radius: 15px;
@@ -374,28 +316,10 @@
         box-shadow: 0 4px 15px var(--shadow);
     }
 
-    .post-content h2,
-    .post-content h3,
-    .post-content h4 {
-        color: var(--primary);
-        margin-top: 2rem;
-        margin-bottom: 1rem;
-    }
-
-    .post-content a {
-        color: var(--primary);
-        text-decoration: underline;
-        transition: all 0.3s ease;
-    }
-
-    .post-content a:hover {
-        color: var(--primary-hover);
-        text-shadow: 0 0 10px var(--glow);
-    }
-
     /* Download Section */
     .download-section {
         background: rgba(39, 52, 77, 0.7);
+        /* More solid glass effect */
         backdrop-filter: blur(10px);
         border-radius: 20px;
         padding: 2rem;
@@ -507,23 +431,6 @@
         overflow: hidden;
     }
 
-    .quality-btn::before,
-    .subtitle-btn::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(20, 184, 166, 0.1), transparent);
-        transition: left 0.5s ease;
-    }
-
-    .quality-btn:hover::before,
-    .subtitle-btn:hover::before {
-        left: 100%;
-    }
-
     .quality-btn:hover,
     .subtitle-btn:hover {
         transform: translateY(-3px);
@@ -550,11 +457,9 @@
         font-weight: 600;
         font-size: 1.1rem;
         color: var(--text);
-        transition: color 0.3s ease;
     }
 
-    .quality-btn:hover .quality-name,
-    .subtitle-btn:hover .uppercase-text {
+    .quality-btn:hover .quality-name {
         color: var(--primary);
     }
 
@@ -566,7 +471,6 @@
         font-size: 0.75rem;
         font-weight: 600;
         text-transform: uppercase;
-        box-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
     }
 
     .auto-badge {
@@ -581,27 +485,18 @@
     .download-count {
         color: var(--text-dim);
         font-size: 0.9rem;
-        font-weight: 600;
     }
 
     .download-count::before {
         content: '↓';
         color: var(--primary);
         margin-right: 5px;
-        font-size: 1.1rem;
     }
 
     .subtitle-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
         gap: 1rem;
-    }
-
-    .uppercase-text {
-        text-transform: uppercase;
-        font-weight: 600;
-        font-size: 0.9rem;
-        letter-spacing: 0.5px;
     }
 
     .disclaimer {
@@ -622,33 +517,10 @@
         font-size: 1.1rem;
     }
 
-    /* Share Buttons */
-    .share-buttons {
-        background: rgba(39, 52, 77, 0.4);
-        backdrop-filter: blur(5px);
-        border-radius: 15px;
-        padding: 1.5rem;
-        border: 1px solid var(--border-color);
-    }
-
-    .share-buttons h5 {
-        color: var(--text);
-        margin-bottom: 1rem;
-    }
-
-    .share-buttons .btn {
-        transition: all 0.3s ease;
-        margin: 0.25rem;
-    }
-
-    .share-buttons .btn:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-    }
-
     /* Related Posts Section */
     .related-posts {
         background: rgba(15, 15, 15, 0.5);
+        /* --darker-bg with transparency */
         backdrop-filter: blur(5px);
         border-radius: 20px;
         padding: 2rem;
@@ -661,20 +533,6 @@
         color: var(--text);
         font-weight: 700;
         margin-bottom: 2rem;
-        position: relative;
-        padding-left: 1rem;
-    }
-
-    .related-posts h3::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 4px;
-        height: 30px;
-        background: linear-gradient(180deg, var(--primary), var(--primary-hover));
-        border-radius: 2px;
     }
 
     /* Comments Section */
@@ -696,7 +554,6 @@
         display: flex;
         align-items: center;
         gap: 10px;
-        font-weight: 700;
     }
 
     .comment-count {
@@ -705,7 +562,6 @@
         padding: 4px 12px;
         border-radius: 20px;
         font-size: 0.9rem;
-        font-weight: 600;
     }
 
     .comment-list {
@@ -720,14 +576,11 @@
         padding: 1.5rem;
         margin-bottom: 1.5rem;
         transition: all 0.3s ease;
-        opacity: 1;
-        transform: translateY(0);
     }
 
     .comment:hover {
         transform: translateY(-3px);
         box-shadow: 0 8px 25px var(--shadow);
-        border-left-width: 6px;
     }
 
     .comment-header {
@@ -736,7 +589,6 @@
         align-items: center;
         margin-bottom: 1rem;
         flex-wrap: wrap;
-        gap: 0.5rem;
     }
 
     .comment-author {
@@ -753,7 +605,6 @@
     .comment-text {
         color: var(--text);
         line-height: 1.6;
-        margin: 0;
     }
 
     .no-comments {
@@ -765,14 +616,9 @@
         color: var(--text-dim);
     }
 
-    .no-comments p {
-        font-size: 1.1rem;
-        margin: 0;
-    }
-
-    /* Comment Form */
     .comment-form {
         background: rgba(39, 52, 77, 0.7);
+        /* --card-bg with transparency */
         backdrop-filter: blur(10px);
         border: 1px solid var(--border-color);
         border-radius: 16px;
@@ -785,13 +631,11 @@
         font-size: 1.5rem;
         text-align: center;
         margin-bottom: 1.5rem;
-        font-weight: 700;
     }
 
     .form-group {
         margin-bottom: 1.5rem;
         position: relative;
-        transition: transform 0.3s ease;
     }
 
     .form-control {
@@ -802,11 +646,6 @@
         border-radius: 8px;
         color: var(--text);
         transition: all 0.3s ease;
-        font-size: 1rem;
-    }
-
-    .form-control::placeholder {
-        color: var(--text-dim);
     }
 
     .form-control:focus {
@@ -816,19 +655,10 @@
         background: var(--darker-bg);
     }
 
-    .text-danger {
-        color: #ff6b6b !important;
-        font-size: 0.85rem;
-        margin-top: 0.5rem;
-        display: block;
-    }
-
     .char-counter {
         float: right;
         margin-top: 5px;
         font-size: 0.8rem;
-        font-weight: 600;
-        color: var(--text-dim);
     }
 
     .submit-btn {
@@ -842,8 +672,6 @@
         cursor: pointer;
         transition: all 0.3s ease;
         width: 100%;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
     }
 
     .submit-btn:hover {
@@ -851,11 +679,16 @@
         box-shadow: 0 8px 25px var(--glow);
     }
 
-    .submit-btn:active {
-        transform: translateY(0);
+    /* Alert Messages */
+    :root {
+        --success-bg: rgba(40, 167, 69, 0.2);
+        --success-border: rgba(40, 167, 69, 0.5);
+        --success-text: #a7d7b9;
+        --danger-bg: rgba(220, 53, 69, 0.2);
+        --danger-border: rgba(220, 53, 69, 0.5);
+        --danger-text: #f5c6cb;
     }
 
-    /* Alert Messages */
     .messages {
         margin-bottom: 2rem;
     }
@@ -865,82 +698,19 @@
         border-radius: 8px;
         margin-bottom: 1rem;
         border: 1px solid transparent;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
     }
 
     .alert-success {
-        background-color: rgba(40, 167, 69, 0.2);
-        border-color: rgba(40, 167, 69, 0.5);
-        color: #a7d7b9;
+        background-color: var(--success-bg);
+        border-color: var(--success-border);
+        color: var(--success-text);
     }
 
     .alert-error,
     .alert-danger {
-        background-color: rgba(220, 53, 69, 0.2);
-        border-color: rgba(220, 53, 69, 0.5);
-        color: #f5c6cb;
-    }
-
-    .alert .btn-close {
-        filter: brightness(0) invert(1);
-        opacity: 0.7;
-    }
-
-    .alert .btn-close:hover {
-        opacity: 1;
-    }
-
-    /* Responsive Design */
-    @media (max-width: 768px) {
-        .post-header .display-4 {
-            font-size: 2rem;
-        }
-
-        .post-content {
-            padding: 1.5rem;
-            font-size: 1rem;
-        }
-
-        .download-section {
-            padding: 1.5rem;
-        }
-
-        .comment-form {
-            padding: 1.5rem;
-        }
-
-        .subtitle-grid {
-            grid-template-columns: 1fr;
-        }
-
-        .share-buttons .btn-group {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .share-buttons .btn {
-            width: 100%;
-            margin: 0.25rem 0;
-        }
-    }
-
-    /* Loading Animation */
-    @keyframes fadeInUp {
-        from {
-            opacity: 0;
-            transform: translateY(30px);
-        }
-
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
-    .post-detail>* {
-        animation: fadeInUp 0.6s ease-out;
+        background-color: var(--danger-bg);
+        border-color: var(--danger-border);
+        color: var(--danger-text);
     }
 </style>
 {% endblock content %}
