@@ -1,3 +1,4 @@
+```django
 {% extends 'core/base.html' %}
 {% load static %}
 
@@ -149,14 +150,6 @@
         </div>
         {% endif %}
 
-        <!--   <div class="comments-header">
-            <h4>Comments
-               <span class="comment-count">
-                    {{ post.comments.count|default:0 }}
-                </span>
-            </h4>
-        </div> -->
-
         <div class="comment-list">
             {% for comment in post.comments.all %}
             {% if comment.is_approved %}
@@ -179,27 +172,31 @@
             <h5 class="form-title">✨ Leave a Comment</h5>
             <form method="post" action="{% url 'post_detail' category=post.category.slug slug=post.slug %}#comments">
                 {% csrf_token %}
+
                 <div class="form-group">
                     <input type="text" name="name" class="form-control" placeholder="Your Name" required
-                        value="{{ form.name.value|default:'' }}">
-                    {% if form.name.errors %}
-                    <small class="text-danger">{{ form.name.errors.0 }}</small>
+                        value="{{ comment_form.name.value|default:'' }}">
+                    {% if comment_form.name.errors %}
+                    <small class="text-danger">{{ comment_form.name.errors.0 }}</small>
                     {% endif %}
                 </div>
+
                 <div class="form-group">
                     <input type="email" name="email" class="form-control" placeholder="Your Email (won't be published)"
-                        required value="{{ form.email.value|default:'' }}">
-                    {% if form.email.errors %}
-                    <small class="text-danger">{{ form.email.errors.0 }}</small>
+                        required value="{{ comment_form.email.value|default:'' }}">
+                    {% if comment_form.email.errors %}
+                    <small class="text-danger">{{ comment_form.email.errors.0 }}</small>
                     {% endif %}
                 </div>
+
                 <div class="form-group">
                     <textarea name="comment" class="form-control" rows="4" placeholder="Share your thoughts..."
-                        required>{{ form.comment.value|default:'' }}</textarea>
-                    {% if form.comment.errors %}
-                    <small class="text-danger">{{ form.comment.errors.0 }}</small>
+                        required>{{ comment_form.comment.value|default:'' }}</textarea>
+                    {% if comment_form.comment.errors %}
+                    <small class="text-danger">{{ comment_form.comment.errors.0 }}</small>
                     {% endif %}
                 </div>
+
                 <button type="submit" class="submit-btn">
                     🚀 Post Comment
                 </button>
@@ -207,7 +204,6 @@
         </div>
     </div>
 </article>
-
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {

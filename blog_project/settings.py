@@ -130,7 +130,7 @@ CKEDITOR_5_CONFIGS = {
                 {'name': 'a', 'attributes': {'href': True, 'target': True, 'class': True}},
                 {'name': 'strong', 'attributes': {'class': True}},
                 {'name': 'em', 'attributes': {'class': True}},
-                {'name': 'b', 'attributes': {'class': True}},
+                {'name': 'b', 'attributes': {'class': True}}, 
                 {'name': 'i', 'attributes': {'class': True}},
                 {'name': 'u', 'attributes': {'class': True}},
                 {'name': 's', 'attributes': {'class': True}},

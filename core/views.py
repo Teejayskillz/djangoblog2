@@ -119,6 +119,9 @@ class CategoryView(ListView):
         
         return context
 
+from django.shortcuts import get_object_or_404, render, redirect
+from django.views.generic import DetailView
+from django.conf import settings
 
 class PostDetailView(DetailView):
     model = Post
@@ -126,81 +129,78 @@ class PostDetailView(DetailView):
     context_object_name = 'post'
 
     def dispatch(self, request, *args, **kwargs):
-        self.object = self.get_object()  # Get the post object before anything else
+        self.object = self.get_object()
 
         if self.object.is_password_protected:
-            session_key = f'post_{self.object.slug}_access'
-            # If a password has not been entered for this post
+            session_key = f'post_{self.object.id}_access'  # ✅ safer than slug
+
+            # If not unlocked yet
             if not request.session.get(session_key):
-                # Handle POST request for password submission
-                if request.method == 'POST':
+                # ✅ Only handle password submission if password field exists
+                is_password_submit = (
+                    request.method == 'POST' and (
+                        'password' in request.POST or
+                        'post_password' in request.POST
+                    )
+                )
+
+                if is_password_submit:
                     form = PasswordForm(request.POST)
                     if form.is_valid():
                         if self.object.check_password(form.cleaned_data['password']):
-                            request.session[session_key] = True # Grant access for this session
-                            return super().dispatch(request, *args, **kwargs) # Continue to original view
+                            request.session[session_key] = True
+                            # ✅ redirect to GET to avoid resubmission issues
+                            return redirect(self.object.get_absolute_url())
                         else:
-                            # Incorrect password
                             return render(request, 'core/password_form.html', {
                                 'form': form,
                                 'post': self.object,
                                 'error': 'Incorrect password.'
                             })
-                    # Invalid form submission
+
                     return render(request, 'core/password_form.html', {
                         'form': form,
                         'post': self.object,
                         'error': 'Invalid form submission.'
                     })
-                
-                # For GET request, show the password form
+
+                # GET (or other POST like comment) -> show password form
                 form = PasswordForm()
                 return render(request, 'core/password_form.html', {
                     'form': form,
                     'post': self.object
                 })
 
-        # If not protected or password is in session, continue as normal
         return super().dispatch(request, *args, **kwargs)
 
     def get_object(self, queryset=None):
-        """
-        Handles both URL patterns:
-        1. WordPress-style: /category-slug/post-slug/
-        2. Legacy: /posts/post-slug/
-        """
-        if 'category' in self.kwargs:  # WordPress-style URL
+        if 'category' in self.kwargs:
             post = get_object_or_404(Post, slug=self.kwargs['slug'])
-            
-            # SEO: Redirect if category doesn't match (301 permanent)
+
             if post.category.slug != self.kwargs['category']:
-                return redirect('post_detail', # Use the name of your URL pattern for the post detail
-                              category=post.category.slug,
-                              slug=post.slug,
-                              permanent=True)
+                return redirect(
+                    'post_detail',
+                    category=post.category.slug,
+                    slug=post.slug,
+                    permanent=True
+                )
             return post
-        return get_object_or_404(Post, slug=self.kwargs['slug'])  # Legacy URL
+
+        return get_object_or_404(Post, slug=self.kwargs['slug'])
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        post = self.object # 'self.object' is already set by DetailView's get_object()
+        post = self.object
 
-        # --- START: ADDED OG/Twitter Absolute URL Logic ---
-        # Calculate absolute URL for the post
         post_absolute_url = self.request.build_absolute_uri(post.get_absolute_url())
         context['post_absolute_url'] = post_absolute_url
 
-        # Calculate absolute URL for the thumbnail
         if post.thumbnail:
-            thumbnail_absolute_url = self.request.build_absolute_uri(post.thumbnail.url)
-            context['thumbnail_absolute_url'] = thumbnail_absolute_url
+            context['thumbnail_absolute_url'] = self.request.build_absolute_uri(post.thumbnail.url)
         else:
             default_image_relative_url = settings.STATIC_URL + 'images/default_poster.jpg'
             context['thumbnail_absolute_url'] = self.request.build_absolute_uri(default_image_relative_url)
-        # --- END: ADDED OG/Twitter Absolute URL Logic ---
 
-
-        # Download-related context
         download_data = {
             'related_posts': Post.objects.filter(
                 category=post.category,
@@ -213,10 +213,9 @@ class PostDetailView(DetailView):
             'show_download_section': post.enable_downloads and (
                 post.qualities.exists() or post.subtitles.exists()
             ),
-            'current_category': post.category  # For breadcrumbs
+            'current_category': post.category
         }
 
-        # Comment-related context
         comment_data = {
             'comments': post.comments.filter(is_approved=True).order_by('-created_at'),
             'comment_form': CommentForm(),
@@ -227,45 +226,39 @@ class PostDetailView(DetailView):
         return context
 
     def post(self, request, *args, **kwargs):
-        """Handle comment submissions"""
+        """
+        Handle comment submissions.
+        Note: For protected posts, dispatch() will block comments until unlocked.
+        """
         self.object = self.get_object()
+
+        # If protected and not unlocked, send them to password form
+        if self.object.is_password_protected:
+            session_key = f'post_{self.object.id}_access'
+            if not request.session.get(session_key):
+                form = PasswordForm()
+                return render(request, 'core/password_form.html', {
+                    'form': form,
+                    'post': self.object
+                })
+
         form = CommentForm(request.POST)
-        
+
         if form.is_valid():
             comment = form.save(commit=False)
             comment.post = self.object
             comment.save()
-            
-            # Redirect back to the same URL pattern
+
             if 'category' in self.kwargs:
                 return redirect('post_detail',
-                              category=self.object.category.slug,
-                              slug=self.object.slug)
+                                category=self.object.category.slug,
+                                slug=self.object.slug)
             return redirect('post_detail', slug=self.object.slug)
-        
-        # Invalid form - re-render with errors
+
         context = self.get_context_data()
         context['comment_form'] = form
         return self.render_to_response(context)
 
-def search(request):
-    query = request.GET.get('q')
-    results = Post.objects.filter(
-        Q(title__icontains=query) | 
-        Q(content__icontains=query),
-        is_published=True
-    ).order_by('-published_date')
-    
-    paginator = Paginator(results, 12)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-    
-    return render(request, 'core/search.html', {
-        'query': query,
-        'page_obj': page_obj
-    })
-    
-    
 
 def search(request):  # Renamed to 'search' to match your original function name
     query = request.GET.get('q', '') # Changed 'query' to 'q' to match your original 'request.GET.get('q', '')'

@@ -13,7 +13,8 @@ from django.conf import settings
 from django.core.files.base import ContentFile
 from PIL import Image
 from io import BytesIO
-from django.contrib.auth.hashers import make_password, check_password
+from django.contrib.auth.hashers import make_password, check_password, identify_hasher
+
 
 class Category(models.Model):
     name = models.CharField(max_length=100, unique=True)
@@ -26,6 +27,7 @@ class Category(models.Model):
         # Assumes you have a URL pattern named 'category_detail'
         # that takes the category's slug as an argument.
         return reverse('category', kwargs={'slug': self.slug})
+
 
 class Post(models.Model):
     title = models.CharField(max_length=200)
@@ -52,10 +54,19 @@ class Post(models.Model):
         blank=True,
         help_text="A brief summary of the post, used for previews (e.g., on index pages, social media, Telegram)."
     )
-    is_password_protected = models.BooleanField(default=False, help_text="Check if this post is password protected")
-   
-    password = models.CharField(max_length=200, blank=True, null=True, help_text="Optional password for protected posts")
-    views = models.IntegerField(default=0) # Added this line for tracking views
+    is_password_protected = models.BooleanField(
+        default=False,
+        help_text="Check if this post is password protected"
+    )
+
+    password = models.CharField(
+        max_length=200,
+        blank=True,
+        null=True,
+        help_text="Optional password for protected posts"
+    )
+
+    views = models.IntegerField(default=0)
 
     enable_downloads = models.BooleanField(
         default=True,
@@ -80,18 +91,37 @@ class Post(models.Model):
     )
 
     author = models.ForeignKey(User, on_delete=models.CASCADE, default=2)
-    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True)
-    tags = TaggableManager()  # Tags using django-taggit
+    category = models.ForeignKey("Category", on_delete=models.SET_NULL, null=True)
+    tags = TaggableManager()
     published_date = models.DateTimeField(auto_now_add=True)
     is_published = models.BooleanField(default=True)
 
     def set_password(self, raw_password):
-        self.password = make_password(raw_password)
-        self.save(update_fields=['password'])
+        """
+        Always hash the raw password (or clear it).
+        """
+        if raw_password:
+            self.password = make_password(raw_password)
+        else:
+            self.password = ""
+        self.save(update_fields=["password"])
 
     def check_password(self, raw_password):
+        """
+        Safely check password:
+        - If no password stored -> fail
+        - If stored password is not a valid hash (e.g., plain text) -> fail
+        """
+        if not self.password:
+            return False
+
+        try:
+            identify_hasher(self.password)  # raises if not a valid encoded hash
+        except Exception:
+            return False
+
         return check_password(raw_password, self.password)
-        
+
     def save(self, *args, **kwargs):
         from .utils import shorten_url
         from urllib.parse import urlparse
@@ -100,13 +130,20 @@ class Post(models.Model):
 
         # Ensure slug is set
         if not self.slug:
-            from django.utils.text import slugify
             self.slug = slugify(self.title)
+
+        # If post is protected and password is set, ensure it's hashed
+        # (covers Django admin saving plain text)
+        if self.is_password_protected and self.password:
+            try:
+                identify_hasher(self.password)  # already hashed
+            except Exception:
+                self.password = make_password(self.password)  # hash raw text
 
         def is_shortened(url):
             try:
                 return urlparse(url).netloc.endswith(SHORT_DOMAIN)
-            except:
+            except Exception:
                 return False
 
         # Shorten main download link
@@ -118,24 +155,20 @@ class Post(models.Model):
             self.subtitle_url = shorten_url(self.subtitle_url, f"{self.title} Subtitle")
 
         super().save(*args, **kwargs)
-    
-        
-
 
     def get_absolute_url(self):
-        # This assumes your post detail URL pattern is named 'post_detail'
-        # and expects 'category' and 'slug' kwargs.
-        # Ensure your urls.py matches this.
-        return reverse('post_detail', kwargs={
-            'category': self.category.slug,
-            'slug': self.slug
+        return reverse("post_detail", kwargs={
+            "category": self.category.slug,
+            "slug": self.slug
         })
 
     def __str__(self):
         return self.title
+
     @property
     def get_page_title(self):
         return self.seo_title if self.seo_title else self.title
+
     
 class Comment(models.Model):
     post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='comments')
