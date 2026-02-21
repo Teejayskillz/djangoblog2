@@ -1,369 +1,534 @@
 {% extends 'core/base.html' %}
-{% load static %} {# Load static files for default_thumbnail.jpg #}
+{% load static %}
 
 {% block title %}Search Results for "{{ query }}"{% endblock %}
 
 {% block content %}
 <div class="container my-4">
-    <div class="row justify-content-center">
-        <div class="col-lg-10 col-md-12">
-            <div class="section">
-                <nav aria-label="breadcrumb" class="mb-4">
-                    <ol class="breadcrumb-custom">
-                        <li class="breadcrumb-item-custom">
-                            <a href="{% url 'home' %}" class="breadcrumb-link">
-                                <i class="bi bi-house-fill me-1"></i>Home
-                            </a>
-                        </li>
-                        <li class="breadcrumb-separator">
-                            <i class="bi bi-chevron-right"></i>
-                        </li>
-                        <li class="breadcrumb-item-custom active" aria-current="page">
-                            Search Results
-                        </li>
-                    </ol>
-                </nav>
+  <div class="row justify-content-center">
+    <div class="col-lg-10 col-md-12">
 
-                <div class="search-header mb-4">
-                    <h2 class="search-title mb-2">
-                        <i class="bi bi-search me-2"></i>Search Results for: "<span class="query-highlight">{{ query }}</span>"
-                    </h2>
-                    {% if results %}
-                    <div class="results-info">
-                        <span class="text-muted">
-                            {% if is_paginated %}
-                            Showing {{ page_obj.start_index }} - {{ page_obj.end_index }} of {{ page_obj.paginator.count }} results
-                            {% else %}
-                            {{ results|length }} result{{ results|length|pluralize }}
-                            {% endif %}
-                        </span>
-                    </div>
-                    {% endif %}
-                </div>
+      <!-- Breadcrumb -->
+      <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb-custom">
+          <li class="breadcrumb-item-custom">
+            <a href="{% url 'home' %}" class="breadcrumb-link">
+              <i class="bi bi-house-fill me-1"></i>Home
+            </a>
+          </li>
+          <li class="breadcrumb-separator"><i class="bi bi-chevron-right"></i></li>
+          <li class="breadcrumb-item-custom active" aria-current="page">Search</li>
+        </ol>
+      </nav>
 
-                {% if results %}
-                <div class="latest-updates-grid">
-                    {% for post in results %}
-                    {# .post-card styling is inherited from base.html #}
-                    <a href="{% url 'post_detail' category=post.category.slug slug=post.slug %}" class="post-card">
-                        {% if post.thumbnail %}
-                        <div class="post-card-img-container">
-                            <img src="{{ post.thumbnail.url }}" alt="{{ post.title }}" loading="lazy">
-                        </div>
-                        {% else %}
-                        <div class="post-card-img-container">
-                            <img src="{% static 'images/default_thumbnail.jpg' %}" alt="No Image" loading="lazy">
-                        </div>
-                        {% endif %}
-                        <div class="post-card-content">
-                            <h3>{{ post.title }}</h3>
-                            <div class="post-meta">
-                                <span class="post-date">
-                                    <i class="bi bi-calendar3 me-1"></i>{{ post.published_date|date:"M j, Y" }}
-                                </span>
-                                {% if post.category %}
-                                <span class="category-badge">{{ post.category.name }}</span>
-                                {% endif %}
-                            </div>
-                            {% if post.excerpt %}
-                            <p class="post-excerpt">{{ post.excerpt|truncatechars:120 }}</p>
-                            {% endif %}
-                        </div>
-                    </a>
-                    {% endfor %}
-                </div>
+      <!-- Header -->
+      <div class="search-hero mb-4">
+        <div class="search-hero-top">
+          <div>
+            <h2 class="search-title">
+              <i class="bi bi-search me-2"></i>
+              Results for: <span class="query-highlight">“{{ query }}”</span>
+            </h2>
 
+            {% if results %}
+              <p class="results-info">
                 {% if is_paginated %}
-                <div class="pagination-container">
-                    <nav aria-label="Search results pagination">
-                        <ul class="pagination-list">
-                            {% if page_obj.has_previous %}
-                            <li class="page-item">
-                                <a class="page-link prev-next" href="?query={{ query }}&page={{ page_obj.previous_page_number }}" aria-label="Previous">
-                                    <i class="bi bi-chevron-left"></i>
-                                    <span>Previous</span>
-                                </a>
-                            </li>
-                            {% else %}
-                            <li class="page-item disabled">
-                                <span class="page-link prev-next disabled">
-                                    <i class="bi bi-chevron-left"></i>
-                                    <span>Previous</span>
-                                </span>
-                            </li>
-                            {% endif %}
-                            
-                            {% for num in page_obj.paginator.page_range %}
-                                {% if page_obj.number == num %}
-                                <li class="page-item active">
-                                    <span class="page-link current">{{ num }}</span>
-                                </li>
-                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                                <li class="page-item">
-                                    <a class="page-link" href="?query={{ query }}&page={{ num }}">{{ num }}</a>
-                                </li>
-                                {% elif num == 1 and page_obj.number > 3 %}
-                                <li class="page-item">
-                                    <a class="page-link" href="?query={{ query }}&page={{ num }}">{{ num }}</a>
-                                </li>
-                                {% if page_obj.number > 4 %}
-                                <li class="page-item disabled">
-                                    <span class="page-link">...</span>
-                                </li>
-                                {% endif %}
-                                {% elif num == page_obj.paginator.num_pages and page_obj.number < page_obj.paginator.num_pages|add:'-3' %}
-                                {% if page_obj.number < page_obj.paginator.num_pages|add:'-3' %}
-                                <li class="page-item disabled">
-                                    <span class="page-link">...</span>
-                                </li>
-                                {% endif %}
-                                <li class="page-item">
-                                    <a class="page-link" href="?query={{ query }}&page={{ num }}">{{ num }}</a>
-                                </li>
-                                {% endif %}
-                            {% endfor %}
-                            
-                            {% if page_obj.has_next %}
-                            <li class="page-item">
-                                <a class="page-link prev-next" href="?query={{ query }}&page={{ page_obj.next_page_number }}" aria-label="Next">
-                                    <span>Next</span>
-                                    <i class="bi bi-chevron-right"></i>
-                                </a>
-                            </li>
-                            {% else %}
-                            <li class="page-item disabled">
-                                <span class="page-link prev-next disabled">
-                                    <span>Next</span>
-                                    <i class="bi bi-chevron-right"></i>
-                                </span>
-                            </li>
-                            {% endif %}
-                        </ul>
-                    </nav>
-                    
-                    <div class="page-info">
-                        <span class="text-muted">
-                            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
-                        </span>
-                    </div>
-                </div>
-                {% endif %}
-
+                  Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }} results
                 {% else %}
-                <div class="no-results">
-                    <div class="text-center py-5">
-                        <i class="bi bi-search-heart-fill" style="font-size: 4rem; color: var(--text-dim); margin-bottom: 20px;"></i>
-                        <h3 class="mb-3" style="color: var(--text);">No results found for "<span class="query-highlight">{{ query }}</span>"</h3>
-                        <p style="color: var(--text-muted);" class="mb-4">Please try a different keyword or check your spelling.</p>
-                        {# --- NEW: Changed to a primary button consistent with the theme --- #}
-                        <a href="{% url 'home' %}" class="btn btn-primary-themed">
-                            <i class="bi bi-arrow-left me-2"></i>Back to Home
-                        </a>
-                    </div>
-                </div>
+                  {{ results|length }} result{{ results|length|pluralize }}
                 {% endif %}
-            </div>
+              </p>
+            {% else %}
+              <p class="results-info">Try a different keyword.</p>
+            {% endif %}
+          </div>
+
+          {% if results %}
+            <span class="results-pill">
+              <i class="bi bi-collection me-1"></i>
+              {% if is_paginated %}{{ page_obj.paginator.count }}{% else %}{{ results|length }}{% endif %}
+            </span>
+          {% endif %}
         </div>
+
+        <!-- Optional: Search again -->
+        <form method="get" action="" class="search-bar">
+          <div class="search-input-wrap">
+            <i class="bi bi-search"></i>
+            <input
+              type="text"
+              name="query"
+              value="{{ query }}"
+              placeholder="Search posts…"
+              class="search-input"
+              autocomplete="off"
+            />
+          </div>
+          <button class="search-btn" type="submit">
+            Search
+          </button>
+        </form>
+      </div>
+
+      {% if results %}
+        <!-- Grid -->
+        <div class="latest-updates-grid">
+          {% for post in results %}
+            <a href="{% url 'post_detail' category=post.category.slug slug=post.slug %}" class="post-card">
+              <div class="post-card-img-container">
+                {% if post.thumbnail %}
+                  <img src="{{ post.thumbnail.url }}" alt="{{ post.title }}" loading="lazy">
+                {% else %}
+                  <img src="{% static 'images/default_thumbnail.jpg' %}" alt="No Image" loading="lazy">
+                {% endif %}
+              </div>
+
+              <div class="post-card-content">
+                <h3 class="post-title">{{ post.title }}</h3>
+
+                <div class="post-meta">
+                  <span class="post-date">
+                    <i class="bi bi-calendar3 me-1"></i>{{ post.published_date|date:"M j, Y" }}
+                  </span>
+
+                  {% if post.category %}
+                    <span class="category-badge">{{ post.category.name }}</span>
+                  {% endif %}
+                </div>
+
+                {% if post.excerpt %}
+                  <p class="post-excerpt">{{ post.excerpt|truncatechars:120 }}</p>
+                {% endif %}
+              </div>
+            </a>
+          {% endfor %}
+        </div>
+
+        {% if is_paginated %}
+          <!-- Pagination -->
+          <div class="pagination-container">
+            <nav aria-label="Search results pagination">
+              <ul class="pagination-list">
+
+                <!-- Prev -->
+                <li class="page-item">
+                  {% if page_obj.has_previous %}
+                    <a class="page-link prev-next" href="?query={{ query|urlencode }}&page={{ page_obj.previous_page_number }}" aria-label="Previous">
+                      <i class="bi bi-chevron-left"></i><span>Prev</span>
+                    </a>
+                  {% else %}
+                    <span class="page-link prev-next disabled">
+                      <i class="bi bi-chevron-left"></i><span>Prev</span>
+                    </span>
+                  {% endif %}
+                </li>
+
+                {# windowed pages with ellipses #}
+                {% for num in page_obj.paginator.page_range %}
+                  {% if num == 1 or num == page_obj.paginator.num_pages or num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}
+                    {% if page_obj.number == num %}
+                      <li class="page-item active"><span class="page-link current">{{ num }}</span></li>
+                    {% else %}
+                      <li class="page-item"><a class="page-link" href="?query={{ query|urlencode }}&page={{ num }}">{{ num }}</a></li>
+                    {% endif %}
+                  {% endif %}
+
+                  {# left ellipsis #}
+                  {% if num == 2 and page_obj.number|add:"-3" > 2 %}
+                    <li class="page-item disabled"><span class="page-link">…</span></li>
+                  {% endif %}
+
+                  {# right ellipsis #}
+                  {% if num == page_obj.paginator.num_pages|add:"-1" and page_obj.number|add:"3" < page_obj.paginator.num_pages|add:"-1" %}
+                    <li class="page-item disabled"><span class="page-link">…</span></li>
+                  {% endif %}
+                {% endfor %}
+
+                <!-- Next -->
+                <li class="page-item">
+                  {% if page_obj.has_next %}
+                    <a class="page-link prev-next" href="?query={{ query|urlencode }}&page={{ page_obj.next_page_number }}" aria-label="Next">
+                      <span>Next</span><i class="bi bi-chevron-right"></i>
+                    </a>
+                  {% else %}
+                    <span class="page-link prev-next disabled">
+                      <span>Next</span><i class="bi bi-chevron-right"></i>
+                    </span>
+                  {% endif %}
+                </li>
+
+              </ul>
+            </nav>
+
+            <div class="page-info">
+              Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+            </div>
+          </div>
+        {% endif %}
+
+      {% else %}
+        <!-- Empty State -->
+        <div class="no-results">
+          <div class="no-results-inner">
+            <div class="no-results-icon">
+              <i class="bi bi-search"></i>
+            </div>
+            <h3>No results found for <span class="query-highlight">“{{ query }}”</span></h3>
+            <p>Check spelling or try a shorter keyword.</p>
+
+            <div class="no-results-actions">
+              <a href="{% url 'home' %}" class="btn btn-primary-themed">
+                <i class="bi bi-arrow-left me-2"></i>Back to Home
+              </a>
+              <a href="" class="btn btn-outline-themed">
+                <i class="bi bi-arrow-repeat me-2"></i>Try Again
+              </a>
+            </div>
+          </div>
+        </div>
+      {% endif %}
+
     </div>
+  </div>
 </div>
 
 <style>
-/* --- NEW: Custom styles adapted for the Dark/Teal Theme --- */
+/* ---------- Search Page (Clean + Premium) ---------- */
 
-/* Search-specific styles */
-.search-title {
-    color: var(--text);
-    font-weight: 700;
-    font-size: 2.2rem;
-    text-align: center;
-    margin-bottom: 15px;
-}
-
-.query-highlight {
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    font-weight: 800;
+.search-hero{
+  padding: 22px;
+  border-radius: 22px;
+  border: 1px solid var(--border-color);
+  background:
+    radial-gradient(900px 260px at 10% 0%, rgba(0, 128, 128, .22), transparent 60%),
+    radial-gradient(700px 220px at 95% 30%, rgba(13, 110, 253, .18), transparent 55%),
+    rgba(39, 52, 77, .38);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 10px 30px var(--shadow);
+  margin-bottom: 22px;
 }
 
-/* Breadcrumbs (Consistent with other pages) */
-.breadcrumb-custom {
-    display: flex;
-    align-items: center;
-    list-style: none;
-    margin: 0;
-    padding: 15px 20px;
-    background: rgba(39, 52, 77, 0.5); /* --card-bg with transparency */
-    backdrop-filter: blur(5px);
-    border-radius: 15px;
-    border: 1px solid var(--border-color);
-    gap: 10px;
-    box-shadow: 0 2px 10px var(--shadow);
-}
-.breadcrumb-item-custom { display: flex; align-items: center; }
-.breadcrumb-link {
-    color: var(--text-muted);
-    text-decoration: none;
-    transition: all 0.3s ease;
-    padding: 5px 10px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-}
-.breadcrumb-link:hover { color: var(--primary); background: rgba(0, 128, 128, 0.1); }
-.breadcrumb-separator { color: var(--text-dim); font-size: 0.8rem; }
-.breadcrumb-item-custom.active { color: var(--primary); font-weight: 600; }
-
-/* Results info */
-.results-info {
-    margin-top: 10px;
-    font-size: 0.9rem;
-    color: var(--text-muted);
-    text-align: center;
+.search-hero-top{
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 16px;
 }
 
-/* Post meta styling (inside post cards) */
-.post-meta {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 10px;
-    flex-wrap: wrap;
-}
-.post-date { color: var(--text-dim); font-size: 0.85rem; display: flex; align-items: center; }
-.post-excerpt { color: var(--text-muted); }
-.category-badge {
-    background: linear-gradient(45deg, var(--primary), var(--primary-hover));
-    color: white;
-    padding: 4px 12px;
-    border-radius: 15px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+.search-title{
+  color: var(--text);
+  font-weight: 800;
+  font-size: 2rem;
+  line-height: 1.2;
+  margin: 0 0 6px 0;
 }
 
-/* Themed Pagination (Consistent with other pages) */
-.pagination-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    margin-top: 50px;
-    padding: 30px;
-    gap: 20px;
-    background: rgba(39, 52, 77, 0.5);
-    backdrop-filter: blur(5px);
-    border-radius: 20px;
-    border: 1px solid var(--border-color);
-    box-shadow: 0 5px 20px var(--shadow);
-}
-.pagination-list {
-    display: flex;
-    list-style: none;
-    margin: 0; padding: 0;
-    gap: 8px;
-    flex-wrap: wrap;
-    justify-content: center;
-}
-.page-item { display: flex; }
-.page-link {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 48px;
-    height: 48px;
-    padding: 10px 18px;
-    background: var(--dark-bg);
-    border: 2px solid var(--border-color);
-    border-radius: 12px;
-    color: var(--text-muted);
-    text-decoration: none;
-    font-weight: 600;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    overflow: hidden;
-    z-index: 1;
-}
-.page-link::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0;
-    width: 0; height: 100%;
-    background: linear-gradient(45deg, var(--primary), var(--primary-hover));
-    transition: width 0.3s ease;
-    z-index: -1;
-}
-.page-link:hover {
-    color: #ffffff;
-    border-color: var(--primary);
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px var(--glow);
-}
-.page-link:hover::before { width: 100%; }
-.page-link.current {
-    background: linear-gradient(45deg, var(--primary), var(--primary-hover));
-    border-color: var(--primary);
-    color: #ffffff;
-    font-weight: 800;
-    box-shadow: 0 3px 10px var(--glow);
-    transform: scale(1.05);
-}
-.page-link.prev-next { padding: 10px 24px; gap: 10px; font-weight: 700; min-width: auto; }
-.page-link.disabled { opacity: 0.6; cursor: not-allowed; background: var(--darker-bg); border-color: var(--border-color); color: var(--text-dim); }
-.page-link.disabled:hover { transform: none; box-shadow: none; }
-.page-link.disabled:hover::before { width: 0; }
-.page-info {
-    color: var(--text-muted);
-    font-size: 1rem;
-    font-weight: 500;
-    background: var(--dark-bg);
-    padding: 10px 20px;
-    border-radius: 25px;
-    border: 1px solid var(--border-color);
+.results-info{
+  margin: 0;
+  color: var(--text-muted);
+  font-size: .95rem;
 }
 
-/* No Results Styling */
-.no-results {
-    background: rgba(39, 52, 77, 0.3); /* --card-bg with transparency */
-    backdrop-filter: blur(5px);
-    border-radius: 20px;
-    margin: 40px 0;
-    border: 1px solid var(--border-color);
-    box-shadow: 0 5px 15px var(--shadow);
-}
-.btn-primary-themed {
-    background: linear-gradient(45deg, var(--primary), var(--primary-hover));
-    border: none;
-    color: #ffffff;
-    padding: 12px 24px;
-    border-radius: 25px;
-    font-weight: 600;
-    text-decoration: none;
-    transition: all 0.3s ease;
-    display: inline-flex;
-    align-items: center;
-}
-.btn-primary-themed:hover { transform: translateY(-2px); box-shadow: 0 5px 15px var(--glow); color: #ffffff; }
-
-/* Mobile Responsive */
-@media (max-width: 768px) {
-    .search-title { font-size: 1.8rem; }
-    .breadcrumb-custom { padding: 12px 15px; gap: 8px; }
-    .pagination-list { gap: 4px; }
-    .page-link { min-width: 42px; height: 42px; padding: 8px 14px; font-size: 0.9rem; }
-    .page-link.prev-next { padding: 8px 18px; }
-    .results-info { text-align: center; }
-    .post-meta { justify-content: center; }
+.query-highlight{
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 900;
 }
 
-/* Animations */
-.latest-updates-grid {
-    animation: fadeInUp 0.6s ease-out;
+.results-pill{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(0, 128, 128, .14);
+  border: 1px solid rgba(0, 128, 128, .25);
+  color: var(--text);
+  font-weight: 800;
+  white-space: nowrap;
 }
-@keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
+
+/* ---------- Breadcrumbs ---------- */
+.breadcrumb-custom{
+  display: flex;
+  align-items: center;
+  list-style: none;
+  margin: 0;
+  padding: 14px 18px;
+  background: rgba(39, 52, 77, 0.45);
+  backdrop-filter: blur(5px);
+  border-radius: 16px;
+  border: 1px solid var(--border-color);
+  gap: 10px;
+  box-shadow: 0 2px 10px var(--shadow);
+}
+.breadcrumb-item-custom{ display:flex; align-items:center; }
+.breadcrumb-link{
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: all .25s ease;
+  padding: 6px 10px;
+  border-radius: 10px;
+  display:flex;
+  align-items:center;
+}
+.breadcrumb-link:hover{
+  color: var(--primary);
+  background: rgba(0, 128, 128, 0.12);
+}
+.breadcrumb-separator{ color: var(--text-dim); font-size: .85rem; }
+.breadcrumb-item-custom.active{ color: var(--primary); font-weight: 700; }
+
+/* ---------- Search bar ---------- */
+.search-bar{
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+.search-input-wrap{
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(11, 18, 32, .75);
+  border: 1px solid var(--border-color);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.03);
+}
+.search-input-wrap i{
+  color: var(--text-dim);
+  font-size: 1.05rem;
+}
+.search-input{
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-weight: 600;
+}
+.search-input::placeholder{ color: var(--text-dim); }
+
+.search-btn{
+  border: none;
+  border-radius: 16px;
+  padding: 12px 18px;
+  font-weight: 800;
+  color: #fff;
+  background: linear-gradient(45deg, var(--primary), var(--primary-hover));
+  box-shadow: 0 10px 20px var(--glow);
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+.search-btn:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 14px 26px var(--glow);
+}
+
+/* ---------- Cards (you already have .post-card styles in base; these polish inside) ---------- */
+.post-title{ margin-bottom: 10px; }
+.post-meta{
+  display:flex;
+  align-items:center;
+  gap: 12px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.post-date{
+  color: var(--text-dim);
+  font-size: .85rem;
+  display:flex;
+  align-items:center;
+}
+.post-excerpt{ color: var(--text-muted); margin: 0; }
+.category-badge{
+  background: linear-gradient(45deg, var(--primary), var(--primary-hover));
+  color: #fff;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: .72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+}
+
+/* ---------- Pagination ---------- */
+.pagination-container{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  margin-top: 46px;
+  padding: 26px;
+  gap: 16px;
+  background: rgba(39, 52, 77, 0.45);
+  backdrop-filter: blur(5px);
+  border-radius: 22px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 5px 20px var(--shadow);
+}
+.pagination-list{
+  display:flex;
+  list-style:none;
+  margin:0; padding:0;
+  gap: 8px;
+  flex-wrap:wrap;
+  justify-content:center;
+}
+.page-item{ display:flex; }
+.page-link{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-width: 46px;
+  height: 46px;
+  padding: 10px 16px;
+  background: rgba(11, 18, 32, .7);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  color: var(--text-muted);
+  text-decoration:none;
+  font-weight: 800;
+  transition: all .25s ease;
+  position: relative;
+  overflow: hidden;
+}
+.page-link:hover{
+  color:#fff;
+  border-color: var(--primary);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 18px var(--shadow);
+}
+.page-link.current{
+  background: linear-gradient(45deg, var(--primary), var(--primary-hover));
+  border-color: var(--primary);
+  color:#fff;
+  box-shadow: 0 10px 20px var(--glow);
+}
+.page-link.prev-next{ min-width:auto; gap: 10px; padding: 10px 18px; }
+.page-link.disabled{
+  opacity:.55;
+  cursor:not-allowed;
+  background: rgba(11, 18, 32, .45);
+}
+.page-link.disabled:hover{
+  transform:none;
+  box-shadow:none;
+  border-color: var(--border-color);
+  color: var(--text-muted);
+}
+.page-info{
+  color: var(--text-muted);
+  font-size: .95rem;
+  font-weight: 700;
+  background: rgba(11, 18, 32, .55);
+  padding: 10px 18px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+}
+
+/* ---------- Empty State ---------- */
+.no-results{
+  background: rgba(39, 52, 77, .30);
+  border: 1px solid var(--border-color);
+  border-radius: 22px;
+  box-shadow: 0 10px 25px var(--shadow);
+  overflow: hidden;
+}
+.no-results-inner{
+  padding: 44px 22px;
+  text-align:center;
+}
+.no-results-icon{
+  width: 74px;
+  height: 74px;
+  border-radius: 22px;
+  margin: 0 auto 14px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background: rgba(0, 128, 128, .16);
+  border: 1px solid rgba(0, 128, 128, .25);
+}
+.no-results-icon i{
+  font-size: 2rem;
+  color: var(--primary);
+}
+.no-results h3{
+  color: var(--text);
+  font-weight: 900;
+  margin-bottom: 8px;
+}
+.no-results p{
+  color: var(--text-muted);
+  margin: 0 0 18px 0;
+}
+.no-results-actions{
+  display:flex;
+  gap: 10px;
+  justify-content:center;
+  flex-wrap: wrap;
+}
+
+.btn-primary-themed{
+  background: linear-gradient(45deg, var(--primary), var(--primary-hover));
+  border: none;
+  color: #fff;
+  padding: 12px 22px;
+  border-radius: 999px;
+  font-weight: 800;
+  text-decoration:none;
+  transition: transform .2s ease, box-shadow .2s ease;
+  display:inline-flex;
+  align-items:center;
+}
+.btn-primary-themed:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 12px 22px var(--glow);
+  color:#fff;
+}
+
+.btn-outline-themed{
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text);
+  padding: 12px 22px;
+  border-radius: 999px;
+  font-weight: 800;
+  text-decoration:none;
+  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+  display:inline-flex;
+  align-items:center;
+}
+.btn-outline-themed:hover{
+  transform: translateY(-2px);
+  border-color: var(--primary);
+  box-shadow: 0 10px 18px var(--shadow);
+  color: var(--text);
+}
+
+/* ---------- Motion ---------- */
+.latest-updates-grid{
+  animation: fadeInUp .55s ease-out;
+}
+@keyframes fadeInUp{
+  from{ opacity:0; transform: translateY(14px); }
+  to{ opacity:1; transform: translateY(0); }
+}
+
+/* ---------- Mobile ---------- */
+@media (max-width: 768px){
+  .search-title{ font-size: 1.55rem; }
+  .search-hero{ padding: 16px; border-radius: 18px; }
+  .search-hero-top{ flex-direction: column; }
+  .search-bar{ flex-direction: column; }
+  .search-btn{ width: 100%; }
+  .breadcrumb-custom{ padding: 12px 14px; }
+  .page-link{ min-width: 42px; height: 42px; padding: 8px 14px; }
+  .page-link.prev-next{ justify-content:center; }
+  .post-meta{ justify-content: center; }
 }
 </style>
 {% endblock %}
