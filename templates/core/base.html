@@ -730,6 +730,53 @@ body {
     background-color: #27344D;
 }
 
+/* ===== Fix search input typing color (and all inputs) ===== */
+input,
+textarea,
+select,
+.form-control {
+    background-color: var(--dark-bg) !important;
+    color: var(--text) !important;
+    border: 1px solid var(--border-color) !important;
+}
+
+/* Placeholder text */
+input::placeholder,
+textarea::placeholder,
+.form-control::placeholder {
+    color: var(--text-muted) !important;
+    opacity: 1; /* makes placeholder visible in some browsers */
+}
+
+/* Typing cursor (caret) */
+input,
+textarea,
+.form-control {
+    caret-color: var(--primary) !important;
+}
+
+/* Focus state */
+input:focus,
+textarea:focus,
+select:focus,
+.form-control:focus {
+    background-color: var(--darker-bg) !important;
+    color: var(--text) !important;
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 .2rem rgba(0, 128, 128, 0.25) !important;
+    outline: none !important;
+}
+
+/* If your search is inside navbar and Bootstrap is overriding */
+.navbar .form-control,
+.navbar input[type="search"] {
+    background-color: rgba(15, 15, 15, 0.9) !important;
+    color: var(--text) !important;
+}
+.navbar input[type="search"]::placeholder {
+    color: var(--text-muted) !important;
+}
+
     </style>
 </head>
 <body>
