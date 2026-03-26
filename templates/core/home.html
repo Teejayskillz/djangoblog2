@@ -1,12 +1,4 @@
 {% extends 'core/base.html' %}
- <div class="ad-section">
-                <div class="ad-slot-container">
-                    {{ ads_by_slug.header3|safe }}
-                </div>
-                <div class="ad-slot-container">
-                     {{ ads_by_slug.header4|safe }}
-                </div>
-</div>
 
 {% block content %}
 {% for section in sections %}
@@ -36,6 +28,15 @@
     </div>
 </div>
 {% endfor %}
+
+ <div class="ad-section">
+                <div class="ad-slot-container">
+                    {{ ads_by_slug.header3|safe }}
+                </div>
+                <div class="ad-slot-container">
+                     {{ ads_by_slug.header4|safe }}
+                </div>
+</div>
 
 {% if page_obj %}
 <div class="section">
