@@ -1,8 +1,4 @@
 {% extends 'core/base.html' %}
-
-{% block content %}
-{% for section in sections %}
-
  <div class="ad-section">
                 <div class="ad-slot-container">
                     {{ ads_by_slug.header3|safe }}
@@ -11,6 +7,11 @@
                      {{ ads_by_slug.header4|safe }}
                 </div>
 </div>
+
+{% block content %}
+{% for section in sections %}
+
+
 
 <div class="section">
     <div class="category-header">
