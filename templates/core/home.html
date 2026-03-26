@@ -2,6 +2,16 @@
 
 {% block content %}
 {% for section in sections %}
+
+ <div class="ad-section">
+                <div class="ad-slot-container">
+                    {{ ads_by_slug.header3|safe }}
+                </div>
+                <div class="ad-slot-container">
+                     {{ ads_by_slug.header4|safe }}
+                </div>
+</div>
+
 <div class="section">
     <div class="category-header">
         <h2>{{ section.title }}</h2>
