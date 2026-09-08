@@ -7,7 +7,7 @@ For more information on this file, see
 https://docs.djangoproject.com/en/5.2/topics/settings/
 
 For the full list of settings and their values, see
-https://docs.djangoproject.com/en/5.2/ref/settings/
+https://fzdocs.djangoproject.com/en/5.2/ref/settings/
 """
 
 import os
@@ -338,16 +338,20 @@ LOGGING = {
 TAGGIT_TAG_MODEL = 'core.MyCustomTag' 
 
 
-
 #EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 #EMAIL_HOST = 'mail.nzdworld.com' # Replace with your email provider's SMTP server (e.g., smtp.mailgun.org, smtp.sendgrid.net)
 #EMAIL_PORT = 465
 #EMAIL_USE_TLS = True
 #EMAIL_HOST_USER = 'update@nzdworld.com' 
 #EMAIL_HOST_PASSWORD = os.getenv('EMAIL_PASS'), 
-#DEFAULT_FROM_EMAIL = 'Nzdworld <update@nzdworld.com>' 
+#DEFAULT_FROM_EMAIL = 'Nzdworld <noreply@nzdworld.com>' 
 #SERVER_EMAIL = EMAIL_HOST_USER
 
 
 WHITENOISE_MAX_THREADS = 1
 
+# Authentication Settings
+LOGIN_URL = 'login'  # Where to redirect if user needs to login
+LOGIN_REDIRECT_URL = 'home'  # Where to redirect after login
+LOGOUT_REDIRECT_URL = 'home'  # Where to redirect after logout
+LOGOUT_URL = 'logout'

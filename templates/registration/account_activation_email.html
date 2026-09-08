@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Activate Your Account</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 30px auto;
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #0d6efd, #0a58ca);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 700;
+        }
+        .header p {
+            margin: 10px 0 0;
+            opacity: 0.9;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .content h2 {
+            color: #0d6efd;
+            margin-top: 0;
+            font-size: 22px;
+        }
+        .button-container {
+            text-align: center;
+            margin: 35px 0;
+        }
+        .btn-activate {
+            display: inline-block;
+            background: linear-gradient(135deg, #0d6efd, #0a58ca);
+            color: white;
+            padding: 14px 40px;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 16px;
+            box-shadow: 0 4px 15px rgba(13, 110, 253, 0.3);
+            transition: all 0.3s ease;
+        }
+        .btn-activate:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(13, 110, 253, 0.4);
+            background: linear-gradient(135deg, #0a58ca, #084298);
+            color: white;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            color: #6c757d;
+            font-size: 14px;
+            border-top: 1px solid #dee2e6;
+        }
+        .info-box {
+            background: #f8f9fa;
+            border-left: 4px solid #0d6efd;
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .info-box p {
+            margin: 5px 0;
+        }
+        @media only screen and (max-width: 600px) {
+            .container {
+                margin: 10px;
+            }
+            .content {
+                padding: 25px 20px;
+            }
+            .btn-activate {
+                padding: 12px 30px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🎉 Welcome to Nzdworld!</h1>
+            <p>Your entertainment destination</p>
+        </div>
+        
+        <!-- Content -->
+        <div class="content">
+            <h2>Hello {{ user.username }}! 👋</h2>
+            
+            <p>Thank you for creating an account at <strong>Nzdworld</strong>! We're excited to have you on board.</p>
+            
+            <div class="info-box">
+                <p><strong>📌 One more step:</strong></p>
+                <p>Please verify your email address by clicking the button below. This helps us ensure your account is secure and you receive important updates.</p>
+            </div>
+            
+            <div class="button-container">
+                <a href="http://{{ domain }}{% url 'activate' uidb64=uid token=token %}" class="btn-activate">
+                    🔓 Activate My Account
+                </a>
+            </div>
+            
+            <p><strong>Or copy and paste this link into your browser:</strong></p>
+            <p style="word-break: break-all; background: #f8f9fa; padding: 10px; border-radius: 4px; font-size: 12px; color: #0d6efd;">
+                http://{{ domain }}{% url 'activate' uidb64=uid token=token %}
+            </p>
+            
+            <p><strong>⚠️ This activation link will expire in 24 hours.</strong></p>
+            
+            <p>If you didn't create an account with us, please ignore this email.</p>
+            
+            <hr style="border: none; border-top: 1px solid #dee2e6; margin: 25px 0;">
+            
+            <p style="font-size: 14px; color: #6c757d;">
+                <strong>Why activate your account?</strong><br>
+                ✅ Access exclusive content<br>
+                ✅ Save your favorite posts<br>
+                ✅ Comment and interact with the community<br>
+                ✅ Get personalized recommendations
+            </p>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>Nzdworld</strong> - Your #1 Entertainment Source</p>
+            <p style="margin: 5px 0;">
+                <a href="https://{{ domain }}" style="color: #0d6efd; text-decoration: none;">Visit our website</a>
+                &nbsp;|&nbsp; 
+                <a href="mailto:support@nzdworld.com" style="color: #0d6efd; text-decoration: none;">Contact Support</a>
+            </p>
+            <p style="margin: 10px 0 0;">© {% now "Y" %} Nzdworld. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
