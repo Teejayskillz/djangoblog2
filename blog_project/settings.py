@@ -60,8 +60,7 @@ INSTALLED_APPS = [
     'ads',
 ]
 
-EMAIL_BACKEND = "anymail.backends.mailgun.EmailBackend"
-
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 DEFAULT_FROM_EMAIL = "noreply@nzdworld.com"
 
 # The email address for server-generated emails (like error reports)
