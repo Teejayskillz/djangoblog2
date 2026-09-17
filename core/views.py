@@ -29,6 +29,10 @@ from django.core.mail import send_mail
 from django.conf import settings
 from .tokens import account_activation_token
 
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
+
 def register(request):
     if request.user.is_authenticated:
         return redirect('home')
@@ -43,19 +47,22 @@ def register(request):
             # Send verification email
             current_site = get_current_site(request)
             mail_subject = 'Activate your account'
-            message = render_to_string('registration/account_activation_email.html', {
+            html_message = render_to_string('registration/account_activation_email.html', {
                 'user': user,
                 'domain': current_site.domain,
                 'uid': urlsafe_base64_encode(force_bytes(user.pk)),
                 'token': account_activation_token.make_token(user),
             })
-            send_mail(
+            plain_message = strip_tags(html_message)  # fallback for non-HTML clients
+            
+            email = EmailMultiAlternatives(
                 mail_subject,
-                message,
+                plain_message,                    # plain text version
                 settings.DEFAULT_FROM_EMAIL,
                 [user.email],
-                fail_silently=False,
             )
+            email.attach_alternative(html_message, "text/html")  # ← KEY LINE
+            email.send(fail_silently=False)
             
             messages.success(request, 'Please confirm your email address to complete registration.')
             return redirect('login')
@@ -63,7 +70,6 @@ def register(request):
         form = CustomUserCreationForm()
     
     return render(request, 'registration/register.html', {'form': form})
-
 
 
 def activate(request, uidb64, token):
