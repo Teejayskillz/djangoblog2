@@ -895,7 +895,7 @@ select:focus,
             try {
                 var href = a.getAttribute('href');
                 if (!href) return;
-                if (href.indexOf('cdn.nzdworld.com') !== -1 || href.indexOf('dl.jaraflix.com') !== -1) {
+                if (href.indexOf('cdn.nzdworld.com') !== -1 || href.indexOf('cdn.nzdowlrd.com') !== -1 || href.indexOf('dl.jaraflix.com') !== -1) {
                     var url = new URL(href, window.location.origin);
                     if (!url.searchParams.has('token')) {
                         url.searchParams.set('token', vipToken);
@@ -909,7 +909,7 @@ select:focus,
         }
 
         function tokenizeAllCdnLinks() {
-            var links = document.querySelectorAll('a[href*="cdn.nzdworld.com"], a[href*="dl.jaraflix.com"]');
+            var links = document.querySelectorAll('a[href*="cdn.nzdworld.com"], a[href*="cdn.nzdowlrd.com"], a[href*="dl.jaraflix.com"]');
             for (var i = 0; i < links.length; i++) {
                 appendTokenToElement(links[i]);
             }
@@ -932,4 +932,4 @@ select:focus,
     </script>
     {% endif %}
 </body>
-</html>
+</html>

@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from django.urls import reverse
 from django.utils import timezone
 from datetime import timedelta
+from unittest.mock import patch
 from subscriptions.models import SubscriptionPlan, UserSubscription, PaymentTransaction
 from subscriptions.utils import user_has_active_subscription
 from ads.context_processors import ads_context
@@ -182,8 +183,17 @@ class SubscriptionTests(TestCase):
         from urllib.parse import unquote
         self.assertEqual(unquote(tokenized_url), f"https://cdn.example.com/download/123/?token={token}")
 
+    def test_shortener_rejects_unexpected_domain(self):
+        from core.utils import shorten_url
 
+        with patch('core.utils.requests.post') as mock_post:
+            mock_post.return_value.status_code = 200
+            mock_post.return_value.json.return_value = {
+                'short_url': 'https://dl.jaraflix.com/abc123/'
+            }
 
+            result = shorten_url('https://example.com/download/movie.mp4', 'Movie Title')
+            self.assertEqual(result, 'https://example.com/download/movie.mp4')
 
     def test_subscription_extension(self):
         # Existing subscription with 10 days remaining

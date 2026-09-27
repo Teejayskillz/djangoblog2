@@ -9,7 +9,7 @@ register = template.Library()
 def tokenize_cdn_links(html_content, vip_token):
     """
     Template filter that parses HTML string content (such as post.content or page.content)
-    and automatically appends the signed VIP token to any href pointing to cdn.nzdworld.com or dl.jaraflix.com.
+    and automatically appends the signed VIP token to any href pointing to the canonical CDN host or legacy shortlinks.
     """
     if not html_content or not vip_token:
         return html_content
@@ -22,7 +22,7 @@ def tokenize_cdn_links(html_content, vip_token):
         return f"{prefix}{tokenized_url}{suffix}"
 
     pattern = re.compile(
-        r'(href=["\'])(https?://(?:cdn\.nzdworld\.com|dl\.jaraflix\.com)[^"\']*)(["\'])',
+        r'(href=["\'])(https?://(?:cdn\.nzdworld\.com|cdn\.nzdowlrd\.com|dl\.jaraflix\.com)[^"\']*)(["\'])',
         re.IGNORECASE
     )
     return pattern.sub(replace_link, html_content)
