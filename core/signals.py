@@ -119,14 +119,14 @@ from django.dispatch import receiver
 from urllib.parse import urlparse
 
 from .models import DownloadQuality, Subtitle
-from .utils import shorten_url
-
-SHORT_DOMAIN = "cdn.nzdworld.com"
+from .utils import shorten_url, SHORTENER_ALLOWED_HOSTS, SHORTENER_LEGACY_HOSTS
 
 
 def is_shortened(url):
     try:
-        return SHORT_DOMAIN in urlparse(url).netloc
+        host = urlparse(url).netloc.lower()
+        allowed_hosts = SHORTENER_ALLOWED_HOSTS + SHORTENER_LEGACY_HOSTS
+        return any(host == allowed_host or host.endswith(f".{allowed_host}") for allowed_host in allowed_hosts)
     except Exception:
         return False
 

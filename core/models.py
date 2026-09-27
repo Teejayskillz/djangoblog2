@@ -123,10 +123,10 @@ class Post(models.Model):
         return check_password(raw_password, self.password)
 
     def save(self, *args, **kwargs):
-        from .utils import shorten_url
+        from .utils import shorten_url, SHORTENER_ALLOWED_HOSTS, SHORTENER_LEGACY_HOSTS
         from urllib.parse import urlparse
 
-        SHORT_DOMAIN = "cdn.nzdworld.com"
+        allowed_hosts = SHORTENER_ALLOWED_HOSTS + SHORTENER_LEGACY_HOSTS
 
         # Ensure slug is set
         if not self.slug:
@@ -142,7 +142,8 @@ class Post(models.Model):
 
         def is_shortened(url):
             try:
-                return urlparse(url).netloc.endswith(SHORT_DOMAIN)
+                host = urlparse(url).netloc.lower()
+                return any(host == allowed_host or host.endswith(f".{allowed_host}") for allowed_host in allowed_hosts)
             except Exception:
                 return False
 

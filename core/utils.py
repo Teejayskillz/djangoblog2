@@ -1,12 +1,24 @@
+import os
 import requests
 import logging
 from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
-SHORTENER_API = "https://cdn.nzdworld.com/api/shorten/"
-SHORTENER_CANONICAL_HOSTS = ("cdn.nzdworld.com", "cdn.nzdowlrd.com")
-SHORTENER_LEGACY_HOSTS = ("dl.jaraflix.com",)
+SHORTENER_API = os.getenv("SHORTENER_API", "https://cdn.nzdworld.com/api/shorten/")
+SHORTENER_ALLOWED_HOSTS = tuple(
+    host.strip().lower()
+    for host in os.getenv(
+        "SHORTENER_ALLOWED_HOSTS",
+        "cdn.nzdworld.com,cdn.nzdowlrd.com"
+    ).split(",")
+    if host.strip()
+)
+SHORTENER_LEGACY_HOSTS = tuple(
+    host.strip().lower()
+    for host in os.getenv("SHORTENER_LEGACY_HOSTS", "dl.jaraflix.com").split(",")
+    if host.strip()
+)
 
 
 def is_valid_shortener_url(url):
@@ -17,10 +29,8 @@ def is_valid_shortener_url(url):
     except Exception:
         return False
 
-    return any(
-        host == allowed_host or host.endswith(f".{allowed_host}")
-        for allowed_host in SHORTENER_CANONICAL_HOSTS
-    )
+    allowed_hosts = SHORTENER_ALLOWED_HOSTS + SHORTENER_LEGACY_HOSTS
+    return any(host == allowed_host or host.endswith(f".{allowed_host}") for allowed_host in allowed_hosts)
 
 
 def shorten_url(long_url, title=None):
