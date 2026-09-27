@@ -180,7 +180,8 @@ class SubscriptionTests(TestCase):
         tokenized_url = append_vip_token_to_url("https://cdn.example.com/download/123", token)
         self.assertIn("token=", tokenized_url)
         from urllib.parse import unquote
-        self.assertEqual(unquote(tokenized_url), f"https://cdn.example.com/download/123?token={token}")
+        self.assertEqual(unquote(tokenized_url), f"https://cdn.example.com/download/123/?token={token}")
+
 
 
 

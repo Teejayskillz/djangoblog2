@@ -35,12 +35,17 @@ def generate_cdn_vip_token(user_id):
 def append_vip_token_to_url(url, token):
     """
     Safely appends the signed VIP authentication token to a CDN download URL query string.
+    Ensures trailing slash on path to prevent 301 redirects from stripping tokens on mobile browsers.
     """
     if not url or not token:
         return url
     parsed = urlparse(url)
+    path = parsed.path
+    if path and not path.endswith('/'):
+        path += '/'
     query_params = parse_qs(parsed.query)
     query_params['token'] = [token]
     new_query = urlencode(query_params, doseq=True)
-    return urlunparse(parsed._replace(query=new_query))
+    return urlunparse(parsed._replace(path=path, query=new_query))
+
 

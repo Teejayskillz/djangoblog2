@@ -5,6 +5,8 @@ from .forms import CommentForm, PasswordForm
 from django.db.models import Q
 from django.core.paginator import Paginator
 from django.http import HttpResponseRedirect
+from django.views.decorators.cache import never_cache
+
 from taggit.models import Tag 
 from django.utils.http import urlsafe_base64_decode
 from django.utils.encoding import force_str
@@ -391,6 +393,7 @@ def search(request):  # Renamed to 'search' to match your original function name
     }
     
     return render(request, 'core/search.html', context) # Kept your original template name 'core/search.html'
+@never_cache
 def download_quality(request, pk):
     quality = get_object_or_404(DownloadQuality, pk=pk)
     from subscriptions.utils import (
@@ -417,8 +420,13 @@ def download_quality(request, pk):
         token = generate_cdn_vip_token(request.user.pk)
         download_url = append_vip_token_to_url(download_url, token)
 
-    return HttpResponseRedirect(download_url)
+    response = HttpResponseRedirect(download_url)
+    response['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0, private'
+    response['Pragma'] = 'no-cache'
+    response['Expires'] = '0'
+    return response
 
+@never_cache
 def download_subtitle(request, pk):
     subtitle = get_object_or_404(Subtitle, pk=pk)
     from subscriptions.utils import (
@@ -435,7 +443,12 @@ def download_subtitle(request, pk):
         token = generate_cdn_vip_token(request.user.pk)
         download_url = append_vip_token_to_url(download_url, token)
 
-    return HttpResponseRedirect(download_url)
+    response = HttpResponseRedirect(download_url)
+    response['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0, private'
+    response['Pragma'] = 'no-cache'
+    response['Expires'] = '0'
+    return response
+
     
     
 class TagDetailView(ListView):
