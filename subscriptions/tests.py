@@ -179,3 +179,28 @@ class SubscriptionTests(TestCase):
         sub.extend_subscription(self.plan)
         expected_min_end = initial_end + timedelta(days=29)
         self.assertGreater(sub.end_date, expected_min_end)
+
+    def test_transaction_status_change_auto_upgrades_vip(self):
+        # Create a pending transaction
+        tx = PaymentTransaction.objects.create(
+            user=self.user,
+            plan=self.plan,
+            reference=PaymentTransaction.generate_reference(),
+            amount=self.plan.price,
+            currency=self.plan.currency,
+            status='pending'
+        )
+        self.assertFalse(user_has_active_subscription(self.user))
+
+        # Admin updates status directly to completed and saves
+        tx.status = 'completed'
+        tx.save()
+
+        # Check that user subscription is now active with start_date and end_date set
+        self.assertTrue(user_has_active_subscription(self.user))
+        sub = UserSubscription.objects.get(user=self.user)
+        self.assertTrue(sub.is_active)
+        self.assertIsNotNone(sub.start_date)
+        self.assertIsNotNone(sub.end_date)
+        self.assertEqual(sub.plan, self.plan)
+

@@ -177,13 +177,18 @@ class PaymentTransactionAdmin(admin.ModelAdmin):
         return "No receipt uploaded."
     receipt_full_preview.short_description = 'Receipt Preview'
 
+    def save_model(self, request, obj, form, change):
+        if change and 'status' in form.changed_data and obj.status == 'completed':
+            obj.complete_transaction(admin_user=request.user)
+        else:
+            super().save_model(request, obj, form, change)
+
     @admin.action(description="✅ Approve & Activate VIP Subscription")
     def approve_and_activate(self, request, queryset):
         approved = 0
         for tx in queryset:
-            if tx.status != 'completed':
-                tx.complete_transaction(admin_user=request.user)
-                approved += 1
+            tx.complete_transaction(admin_user=request.user)
+            approved += 1
         self.message_user(request, f"Successfully approved {approved} transfer(s) and activated VIP access for the user(s).")
 
     @admin.action(description="❌ Reject selected payment(s)")

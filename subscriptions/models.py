@@ -136,14 +136,16 @@ class UserSubscription(models.Model):
         delta = self.end_date - timezone.now()
         return max(0, delta.days)
 
-    def extend_subscription(self, plan):
+    def extend_subscription(self, plan=None):
         now = timezone.now()
-        if self.is_valid() and self.end_date > now:
-            self.end_date = self.end_date + timedelta(days=plan.duration_days)
+        days = plan.duration_days if (plan and getattr(plan, 'duration_days', None)) else 30
+        if self.is_valid() and self.end_date and self.end_date > now:
+            self.end_date = self.end_date + timedelta(days=days)
         else:
             self.start_date = now
-            self.end_date = now + timedelta(days=plan.duration_days)
-        self.plan = plan
+            self.end_date = now + timedelta(days=days)
+        if plan:
+            self.plan = plan
         self.is_active = True
         self.save()
 
@@ -215,29 +217,56 @@ class PaymentTransaction(models.Model):
     def generate_reference(cls):
         return f"SUB-{uuid.uuid4().hex[:10].upper()}"
 
-    def complete_transaction(self, admin_user=None):
-        if self.status == 'completed':
-            return False
+    def activate_user_subscription(self):
+        """
+        Creates or updates the UserSubscription for transaction's user with
+        correct start_date, end_date, plan, and is_active=True.
+        """
+        if not self.user:
+            return None
 
-        self.status = 'completed'
-        if admin_user:
-            note = f"Approved by admin '{admin_user.username}' on {timezone.now().strftime('%Y-%m-%d %H:%M')}"
-            self.admin_notes = f"{self.admin_notes or ''}\n{note}".strip()
-        self.save()
+        duration_days = self.plan.duration_days if (self.plan and getattr(self.plan, 'duration_days', None)) else 30
+        now = timezone.now()
 
-        # Update or create user subscription
         sub, created = UserSubscription.objects.get_or_create(
             user=self.user,
             defaults={
                 'plan': self.plan,
-                'start_date': timezone.now(),
-                'end_date': timezone.now() + timedelta(days=self.plan.duration_days if self.plan else 30),
+                'start_date': now,
+                'end_date': now + timedelta(days=duration_days),
                 'is_active': True
             }
         )
-        if not created and self.plan:
+
+        if not created:
             sub.extend_subscription(self.plan)
 
+        return sub
+
+    def save(self, *args, **kwargs):
+        is_new_completion = False
+        if self.pk:
+            old_status = PaymentTransaction.objects.filter(pk=self.pk).values_list('status', flat=True).first()
+            if old_status != 'completed' and self.status == 'completed':
+                is_new_completion = True
+        elif self.status == 'completed':
+            is_new_completion = True
+
+        super().save(*args, **kwargs)
+
+        if is_new_completion:
+            self.activate_user_subscription()
+
+    def complete_transaction(self, admin_user=None):
+        self.status = 'completed'
+        if admin_user:
+            note = f"Approved by admin '{admin_user.username}' on {timezone.now().strftime('%Y-%m-%d %H:%M')}"
+            if not self.admin_notes:
+                self.admin_notes = note
+            elif note not in self.admin_notes:
+                self.admin_notes = f"{self.admin_notes}\n{note}".strip()
+        self.save()
+        self.activate_user_subscription()
         return True
 
     def reject_transaction(self, admin_user=None, reason=""):
