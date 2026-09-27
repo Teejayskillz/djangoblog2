@@ -158,11 +158,31 @@ class SubscriptionTests(TestCase):
             is_active=True
         )
 
-        # Subscribed user gets redirected to the actual download link!
+        # Subscribed user gets redirected to the actual download link with VIP token attached!
         resp2 = self.client.get(dl_url)
         self.assertEqual(resp2.status_code, 302)
         quality.refresh_from_db()
-        self.assertEqual(resp2.url, quality.download_url)
+        self.assertTrue(resp2.url.startswith(quality.download_url))
+        self.assertIn('token=', resp2.url)
+
+    def test_vip_token_generation(self):
+        from subscriptions.utils import generate_cdn_vip_token, append_vip_token_to_url
+        from django.core.signing import TimestampSigner, settings
+
+        token = generate_cdn_vip_token(self.user.id)
+        self.assertIsNotNone(token)
+        
+        # Verify unsigning using TimestampSigner and CDN_SHARED_SECRET
+        signer = TimestampSigner(key=settings.CDN_SHARED_SECRET)
+        unsigned_id = signer.unsign(token, max_age=300)
+        self.assertEqual(unsigned_id, str(self.user.id))
+
+        tokenized_url = append_vip_token_to_url("https://cdn.example.com/download/123", token)
+        self.assertIn("token=", tokenized_url)
+        from urllib.parse import unquote
+        self.assertEqual(unquote(tokenized_url), f"https://cdn.example.com/download/123?token={token}")
+
+
 
     def test_subscription_extension(self):
         # Existing subscription with 10 days remaining

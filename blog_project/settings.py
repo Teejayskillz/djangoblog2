@@ -27,6 +27,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-k3y-blog-project-local-dev-fallback') # Read from .env
 
+# Shared Secret Key for CDN / URL Shortener VIP Token Authentication
+CDN_SHARED_SECRET = os.getenv('CDN_SHARED_SECRET', SECRET_KEY)
+
+
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true' 
 
 if DEBUG:

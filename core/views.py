@@ -393,24 +393,50 @@ def search(request):  # Renamed to 'search' to match your original function name
     return render(request, 'core/search.html', context) # Kept your original template name 'core/search.html'
 def download_quality(request, pk):
     quality = get_object_or_404(DownloadQuality, pk=pk)
-    if quality.is_premium:
-        from subscriptions.utils import user_has_active_subscription
-        if not user_has_active_subscription(request.user):
-            messages.warning(
-                request,
-                "🔒 This is a VIP high-speed download link. Please activate a VIP subscription to access it!"
-            )
-            return redirect('subscriptions:plan_list')
+    from subscriptions.utils import (
+        user_has_active_subscription,
+        generate_cdn_vip_token,
+        append_vip_token_to_url
+    )
+
+    is_vip = user_has_active_subscription(request.user)
+
+    if quality.is_premium and not is_vip:
+        messages.warning(
+            request,
+            "🔒 This is a VIP high-speed download link. Please activate a VIP subscription to access it!"
+        )
+        return redirect('subscriptions:plan_list')
 
     quality.download_count += 1
     quality.save()
-    return HttpResponseRedirect(quality.download_url)
+
+    download_url = quality.download_url
+    # If user is authenticated and has active VIP status, generate signed token for CDN ad-free access
+    if request.user.is_authenticated and is_vip:
+        token = generate_cdn_vip_token(request.user.pk)
+        download_url = append_vip_token_to_url(download_url, token)
+
+    return HttpResponseRedirect(download_url)
 
 def download_subtitle(request, pk):
     subtitle = get_object_or_404(Subtitle, pk=pk)
+    from subscriptions.utils import (
+        user_has_active_subscription,
+        generate_cdn_vip_token,
+        append_vip_token_to_url
+    )
+
     subtitle.download_count += 1
     subtitle.save()
-    return HttpResponseRedirect(subtitle.download_url)    
+
+    download_url = subtitle.download_url
+    if request.user.is_authenticated and user_has_active_subscription(request.user):
+        token = generate_cdn_vip_token(request.user.pk)
+        download_url = append_vip_token_to_url(download_url, token)
+
+    return HttpResponseRedirect(download_url)
+    
     
 class TagDetailView(ListView):
     model = Post
