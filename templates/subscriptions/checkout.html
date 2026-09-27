@@ -1,0 +1,224 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Bank Transfer Payment - {{ plan.name }} - NZDWORLD{% endblock %}
+
+{% block content %}
+<style>
+.checkout-wrapper {
+    max-width: 860px;
+    margin: 30px auto;
+}
+.checkout-panel {
+    background: rgba(39, 52, 77, 0.45);
+    border: 1px solid #3F516C;
+    border-radius: 18px;
+    padding: 30px;
+    backdrop-filter: blur(10px);
+}
+.bank-details-card {
+    background: linear-gradient(135deg, rgba(0, 128, 128, 0.2) 0%, rgba(15, 23, 42, 0.6) 100%);
+    border: 2px solid #008080;
+    border-radius: 14px;
+    padding: 24px;
+    margin-bottom: 25px;
+    position: relative;
+    box-shadow: 0 8px 25px rgba(0, 128, 128, 0.15);
+}
+.bank-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+}
+.bank-row:last-child {
+    border-bottom: none;
+}
+.account-number-highlight {
+    font-size: 1.4rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    color: #fbbf24;
+    font-family: monospace;
+}
+.btn-copy {
+    background: rgba(251, 191, 36, 0.15);
+    border: 1px solid #fbbf24;
+    color: #fbbf24;
+    border-radius: 20px;
+    padding: 3px 12px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.btn-copy:hover {
+    background: #fbbf24;
+    color: #000;
+}
+.plan-summary-card {
+    background: rgba(15, 15, 15, 0.45);
+    border: 1px solid #3F516C;
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 25px;
+}
+.btn-submit-transfer {
+    background: linear-gradient(45deg, #008080, #00A3A3);
+    color: #fff;
+    border: none;
+    border-radius: 30px;
+    padding: 14px 28px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    width: 100%;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.3s ease;
+}
+.btn-submit-transfer:hover {
+    background: linear-gradient(45deg, #00A3A3, #00c4c4);
+    box-shadow: 0 6px 20px rgba(0, 163, 163, 0.4);
+    transform: translateY(-2px);
+    color: #fff;
+}
+.step-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: #008080;
+    color: #fff;
+    border-radius: 50%;
+    font-size: 0.85rem;
+    font-weight: 700;
+    margin-right: 8px;
+}
+</style>
+
+<div class="container checkout-wrapper">
+    <!-- Breadcrumb -->
+    <div class="mb-4">
+        <a href="{% url 'subscriptions:plan_list' %}" class="text-decoration-none text-muted">
+            <i class="bi bi-arrow-left me-1"></i> Back to VIP Plans
+        </a>
+        <h2 class="text-light mt-2 fw-bold">Manual Bank Transfer Checkout</h2>
+    </div>
+
+    {% if pending_tx %}
+    <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
+        <i class="bi bi-clock-history fs-4 me-3"></i>
+        <div>
+            <strong>You currently have a pending transfer submitted for this plan!</strong><br>
+            Reference: <code>{{ pending_tx.reference }}</code> submitted on {{ pending_tx.created_at|date:"M d, Y" }}.
+            Our admin is reviewing it. You may view it on your <a href="{% url 'subscriptions:profile' %}" class="alert-link">VIP Account</a> or upload a new receipt below.
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row g-4">
+        <!-- Order Summary & Bank Info -->
+        <div class="col-lg-12">
+            <!-- Step 1: Make Transfer -->
+            <div class="checkout-panel mb-4">
+                <div class="d-flex justify-content-between align-items-center flex-wrap mb-3 pb-2 border-bottom border-secondary">
+                    <h5 class="text-light m-0">
+                        <span class="step-number">1</span> Make Bank Transfer
+                    </h5>
+                    <div>
+                        <span class="badge bg-info text-dark fs-6">{{ plan.name }}</span>
+                        <span class="badge bg-success fs-6 ms-1">{{ plan.formatted_price }} ({{ plan.duration_days }} Days)</span>
+                    </div>
+                </div>
+
+                <div class="bank-details-card">
+                    <div class="bank-row">
+                        <span class="text-light opacity-75">Bank Name:</span>
+                        <strong class="text-light fs-5">{{ bank_account.bank_name }}</strong>
+                    </div>
+
+                    <div class="bank-row">
+                        <span class="text-light opacity-75">Account Number:</span>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="account-number-highlight" id="acctNumber">{{ bank_account.account_number }}</span>
+                            <button type="button" class="btn-copy" onclick="copyAccountNumber()">
+                                <i class="bi bi-clipboard me-1" id="copyIcon"></i><span id="copyText">Copy</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="bank-row">
+                        <span class="text-light opacity-75">Account Name:</span>
+                        <strong class="text-light">{{ bank_account.account_name }}</strong>
+                    </div>
+
+                    <div class="bank-row">
+                        <span class="text-light opacity-75">Exact Amount:</span>
+                        <strong class="text-success fs-4">{{ plan.formatted_price }}</strong>
+                    </div>
+                </div>
+
+                <div class="p-3 rounded mb-2" style="background: rgba(15, 15, 15, 0.4); border: 1px solid #3F516C;">
+                    <div class="text-warning small mb-1 fw-bold">
+                        <i class="bi bi-info-circle-fill me-1"></i> Transfer Instructions:
+                    </div>
+                    <p class="small text-muted mb-0">
+                        {{ bank_account.instructions|default:"Transfer the exact plan amount to the account above. Please write your username as narration/remark. Then proceed to Step 2 below." }}
+                    </p>
+                </div>
+            </div>
+
+            <!-- Step 2: Upload Proof -->
+            <div class="checkout-panel">
+                <h5 class="text-light mb-3">
+                    <span class="step-number">2</span> Submit Payment Receipt
+                </h5>
+                <p class="text-muted small">
+                    After completing your transfer, please attach your payment receipt or screenshot and sender name below. Our admin will immediately verify the funds and activate your VIP subscription!
+                </p>
+
+                <form method="post" enctype="multipart/form-data" action="{% url 'subscriptions:checkout' plan.slug %}">
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label class="form-label text-light fw-bold">
+                            <i class="bi bi-file-earmark-image me-1 text-info"></i> Upload Receipt Screenshot / PDF <span class="text-danger">*</span>
+                        </label>
+                        {{ form.proof_of_payment }}
+                        <div class="form-text text-muted">Upload transaction receipt from your bank app (JPEG, PNG, or PDF).</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label text-light fw-bold">
+                            <i class="bi bi-person-badge me-1 text-info"></i> Depositor / Sender Name & Details
+                        </label>
+                        {{ form.user_notes }}
+                        <div class="form-text text-muted">e.g. Sender account name, sending bank, or transaction ID for quick matching.</div>
+                    </div>
+
+                    <button type="submit" class="btn-submit-transfer">
+                        <i class="bi bi-check2-circle me-1"></i> I Have Paid — Submit Receipt
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyAccountNumber() {
+    const acct = document.getElementById('acctNumber').innerText.trim();
+    navigator.clipboard.writeText(acct).then(() => {
+        const copyText = document.getElementById('copyText');
+        const copyIcon = document.getElementById('copyIcon');
+        copyText.innerText = 'Copied!';
+        copyIcon.className = 'bi bi-check2 me-1';
+        setTimeout(() => {
+            copyText.innerText = 'Copy';
+            copyIcon.className = 'bi bi-clipboard me-1';
+        }, 2000);
+    });
+}
+</script>
+{% endblock %}

@@ -211,60 +211,81 @@
         </form>
       </div>
 
-      <!-- Admin & Telegram -->
-      <div class="admin-controls d-flex gap-2 justify-content-center">
-        {% if user.is_staff %}
-        <a href="{% url 'admin:index' %}" class="btn admin-btn"><i class="bi bi-gear-fill me-1"></i>Admin</a>
+      <!-- Admin, User Account & Subscription Status -->
+      <div class="user-controls d-flex flex-wrap align-items-center gap-2 justify-content-center">
+        {% if user.is_authenticated %}
+          <!-- VIP Status Badge -->
+          {% if user_has_subscription %}
+            <a href="{% url 'subscriptions:profile' %}" class="btn btn-sm btn-warning text-dark fw-bold rounded-pill px-3 shadow-sm" title="Your VIP subscription is active!">
+              <i class="bi bi-crown-fill me-1"></i>VIP Active
+            </a>
+          {% elif user_has_pending_payment %}
+            <a href="{% url 'subscriptions:profile' %}" class="btn btn-sm btn-info text-dark fw-bold rounded-pill px-3 shadow-sm" title="Bank transfer verification in progress">
+              <i class="bi bi-clock-history me-1"></i>Transfer Pending
+            </a>
+          {% else %}
+            <a href="{% url 'pricing' %}" class="btn btn-sm btn-outline-warning rounded-pill px-3" title="Upgrade via Bank Transfer">
+              <i class="bi bi-star-fill me-1"></i>Get VIP
+            </a>
+          {% endif %}
+
+          <!-- My Account -->
+          <a href="{% url 'subscriptions:profile' %}" class="btn admin-btn text-decoration-none" title="My VIP Account & Payment Receipts">
+            <i class="bi bi-person-circle me-1 text-info"></i>{{ user.username }}
+          </a>
+
+          <!-- Staff / Admin Controls -->
+          {% if user.is_staff %}
+            <a href="{% url 'admin:index' %}" class="btn admin-btn" title="Django Admin Center">
+              <i class="bi bi-speedometer2 me-1 text-warning"></i>Admin
+            </a>
+            {% if admin_pending_payments_count > 0 %}
+              <a href="/admin/subscriptions/paymenttransaction/?status__exact=pending" class="btn btn-sm btn-danger fw-bold rounded-pill px-2 py-1" title="Pending bank transfer receipts needing approval">
+                <i class="bi bi-bell-fill me-1"></i>{{ admin_pending_payments_count }} Pending
+              </a>
+            {% endif %}
+          {% endif %}
+
+          <a href="{% url 'logout' %}" class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-1" onclick="return confirm('Are you sure you want to log out?');" title="Log Out">
+            <i class="bi bi-box-arrow-right"></i>
+          </a>
+        {% else %}
+          <!-- Guest Navigation -->
+          <a href="{% url 'pricing' %}" class="btn btn-sm btn-warning text-dark fw-bold rounded-pill px-3">
+            <i class="bi bi-crown me-1"></i>VIP Plans
+          </a>
+          <a href="{% url 'login' %}" class="btn admin-btn">
+            <i class="bi bi-box-arrow-in-right me-1"></i>Login
+          </a>
+          <a href="{% url 'register' %}" class="btn btn-sm btn-outline-light rounded-pill px-3">
+            Register
+          </a>
         {% endif %}
-        <a href="https://t.me/nzdworldhub" class="btn telegram-btn text-white"><i class="bi bi-send-fill me-1"></i>Telegram</a>
+
+        <a href="https://t.me/nzdworldhub" target="_blank" class="btn telegram-btn text-white">
+          <i class="bi bi-send-fill me-1"></i>Telegram
+        </a>
       </div>
     </div>
   </div>
 
-  <!-- Category Navigation -->
+  <!-- Category & VIP Plan Quick Navigation Bar -->
   <nav class="category-nav mt-3">
     <div class="container">
-      <div class="d-flex flex-wrap justify-content-center gap-2">
+      <div class="d-flex flex-wrap justify-content-center align-items-center gap-2">
         <a href="{% url 'category' 'hollywood-movie' %}" class="btn category-btn"><i class="bi bi-film me-1"></i>Hollywood</a>
-        <a href="{% url 'category' 'action-movie' %}" class="btn category-btn">
-  <i class="bi bi-fire me-1"></i>Action Movie
-</a>
-
-      <!--     <a href="{% url 'category' 'nollywood-movie' %}" class="btn category-btn"><i class="bi bi-camera-reels me-1"></i>Nollywood</a> -->
+        <a href="{% url 'category' 'action-movie' %}" class="btn category-btn"><i class="bi bi-fire me-1"></i>Action Movie</a>
         <a href="{% url 'category' 'series' %}" class="btn category-btn"><i class="bi bi-camera-reels me-1"></i>Series</a>
         <a href="{% url 'category' 'korean-drama' %}" class="btn category-btn"><i class="bi bi-heart-fill me-1"></i>Korean Drama</a>
         <a href="{% url 'category' 'indian-Movie' %}" class="btn category-btn"><i class="bi bi-globe-asia-australia me-1"></i>Bollywood</a>
         <a href="{% url 'category' 'animation' %}" class="btn category-btn"><i class="bi bi-lightning-fill me-1"></i>Animation</a>
+        
+        <!-- Featured Direct Bank Transfer VIP Button -->
+        <a href="{% url 'pricing' %}" class="btn category-btn text-warning fw-bold" style="border-color: #f59e0b; background: rgba(245, 158, 11, 0.15);">
+          <i class="bi bi-bank me-1 text-warning"></i>Bank Transfer VIP Plans
+        </a>
       </div>
     </div>
   </nav>
-<!-- In your navigation bar -->
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-    <div class="container">
-      
-        <div class="navbar-nav ms-auto">
-            {% if user.is_authenticated %}
-                <!-- User is logged in -->
-                <span class="navbar-text text-light me-3">
-                    <i class="fas fa-user"></i> Welcome, {{ user.username }}
-                </span>
-                <a href="{% url 'admin:index' %}" class="nav-link">
-                    <i class="fas fa-tachometer-alt"></i> Dashboard
-                </a>
-                <a href="{% url 'logout' %}" class="nav-link" 
-                   onclick="return confirm('Are you sure you want to logout?');">
-                    <i class="fas fa-sign-out-alt"></i> Logout
-                </a>
-            {% else %}
-                <!-- User is not logged in -->
-                <a href="{% url 'register' %}" class="nav-link">
-                    <i class="fas fa-user-plus"></i> Register
-                </a>
-                <a href="{% url 'login' %}" class="nav-link">
-                    <i class="fas fa-sign-in-alt"></i> Login
-                </a>
-            {% endif %}
-        </div>
-    </div>
-</nav>
 </header>
+

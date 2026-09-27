@@ -22,6 +22,7 @@ from django.views.static import serve
 from core.sitemaps import PostSitemap, CategorySitemap, TagSitemap, StaticViewSitemap
 from django.contrib.sitemaps.views import sitemap
 from core.views import robots_txt ,  import_subscribers_view
+from subscriptions.views import plan_list as pricing_view
 
 
 sitemaps = {
@@ -40,9 +41,10 @@ urlpatterns = [
     path('robots.txt', robots_txt),
     path('sitemap.xml', sitemap, {'sitemaps': sitemaps}, name='django.contrib.sitemaps.views.sitemap'),
     path('accounts/', include('django.contrib.auth.urls')), 
+    path('subscriptions/', include('subscriptions.urls')),
+    path('pricing/', pricing_view, name='pricing'),
     path('', include('core.urls')), 
     path('ads/', include('ads.urls')),
-    
 ] 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT, show_indexes=settings.DEBUG)
 urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

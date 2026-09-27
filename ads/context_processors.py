@@ -1,22 +1,16 @@
 # ads/context_processors.py
 
 from .models import Ad
+from subscriptions.utils import user_has_active_subscription
 
 def ads_context(request):
     """
     A custom context processor to make active ad content available globally
-    to all templates.
-
-    This function fetches all active ads and organizes them by their slug
-    into a dictionary, which is then added to the template context.
-
-    Args:
-        request: The current HttpRequest object.
-
-    Returns:
-        dict: A dictionary containing 'ads_by_slug', where keys are ad slugs
-              and values are the HTML content of the active ads.
+    to all templates. Hides all ads for active subscribers (ad-free VIP experience).
     """
+    if hasattr(request, 'user') and user_has_active_subscription(request.user):
+        return {'ads_by_slug': {}}
+
     ads_by_slug = {}
     try:
         # Fetch all active ads from the database

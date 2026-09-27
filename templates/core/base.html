@@ -794,6 +794,16 @@ select:focus,
             </div>
             
             <div class="content-area">
+                {% if messages %}
+                <div class="mb-3">
+                    {% for message in messages %}
+                    <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags|default:'info' }}{% endif %} alert-dismissible fade show rounded-4 border-0 shadow-sm" role="alert" style="background: rgba(0, 128, 128, 0.2); color: #fff; border-left: 4px solid var(--primary) !important;">
+                        <i class="bi bi-info-circle-fill me-2 text-info"></i>{{ message }}
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
                 <div class="row"> 
                     <div class="col-lg-8">
                         {% block content %}{% endblock %}

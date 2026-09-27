@@ -1,0 +1,197 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}My Account & VIP Status - NZDWORLD{% endblock %}
+
+{% block content %}
+<style>
+.profile-card {
+    background: rgba(39, 52, 77, 0.45);
+    border: 1px solid #3F516C;
+    border-radius: 16px;
+    padding: 30px;
+    backdrop-filter: blur(10px);
+    margin-bottom: 30px;
+}
+.vip-badge-glow {
+    background: linear-gradient(45deg, #f59e0b, #d97706);
+    color: #000;
+    font-weight: 800;
+    padding: 6px 16px;
+    border-radius: 20px;
+    display: inline-block;
+    box-shadow: 0 0 15px rgba(245, 158, 11, 0.5);
+}
+.free-badge-glow {
+    background: rgba(255, 255, 255, 0.1);
+    color: #a0a0a0;
+    padding: 6px 16px;
+    border-radius: 20px;
+    display: inline-block;
+}
+.pending-badge-glow {
+    background: linear-gradient(45deg, #3b82f6, #1d4ed8);
+    color: #fff;
+    font-weight: 700;
+    padding: 6px 16px;
+    border-radius: 20px;
+    display: inline-block;
+}
+.transaction-table {
+    color: #e0e0e0;
+}
+.transaction-table th {
+    border-color: #3F516C;
+    color: #a0a0a0;
+    font-weight: 600;
+}
+.transaction-table td {
+    border-color: rgba(63, 81, 108, 0.5);
+    vertical-align: middle;
+}
+</style>
+
+<div class="container my-5">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h2 class="text-light fw-bold mb-1">My VIP Account</h2>
+            <p class="text-muted mb-0">Logged in as <strong>{{ user.username }}</strong> ({{ user.email }})</p>
+        </div>
+        <div>
+            <a href="{% url 'subscriptions:plan_list' %}" class="btn btn-outline-info rounded-pill px-4">
+                <i class="bi bi-star-fill me-1"></i> View VIP Plans
+            </a>
+        </div>
+    </div>
+
+    <!-- Pending Transfer Banner -->
+    {% if pending_transaction %}
+    <div class="alert alert-info border-info d-flex align-items-start gap-3 p-4 rounded-4 mb-4" style="background: rgba(14, 165, 233, 0.15);" role="alert">
+        <div class="fs-2 text-info"><i class="bi bi-clock-history"></i></div>
+        <div>
+            <h5 class="alert-heading text-light fw-bold mb-1">
+                Bank Transfer Verification in Progress
+            </h5>
+            <p class="mb-2 text-light opacity-90">
+                We have received your payment submission for <strong>{{ pending_transaction.plan.name }}</strong> ({{ pending_transaction.currency }} {{ pending_transaction.amount|floatformat:2 }}). 
+                Reference: <code>{{ pending_transaction.reference }}</code>.
+            </p>
+            <div class="small text-light opacity-75">
+                Our admin team is currently verifying the transfer. Your 100% ad-free VIP access will activate automatically once approved.
+                {% if pending_transaction.proof_of_payment %}
+                <a href="{{ pending_transaction.proof_of_payment.url }}" target="_blank" class="text-info fw-bold ms-2">
+                    <i class="bi bi-receipt me-1"></i>View Uploaded Receipt
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- VIP Status Card -->
+    <div class="profile-card">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    {% if is_active %}
+                    <span class="vip-badge-glow"><i class="bi bi-crown-fill me-1"></i> VIP ACTIVE</span>
+                    <span class="fs-4 text-light fw-bold">{{ subscription.plan.name }}</span>
+                    {% elif pending_transaction %}
+                    <span class="pending-badge-glow"><i class="bi bi-hourglass-split me-1"></i> PENDING VERIFICATION</span>
+                    <span class="fs-4 text-light fw-bold">Review Underway</span>
+                    {% else %}
+                    <span class="free-badge-glow"><i class="bi bi-person me-1"></i> FREE ACCOUNT</span>
+                    <span class="fs-4 text-light fw-bold">Standard Member</span>
+                    {% endif %}
+                </div>
+
+                {% if is_active %}
+                <p class="text-light mb-2">
+                    <i class="bi bi-shield-check text-success me-2"></i>
+                    <strong>Ad-Free Browsing is Active!</strong> You are enjoying an uninterrupted cinema experience across NZDWORLD.
+                </p>
+                <div class="d-flex gap-4 text-muted small flex-wrap">
+                    <div>Started: <strong class="text-light">{{ subscription.start_date|date:"M d, Y" }}</strong></div>
+                    <div>Expires: <strong class="text-warning">{{ subscription.end_date|date:"M d, Y, g:i A" }}</strong></div>
+                    <div>Remaining: <strong class="text-success">{{ subscription.days_remaining }} Days</strong></div>
+                </div>
+                {% elif pending_transaction %}
+                <p class="text-muted mb-0">
+                    Your receipt is being checked by the administrator. Once approved, all ads will disappear and your high-speed downloads will unlock.
+                </p>
+                {% else %}
+                <p class="text-muted mb-3">
+                    You currently have a standard account with ads enabled. Upgrade to VIP to remove all advertisements and unlock high-speed premium downloads!
+                </p>
+                <a href="{% url 'subscriptions:plan_list' %}" class="btn btn-warning rounded-pill px-4 fw-bold">
+                    <i class="bi bi-lightning-charge-fill me-1"></i> Upgrade to VIP
+                </a>
+                {% endif %}
+            </div>
+
+            <div class="col-md-4 text-md-end mt-4 mt-md-0">
+                {% if is_active %}
+                <a href="{% url 'subscriptions:plan_list' %}" class="btn btn-outline-warning rounded-pill px-4">
+                    <i class="bi bi-arrow-repeat me-1"></i> Renew / Extend Plan
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Transaction History -->
+    <div class="profile-card">
+        <h4 class="text-light mb-3"><i class="bi bi-receipt me-2"></i>Payment History & Receipts</h4>
+        <div class="table-responsive">
+            <table class="table transaction-table mb-0">
+                <thead>
+                    <tr>
+                        <th>Reference</th>
+                        <th>Plan</th>
+                        <th>Amount</th>
+                        <th>Receipt</th>
+                        <th>Submitted On</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tx in transactions %}
+                    <tr>
+                        <td class="fw-bold text-light"><code>{{ tx.reference }}</code></td>
+                        <td>{{ tx.plan.name|default:"VIP Access" }}</td>
+                        <td class="text-success fw-bold">{{ tx.currency }} {{ tx.amount|floatformat:2 }}</td>
+                        <td>
+                            {% if tx.proof_of_payment %}
+                            <a href="{{ tx.proof_of_payment.url }}" target="_blank" class="btn btn-sm btn-outline-info rounded-pill px-3">
+                                <i class="bi bi-image me-1"></i> View Receipt
+                            </a>
+                            {% else %}
+                            <span class="text-muted small">None</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ tx.created_at|date:"M d, Y g:i A" }}</td>
+                        <td>
+                            {% if tx.status == 'completed' %}
+                            <span class="badge bg-success">Approved & Active</span>
+                            {% elif tx.status == 'pending' %}
+                            <span class="badge bg-warning text-dark">Pending Review</span>
+                            {% elif tx.status == 'failed' %}
+                            <span class="badge bg-danger">Declined</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ tx.get_status_display }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-muted">
+                            No payment transactions submitted yet.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

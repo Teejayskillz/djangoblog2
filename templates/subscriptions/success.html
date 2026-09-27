@@ -1,0 +1,108 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Payment Successful - NZDWORLD VIP{% endblock %}
+
+{% block content %}
+<style>
+.success-container {
+    max-width: 650px;
+    margin: 50px auto;
+    text-align: center;
+}
+.success-card {
+    background: rgba(39, 52, 77, 0.45);
+    border: 1px solid #10b981;
+    border-radius: 20px;
+    padding: 40px 30px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 15px 35px rgba(16, 185, 129, 0.2);
+}
+.success-icon {
+    font-size: 4rem;
+    color: #10b981;
+    margin-bottom: 20px;
+}
+.details-box {
+    background: rgba(15, 15, 15, 0.5);
+    border: 1px solid #3F516C;
+    border-radius: 12px;
+    padding: 20px;
+    margin: 25px 0;
+    text-align: left;
+}
+.details-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+}
+.details-row:last-child {
+    border-bottom: none;
+}
+.btn-home {
+    background: linear-gradient(45deg, #008080, #00A3A3);
+    color: #fff;
+    border: none;
+    border-radius: 25px;
+    padding: 12px 30px;
+    font-weight: 700;
+    text-transform: uppercase;
+    text-decoration: none;
+    display: inline-block;
+}
+.btn-home:hover {
+    background: linear-gradient(45deg, #00A3A3, #00c4c4);
+    color: #fff;
+    transform: translateY(-2px);
+}
+</style>
+
+<div class="container success-container">
+    <div class="success-card">
+        <div class="success-icon">
+            <i class="bi bi-patch-check-fill"></i>
+        </div>
+        <h2 class="text-light fw-bold">Payment Confirmed!</h2>
+        <p class="text-muted">Welcome to <strong>NZDWORLD VIP</strong>. Your ad-free browsing and high-speed downloads are now active.</p>
+
+        <div class="details-box">
+            <div class="details-row">
+                <span class="text-muted">Reference:</span>
+                <span class="text-light fw-bold">{{ transaction.reference }}</span>
+            </div>
+            <div class="details-row">
+                <span class="text-muted">Subscription Plan:</span>
+                <span class="text-warning fw-bold">{{ transaction.plan.name }}</span>
+            </div>
+            <div class="details-row">
+                <span class="text-muted">Amount Paid:</span>
+                <span class="text-success fw-bold">{{ transaction.currency }} {{ transaction.amount|floatformat:2 }}</span>
+            </div>
+            {% if subscription %}
+            <div class="details-row">
+                <span class="text-muted">Active Until:</span>
+                <span class="text-info fw-bold">{{ subscription.end_date|date:"F j, Y, g:i A" }}</span>
+            </div>
+            <div class="details-row">
+                <span class="text-muted">Days Remaining:</span>
+                <span class="text-light">{{ subscription.days_remaining }} Days</span>
+            </div>
+            {% endif %}
+            <div class="details-row">
+                <span class="text-muted">Status:</span>
+                <span class="badge bg-success">Active VIP</span>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-center gap-3 flex-wrap">
+            <a href="{% url 'home' %}" class="btn-home">
+                <i class="bi bi-film me-1"></i> Start Browsing Ad-Free
+            </a>
+            <a href="{% url 'subscriptions:profile' %}" class="btn btn-outline-light rounded-pill px-4 py-2">
+                <i class="bi bi-person-circle me-1"></i> View VIP Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

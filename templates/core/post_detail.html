@@ -61,7 +61,11 @@
                         <i class="bi bi-film"></i>
                         <span class="quality-name">{{ quality.get_quality_display }}</span>
                         {% if quality.is_premium %}
-                        <span class="premium-badge">Premium</span>
+                            {% if user_has_subscription %}
+                            <span class="premium-badge"><i class="bi bi-unlock-fill me-1"></i>VIP Unlocked</span>
+                            {% else %}
+                            <span class="premium-badge" style="background: linear-gradient(135deg, #f59e0b, #d97706);"><i class="bi bi-lock-fill me-1"></i>VIP Only</span>
+                            {% endif %}
                         {% endif %}
                     </div>
                     <div class="download-count">{{ quality.download_count }}</div>
