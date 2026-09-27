@@ -16,7 +16,7 @@ SHORTENER_ALLOWED_HOSTS = tuple(
 )
 SHORTENER_LEGACY_HOSTS = tuple(
     host.strip().lower()
-    for host in os.getenv("SHORTENER_LEGACY_HOSTS", "dl.jaraflix.com").split(",")
+    for host in os.getenv("SHORTENER_LEGACY_HOSTS", "").split(",")
     if host.strip()
 )
 

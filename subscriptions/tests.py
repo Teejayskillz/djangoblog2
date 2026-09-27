@@ -184,16 +184,26 @@ class SubscriptionTests(TestCase):
         self.assertEqual(unquote(tokenized_url), f"https://cdn.example.com/download/123/?token={token}")
 
     def test_shortener_rejects_unexpected_domain(self):
-        from core.utils import shorten_url
+        from core import utils
+        from django.test.utils import override_settings
 
-        with patch('core.utils.requests.post') as mock_post:
-            mock_post.return_value.status_code = 200
-            mock_post.return_value.json.return_value = {
-                'short_url': 'https://dl.jaraflix.com/abc123/'
-            }
+        with override_settings():
+            original_allowed = utils.SHORTENER_ALLOWED_HOSTS
+            original_legacy = utils.SHORTENER_LEGACY_HOSTS
+            utils.SHORTENER_ALLOWED_HOSTS = ('cdn.nzdowlrd.com',)
+            utils.SHORTENER_LEGACY_HOSTS = ()
+            try:
+                with patch('core.utils.requests.post') as mock_post:
+                    mock_post.return_value.status_code = 200
+                    mock_post.return_value.json.return_value = {
+                        'short_url': 'https://dl.jaraflix.com/abc123/'
+                    }
 
-            result = shorten_url('https://example.com/download/movie.mp4', 'Movie Title')
-            self.assertEqual(result, 'https://example.com/download/movie.mp4')
+                    result = utils.shorten_url('https://example.com/download/movie.mp4', 'Movie Title')
+                    self.assertEqual(result, 'https://example.com/download/movie.mp4')
+            finally:
+                utils.SHORTENER_ALLOWED_HOSTS = original_allowed
+                utils.SHORTENER_LEGACY_HOSTS = original_legacy
 
     def test_subscription_extension(self):
         # Existing subscription with 10 days remaining
