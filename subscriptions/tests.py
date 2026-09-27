@@ -10,6 +10,7 @@ from ads.context_processors import ads_context
 from ads.models import Ad
 from core.models import Post, Category, DownloadQuality
 from django.template.context import BaseContext
+from django.template import Template, Context
 
 # Compatibility patch for Python 3.14 test client template context copying
 def _basecontext_copy(self):
@@ -204,6 +205,14 @@ class SubscriptionTests(TestCase):
             finally:
                 utils.SHORTENER_ALLOWED_HOSTS = original_allowed
                 utils.SHORTENER_LEGACY_HOSTS = original_legacy
+
+    def test_template_loads_cdn_tokenizer_filter(self):
+        template = Template(
+            '{% load subscription_tags %}'
+            '{{ "<a href=\"https://cdn.nzdworld.com/download/1\">Download</a>"|tokenize_cdn_links:"abc123"|safe }}'
+        )
+        rendered = template.render(Context())
+        self.assertIn('token=abc123', rendered)
 
     def test_subscription_extension(self):
         # Existing subscription with 10 days remaining
