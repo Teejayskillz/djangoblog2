@@ -1,10 +1,10 @@
-from .utils import user_has_active_subscription
+from .utils import user_has_active_subscription, generate_cdn_vip_token
 from .models import PaymentTransaction
 
 def subscription_context(request):
     """
     Context processor providing subscription status, pending transfer state,
-    and staff admin pending payment notifications globally across all pages.
+    signed VIP token, and staff admin pending payment notifications globally across all pages.
     """
     if not hasattr(request, 'user') or not request.user.is_authenticated:
         return {
@@ -13,6 +13,7 @@ def subscription_context(request):
             'user_has_pending_payment': False,
             'user_pending_transaction': None,
             'admin_pending_payments_count': 0,
+            'vip_token': None,
         }
 
     sub = getattr(request.user, 'subscription', None)
@@ -23,11 +24,15 @@ def subscription_context(request):
     if request.user.is_staff:
         admin_pending_count = PaymentTransaction.objects.filter(status='pending').count()
 
+    vip_token = generate_cdn_vip_token(request.user.pk) if is_active else None
+
     return {
         'user_has_subscription': is_active,
         'user_subscription': sub if (sub and sub.is_valid()) else None,
         'user_has_pending_payment': bool(pending_tx),
         'user_pending_transaction': pending_tx,
         'admin_pending_payments_count': admin_pending_count,
+        'vip_token': vip_token,
     }
+
 

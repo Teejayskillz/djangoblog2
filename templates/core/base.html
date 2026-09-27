@@ -886,5 +886,50 @@ select:focus,
         </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" defer></script>
+    {% if user_has_subscription and vip_token %}
+    <script>
+    (function() {
+        var vipToken = "{{ vip_token|escapejs }}";
+
+        function appendTokenToElement(a) {
+            try {
+                var href = a.getAttribute('href');
+                if (!href) return;
+                if (href.indexOf('cdn.nzdworld.com') !== -1 || href.indexOf('dl.jaraflix.com') !== -1) {
+                    var url = new URL(href, window.location.origin);
+                    if (!url.searchParams.has('token')) {
+                        url.searchParams.set('token', vipToken);
+                        if (url.pathname && !url.pathname.endsWith('/')) {
+                            url.pathname += '/';
+                        }
+                        a.setAttribute('href', url.toString());
+                    }
+                }
+            } catch(e) {}
+        }
+
+        function tokenizeAllCdnLinks() {
+            var links = document.querySelectorAll('a[href*="cdn.nzdworld.com"], a[href*="dl.jaraflix.com"]');
+            for (var i = 0; i < links.length; i++) {
+                appendTokenToElement(links[i]);
+            }
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', tokenizeAllCdnLinks);
+        } else {
+            tokenizeAllCdnLinks();
+        }
+
+        // Intercept clicks/touches dynamically on mobile and desktop
+        document.addEventListener('click', function(e) {
+            var a = e.target.closest('a');
+            if (a) {
+                appendTokenToElement(a);
+            }
+        }, true);
+    })();
+    </script>
+    {% endif %}
 </body>
-</html>
+</html>

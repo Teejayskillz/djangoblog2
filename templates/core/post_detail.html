@@ -41,8 +41,9 @@
     </div>
 
     <div class="post-content mb-5">
-        {{ post.content|safe }}
+        {% if user_has_subscription %}{{ post.content|tokenize_cdn_links:vip_token|safe }}{% else %}{{ post.content|safe }}{% endif %}
     </div>
+
 
     {% if show_download_section %}
     <div class="download-section">
