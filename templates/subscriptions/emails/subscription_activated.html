@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subscription Activated</title>
+</head>
+<body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f1f5f9; margin: 0; padding: 20px; color: #1e293b;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.08);">
+        <!-- Header -->
+        <tr>
+            <td style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 30px; text-align: center;">
+                <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.5px;">🎉 VIP Subscription Activated!</h1>
+                <p style="color: #d1fae5; margin: 6px 0 0 0; font-size: 14px;">Welcome to Premium Access on Nzdworld</p>
+            </td>
+        </tr>
+
+        <!-- Content -->
+        <tr>
+            <td style="padding: 30px;">
+                <p style="font-size: 16px; line-height: 1.5; margin-top: 0;">Hello <strong>{{ username }}</strong>,</p>
+                <p style="font-size: 15px; line-height: 1.6; color: #475569;">
+                    Great news! Your payment has been verified and your <strong>{{ plan_name }}</strong> subscription is now fully active.
+                </p>
+
+                <!-- Subscription Details Card -->
+                <div style="background-color: #ecfdf5; border: 1px solid #a7f3d0; border-left: 4px solid #10b981; border-radius: 8px; padding: 20px; margin: 24px 0;">
+                    <h3 style="margin: 0 0 12px 0; color: #065f46; font-size: 16px;">Active VIP Membership Details</h3>
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="4" style="font-size: 14px; color: #334155;">
+                        <tr>
+                            <td style="font-weight: 600; width: 130px;">Status:</td>
+                            <td><span style="background: #10b981; color: #ffffff; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: bold;">● Active VIP</span></td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight: 600;">Plan Name:</td>
+                            <td><strong>{{ plan_name }}</strong></td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight: 600;">Start Date:</td>
+                            <td>{{ start_date }}</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight: 600;">Expiry Date:</td>
+                            <td><strong>{{ end_date }}</strong></td>
+                        </tr>
+                    </table>
+                </div>
+
+                <h3 style="color: #1e293b; font-size: 16px; margin-top: 24px;">Unlocked VIP Features:</h3>
+                <ul style="padding-left: 20px; line-height: 1.8; color: #475569; font-size: 14px;">
+                    <li>✨ <strong>100% Ad-Free Browsing:</strong> No popups or ads across the site.</li>
+                    <li>⚡ <strong>Ultra-Fast Direct Downloads:</strong> Instant access to 1080p, 4K & premium links.</li>
+                    <li>👑 <strong>Exclusive VIP Badge:</strong> Highlighting your member status.</li>
+                    <li>💬 <strong>Priority Customer Support:</strong> Direct assistance whenever you need it.</li>
+                </ul>
+
+                {% if site_url %}
+                <div style="margin: 28px 0; text-align: center;">
+                    <a href="{{ site_url }}" style="background-color: #10b981; color: #ffffff; padding: 12px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px; display: inline-block; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);">
+                        Start Browsing Ad-Free Now
+                    </a>
+                </div>
+                {% endif %}
+
+                <p style="font-size: 15px; line-height: 1.6; color: #475569; margin-bottom: 0;">
+                    Thank you for subscribing and supporting Nzdworld!
+                </p>
+            </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+            <td style="background-color: #f8fafc; padding: 20px 30px; text-align: center; border-top: 1px solid #e2e8f0; font-size: 13px; color: #64748b;">
+                <p style="margin: 0;">This is an automated notification from <strong>Nzdworld</strong>.</p>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

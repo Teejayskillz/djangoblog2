@@ -241,6 +241,15 @@ class PaymentTransaction(models.Model):
         if not created:
             sub.extend_subscription(self.plan)
 
+        # Send email notification of successful subscription activation
+        from .emails import send_subscription_activated_email
+        send_subscription_activated_email(
+            user=self.user,
+            plan=self.plan,
+            subscription=sub,
+            transaction=self
+        )
+
         return sub
 
     def save(self, *args, **kwargs):
@@ -265,8 +274,7 @@ class PaymentTransaction(models.Model):
                 self.admin_notes = note
             elif note not in self.admin_notes:
                 self.admin_notes = f"{self.admin_notes}\n{note}".strip()
-        self.save()
-        self.activate_user_subscription()
+        self.save()  # self.save() invokes activate_user_subscription() when status is 'completed'
         return True
 
     def reject_transaction(self, admin_user=None, reason=""):

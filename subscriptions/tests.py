@@ -204,3 +204,54 @@ class SubscriptionTests(TestCase):
         self.assertIsNotNone(sub.end_date)
         self.assertEqual(sub.plan, self.plan)
 
+    def test_email_notifications_on_receipt_upload_and_activation(self):
+        from django.core import mail
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        # Create two admin accounts with email addresses
+        admin1 = User.objects.create_superuser('admin1', 'admin1@example.com', 'AdminPass123!')
+        admin2 = User.objects.create_superuser('admin2', 'admin2@example.com', 'AdminPass123!')
+
+        # Clear mail outbox
+        mail.outbox = []
+
+        self.client.login(username='testsubscriber', password='Password123!')
+        dummy_receipt = SimpleUploadedFile(
+            "receipt.jpg",
+            b"fake_receipt_data",
+            content_type="image/jpeg"
+        )
+        url = reverse('subscriptions:checkout', kwargs={'plan_slug': self.plan.slug})
+        response = self.client.post(url, {
+            'proof_of_payment': dummy_receipt,
+            'user_notes': 'Payment for VIP access'
+        })
+        self.assertEqual(response.status_code, 302)
+
+        # Verify two emails sent: 1 to user, 1 to all admins
+        self.assertEqual(len(mail.outbox), 2)
+
+        user_email = mail.outbox[0]
+        self.assertEqual(user_email.to, ['subscriber@example.com'])
+        self.assertIn("Payment Receipt Received", user_email.subject)
+        self.assertIn("VIP Monthly", user_email.body)
+
+        admin_email = mail.outbox[1]
+        self.assertIn('admin1@example.com', admin_email.to)
+        self.assertIn('admin2@example.com', admin_email.to)
+        self.assertIn("[Admin Alert]", admin_email.subject)
+        self.assertIn("testsubscriber", admin_email.body)
+
+        # Now approve/complete the transaction
+        mail.outbox = []
+        tx = PaymentTransaction.objects.get(user=self.user)
+        tx.complete_transaction()
+
+        # Verify activation email sent to user
+        self.assertEqual(len(mail.outbox), 1)
+        activation_email = mail.outbox[0]
+        self.assertEqual(activation_email.to, ['subscriber@example.com'])
+        self.assertIn("VIP Subscription is Now Active", activation_email.subject)
+        self.assertIn("VIP Monthly", activation_email.body)
+
+

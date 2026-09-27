@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Payment Receipt Uploaded</title>
+</head>
+<body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f1f5f9; margin: 0; padding: 20px; color: #1e293b;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.08);">
+        <!-- Header -->
+        <tr>
+            <td style="background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); padding: 30px; text-align: center;">
+                <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.5px;">🚨 New Payment Receipt Uploaded</h1>
+                <p style="color: #fecdd3; margin: 6px 0 0 0; font-size: 14px;">Admin Approval Required for VIP Access</p>
+            </td>
+        </tr>
+
+        <!-- Content -->
+        <tr>
+            <td style="padding: 30px;">
+                <p style="font-size: 16px; line-height: 1.5; margin-top: 0;">Hello Administrator,</p>
+                <p style="font-size: 15px; line-height: 1.6; color: #475569;">
+                    A user has submitted a new manual bank transfer receipt for subscription verification. Please review the details below:
+                </p>
+
+                <!-- Payment Details Card -->
+                <div style="background-color: #fff1f2; border: 1px solid #fecdd3; border-left: 4px solid #dc2626; border-radius: 8px; padding: 20px; margin: 24px 0;">
+                    <h3 style="margin: 0 0 12px 0; color: #991b1b; font-size: 16px;">Subscriber & Transfer Info</h3>
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="4" style="font-size: 14px; color: #334155;">
+                        <tr>
+                            <td style="font-weight: 600; width: 130px;">User:</td>
+                            <td><strong>{{ username }}</strong> ({{ user_email }})</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight: 600;">Plan Requested:</td>
+                            <td>{{ plan_name }}</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight: 600;">Amount:</td>
+                            <td style="font-weight: 700; color: #059669;">{{ currency }} {{ amount }}</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight: 600;">Reference:</td>
+                            <td><code style="background: #fee2e2; color: #991b1b; padding: 2px 6px; border-radius: 4px; font-size: 13px;">{{ reference }}</code></td>
+                        </tr>
+                        {% if user_notes %}
+                        <tr>
+                            <td style="font-weight: 600;">Sender Notes:</td>
+                            <td>{{ user_notes }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+
+                <p style="font-size: 15px; line-height: 1.6; color: #475569;">
+                    Log in to the admin dashboard to inspect the uploaded payment receipt and activate VIP access for this user.
+                </p>
+
+                {% if admin_url %}
+                <div style="margin: 28px 0; text-align: center;">
+                    <a href="{{ admin_url }}" style="background-color: #4f46e5; color: #ffffff; padding: 12px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px; display: inline-block; box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);">
+                        Review & Approve in Admin
+                    </a>
+                </div>
+                {% endif %}
+            </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+            <td style="background-color: #f8fafc; padding: 20px 30px; text-align: center; border-top: 1px solid #e2e8f0; font-size: 13px; color: #64748b;">
+                <p style="margin: 0;">This email was sent to <strong>all site administrators</strong>.</p>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

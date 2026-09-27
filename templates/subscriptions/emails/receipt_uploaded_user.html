@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Receipt Received</title>
+</head>
+<body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f1f5f9; margin: 0; padding: 20px; color: #1e293b;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.08);">
+        <!-- Header -->
+        <tr>
+            <td style="background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%); padding: 30px; text-align: center;">
+                <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.5px;">Receipt Upload Received</h1>
+                <p style="color: #e0e7ff; margin: 6px 0 0 0; font-size: 14px;">Nzdworld VIP Subscription</p>
+            </td>
+        </tr>
+
+        <!-- Content -->
+        <tr>
+            <td style="padding: 30px;">
+                <p style="font-size: 16px; line-height: 1.5; margin-top: 0;">Hello <strong>{{ username }}</strong>,</p>
+                <p style="font-size: 15px; line-height: 1.6; color: #475569;">
+                    Thank you for uploading your payment receipt! We have received your transfer details for the <strong>{{ plan_name }}</strong> subscription plan.
+                </p>
+
+                <!-- Transaction Details Card -->
+                <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #4f46e5; border-radius: 8px; padding: 20px; margin: 24px 0;">
+                    <h3 style="margin: 0 0 12px 0; color: #1e293b; font-size: 16px;">Transaction Summary</h3>
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="4" style="font-size: 14px; color: #334155;">
+                        <tr>
+                            <td style="font-weight: 600; width: 130px;">Reference:</td>
+                            <td><code style="background: #e0e7ff; color: #3730a3; padding: 2px 6px; border-radius: 4px; font-size: 13px;">{{ reference }}</code></td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight: 600;">Subscription Plan:</td>
+                            <td>{{ plan_name }}</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight: 600;">Amount Paid:</td>
+                            <td style="font-weight: 700; color: #059669;">{{ currency }} {{ amount }}</td>
+                        </tr>
+                        {% if user_notes %}
+                        <tr>
+                            <td style="font-weight: 600;">Sender Notes:</td>
+                            <td>{{ user_notes }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+
+                <p style="font-size: 15px; line-height: 1.6; color: #475569;">
+                    Our administrative team is currently reviewing your payment proof. As soon as your transfer is verified, your VIP access will be activated automatically and you will receive a confirmation email.
+                </p>
+
+                <p style="font-size: 15px; line-height: 1.6; color: #475569; margin-bottom: 0;">
+                    Thank you for your patience and for choosing Nzdworld!
+                </p>
+            </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+            <td style="background-color: #f8fafc; padding: 20px 30px; text-align: center; border-top: 1px solid #e2e8f0; font-size: 13px; color: #64748b;">
+                <p style="margin: 0;">This is an automated notification from <strong>Nzdworld</strong>.</p>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

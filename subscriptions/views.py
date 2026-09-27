@@ -62,6 +62,10 @@ def checkout(request, plan_slug):
             transaction.status = 'pending'
             transaction.save()
 
+            # Trigger email notifications (User receipt upload confirmation & All Admins payment alert)
+            from .emails import send_receipt_uploaded_notifications
+            send_receipt_uploaded_notifications(transaction, request=request)
+
             messages.success(
                 request,
                 f"🎉 Transfer receipt submitted successfully! (Reference: {transaction.reference}). "

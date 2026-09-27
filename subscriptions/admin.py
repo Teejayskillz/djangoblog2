@@ -65,7 +65,11 @@ class UserSubscriptionAdmin(admin.ModelAdmin):
 
     @admin.action(description="Activate selected subscriptions")
     def activate_selected(self, request, queryset):
-        queryset.update(is_active=True)
+        from .emails import send_subscription_activated_email
+        for sub in queryset:
+            sub.is_active = True
+            sub.save()
+            send_subscription_activated_email(user=sub.user, plan=sub.plan, subscription=sub, request=request)
         self.message_user(request, "Selected subscriptions have been activated.")
 
     @admin.action(description="Deactivate selected subscriptions")
@@ -75,6 +79,7 @@ class UserSubscriptionAdmin(admin.ModelAdmin):
 
     @admin.action(description="Add 30 bonus days to selected subscriptions")
     def extend_by_30_days(self, request, queryset):
+        from .emails import send_subscription_activated_email
         for sub in queryset:
             from datetime import timedelta
             now = timezone.now()
@@ -84,6 +89,7 @@ class UserSubscriptionAdmin(admin.ModelAdmin):
                 sub.end_date = now + timedelta(days=30)
             sub.is_active = True
             sub.save()
+            send_subscription_activated_email(user=sub.user, plan=sub.plan, subscription=sub, request=request)
         self.message_user(request, "Added 30 days to selected subscriptions.")
 
 
