@@ -36,7 +36,31 @@
                 <div class="ad-slot-container">
                      {{ ads_by_slug.header4|safe }}
                 </div>
+{% if sports_matches %}
+<div class="section mb-4">
+    <div class="category-header d-flex justify-content-between align-items-center mb-3">
+        <h2 class="m-0"><i class="bi bi-trophy-fill text-danger me-2"></i>Sports Streaming</h2>
+        <a href="{% url 'sports_list' %}" class="btn btn-sm btn-outline-danger rounded-pill px-3">
+            View All Matches <i class="bi bi-arrow-right ms-1"></i>
+        </a>
+    </div>
+    <div class="latest-updates-grid">
+        {% for match in sports_matches %}
+        <a href="{{ match.get_absolute_url }}" class="post-card">
+            {% if match.thumbnail %}
+            <div class="post-card-img-container">
+                <img src="{{ match.thumbnail.url }}" alt="{{ match.title }}" loading="lazy">
+            </div>
+            {% endif %}
+            <div class="post-card-content">
+                <h3>{{ match.title }}</h3>
+                <span class="category text-danger"><i class="bi bi-play-circle-fill me-1"></i>{{ match.sport }} • {{ match.match_date|date:"M d" }}</span>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
 </div>
+{% endif %}
 
 {% if page_obj %}
 <div class="section">

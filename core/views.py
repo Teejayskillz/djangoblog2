@@ -174,8 +174,13 @@ def home(request):
         # If page is out of range, deliver last page
         page_obj = paginator.page(paginator.num_pages)
     
+    # Fetch latest published sports streaming matches for homepage
+    from sports.models import SportsMatch
+    sports_matches = SportsMatch.objects.filter(is_published=True).order_by('-is_featured', '-match_date', '-created_at')[:6]
+
     context = {
         'sections': section_data,
+        'sports_matches': sports_matches,
         'page_obj': page_obj,  # Replace other_posts with page_obj
         'query': query,  # Pass search query to template
         'total_posts': paginator.count,  # Total number of posts

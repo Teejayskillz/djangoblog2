@@ -209,9 +209,9 @@ class SubscriptionTests(TestCase):
     def test_template_loads_cdn_tokenizer_filter(self):
         template = Template(
             '{% load subscription_tags %}'
-            '{{ "<a href=\"https://cdn.nzdworld.com/download/1\">Download</a>"|tokenize_cdn_links:"abc123"|safe }}'
+            '{{ html_content|tokenize_cdn_links:"abc123"|safe }}'
         )
-        rendered = template.render(Context())
+        rendered = template.render(Context({'html_content': '<a href="https://cdn.nzdworld.com/download/1">Download</a>'}))
         self.assertIn('token=abc123', rendered)
 
     def test_subscription_extension(self):

@@ -63,6 +63,7 @@ INSTALLED_APPS = [
     'django_cleanup',
     'ads',
     'subscriptions',
+    'sports',
 ]
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
