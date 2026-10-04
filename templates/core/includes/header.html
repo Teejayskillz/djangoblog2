@@ -1,6 +1,6 @@
 <style>
-/* ---------------- Root Colors ---------------- */
-:root {
+  /* ---------------- Root Colors ---------------- */
+  :root {
     --dark-bg: #1A1A1A;
     --darker-bg: #0F0F0F;
     --card-bg: #27344D;
@@ -10,30 +10,30 @@
     --text-muted: #A0A0A0;
     --text-dim: #707070;
     --border-color: #3F516C;
-    --shadow: rgba(0,0,0,0.6);
-    --glow: rgba(0,128,128,0.4);
-}
+    --shadow: rgba(0, 0, 0, 0.6);
+    --glow: rgba(0, 128, 128, 0.4);
+  }
 
-/* ---------------- Header ---------------- */
-.header-gradient {
+  /* ---------------- Header ---------------- */
+  .header-gradient {
     background: rgba(39, 52, 77, 0.35);
     backdrop-filter: blur(12px);
     box-shadow: 0 4px 20px var(--shadow);
     border-bottom: 3px solid var(--primary);
     position: relative;
     overflow: hidden;
-}
+  }
 
-.header-gradient::before {
+  .header-gradient::before {
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(45deg, transparent 0%, rgba(0,128,128,0.05) 50%, transparent 100%);
+    background: linear-gradient(45deg, transparent 0%, rgba(0, 128, 128, 0.05) 50%, transparent 100%);
     pointer-events: none;
-}
+  }
 
-/* ---------------- Logo & Tagline ---------------- */
-.logo-brand {
+  /* ---------------- Logo & Tagline ---------------- */
+  .logo-brand {
     font-family: 'Arial Black', sans-serif;
     font-weight: 900;
     font-size: 2.5rem;
@@ -42,29 +42,29 @@
     -webkit-text-fill-color: transparent;
     text-shadow: 0 0 15px var(--glow);
     transition: all 0.3s ease;
-}
+  }
 
-.logo-brand:hover {
+  .logo-brand:hover {
     transform: scale(1.05);
-    filter: drop-shadow(0 0 12px rgba(0,128,128,0.6));
-}
+    filter: drop-shadow(0 0 12px rgba(0, 128, 128, 0.6));
+  }
 
-.tagline {
+  .tagline {
     color: var(--text-muted);
     font-size: 0.9rem;
     font-weight: 300;
     margin-top: 2px;
-}
+  }
 
-/* ---------------- Search ---------------- */
-.search-container {
+  /* ---------------- Search ---------------- */
+  .search-container {
     position: relative;
     flex: 1;
     max-width: 500px;
-}
+  }
 
-.search-input {
-    background: rgba(15,15,15,0.5);
+  .search-input {
+    background: rgba(15, 15, 15, 0.5);
     backdrop-filter: blur(5px);
     border: 2px solid var(--border-color);
     border-radius: 25px 0 0 25px;
@@ -72,36 +72,36 @@
     color: var(--text);
     width: 100%;
     transition: all 0.3s ease;
-}
+  }
 
-.search-input:focus {
-    background: rgba(26,26,26,0.7);
+  .search-input:focus {
+    background: rgba(26, 26, 26, 0.7);
     border-color: var(--primary);
     box-shadow: 0 0 15px var(--glow);
     outline: none;
-}
+  }
 
-.search-input::placeholder {
+  .search-input::placeholder {
     color: var(--text-dim);
-}
+  }
 
-.search-btn {
+  .search-btn {
     border: none;
     border-radius: 0 25px 25px 0;
     padding: 12px 20px;
     background: linear-gradient(45deg, var(--primary), var(--primary-hover));
     color: white;
     transition: all 0.3s ease;
-}
+  }
 
-.search-btn:hover {
+  .search-btn:hover {
     transform: translateY(-1px);
     box-shadow: 0 5px 12px var(--glow);
-}
+  }
 
-/* ---------------- Admin & Telegram Buttons ---------------- */
-.admin-btn {
-    background: rgba(15,15,15,0.5);
+  /* ---------------- Admin & Telegram Buttons ---------------- */
+  .admin-btn {
+    background: rgba(15, 15, 15, 0.5);
     backdrop-filter: blur(5px);
     border: 2px solid var(--border-color);
     border-radius: 20px;
@@ -109,35 +109,37 @@
     font-weight: 500;
     color: var(--text);
     transition: all 0.3s ease;
-}
-.admin-btn:hover {
+  }
+
+  .admin-btn:hover {
     background: var(--border-color);
     transform: translateY(-1px);
     box-shadow: 0 3px 10px var(--shadow);
-}
+  }
 
-.telegram-btn {
+  .telegram-btn {
     background: linear-gradient(45deg, var(--primary), var(--primary-hover));
     border: none;
     border-radius: 20px;
     padding: 8px 16px;
     font-weight: 600;
     transition: all 0.3s ease;
-}
-.telegram-btn:hover {
+  }
+
+  .telegram-btn:hover {
     transform: translateY(-1px);
     box-shadow: 0 5px 15px var(--glow);
-}
+  }
 
-/* ---------------- Category Nav ---------------- */
-.category-nav {
-    background: rgba(15,15,15,0.3);
+  /* ---------------- Category Nav ---------------- */
+  .category-nav {
+    background: rgba(15, 15, 15, 0.3);
     backdrop-filter: blur(12px);
     border-top: 1px solid var(--border-color);
     padding: 12px 0;
-}
+  }
 
-.category-btn {
+  .category-btn {
     background: transparent;
     border: 1px solid var(--border-color);
     border-radius: 25px;
@@ -148,9 +150,9 @@
     overflow: hidden;
     margin: 4px;
     transition: all 0.3s ease;
-}
+  }
 
-.category-btn::before {
+  .category-btn::before {
     content: '';
     position: absolute;
     top: 0;
@@ -160,34 +162,40 @@
     background: linear-gradient(45deg, var(--primary), var(--primary-hover));
     transition: width 0.3s ease;
     z-index: -1;
-}
+  }
 
-.category-btn:hover {
+  .category-btn:hover {
     color: #fff;
     border-color: var(--primary);
     transform: translateY(-2px);
     box-shadow: 0 5px 15px var(--glow);
-}
+  }
 
-.category-btn:hover::before {
+  .category-btn:hover::before {
     width: 100%;
-}
+  }
 
-/* ---------------- Header Layout ---------------- */
-.header-content {
+  /* ---------------- Header Layout ---------------- */
+  .header-content {
     display: flex;
     align-items: center;
     gap: 20px;
-}
+  }
 
-@media (max-width: 992px) {
+  @media (max-width: 992px) {
     .header-content {
-        flex-direction: column;
-        gap: 15px;
+      flex-direction: column;
+      gap: 15px;
     }
-    .logo-brand { font-size: 2rem; }
-    .search-container { width: 100%; }
-}
+
+    .logo-brand {
+      font-size: 2rem;
+    }
+
+    .search-container {
+      width: 100%;
+    }
+  }
 </style>
 
 <header class="header-gradient p-3 mb-4">
@@ -205,7 +213,8 @@
       <div class="search-container">
         <form action="{% url 'search' %}" method="get">
           <div class="input-group">
-            <input type="text" name="q" class="form-control search-input" placeholder="Search movies, series..." aria-label="Search">
+            <input type="text" name="q" class="form-control search-input" placeholder="Search movies, series..."
+              aria-label="Search">
             <button class="btn search-btn" type="submit"><i class="bi bi-search"></i></button>
           </div>
         </form>
@@ -214,52 +223,61 @@
       <!-- Admin, User Account & Subscription Status -->
       <div class="user-controls d-flex flex-wrap align-items-center gap-2 justify-content-center">
         {% if user.is_authenticated %}
-          <!-- VIP Status Badge -->
-          {% if user_has_subscription %}
-            <a href="{% url 'subscriptions:profile' %}" class="btn btn-sm btn-warning text-dark fw-bold rounded-pill px-3 shadow-sm" title="Your VIP subscription is active!">
-              <i class="bi bi-crown-fill me-1"></i>VIP Active
-            </a>
-          {% elif user_has_pending_payment %}
-            <a href="{% url 'subscriptions:profile' %}" class="btn btn-sm btn-info text-dark fw-bold rounded-pill px-3 shadow-sm" title="Bank transfer verification in progress">
-              <i class="bi bi-clock-history me-1"></i>Transfer Pending
-            </a>
-          {% else %}
-            <a href="{% url 'pricing' %}" class="btn btn-sm btn-outline-warning rounded-pill px-3" title="Upgrade via Bank Transfer">
-              <i class="bi bi-star-fill me-1"></i>Get VIP
-            </a>
-          {% endif %}
-
-          <!-- My Account -->
-          <a href="{% url 'subscriptions:profile' %}" class="btn admin-btn text-decoration-none" title="My VIP Account & Payment Receipts">
-            <i class="bi bi-person-circle me-1 text-info"></i>{{ user.username }}
-          </a>
-
-          <!-- Staff / Admin Controls -->
-          {% if user.is_staff %}
-            <a href="{% url 'admin:index' %}" class="btn admin-btn" title="Django Admin Center">
-              <i class="bi bi-speedometer2 me-1 text-warning"></i>Admin
-            </a>
-            {% if admin_pending_payments_count > 0 %}
-              <a href="/admin/subscriptions/paymenttransaction/?status__exact=pending" class="btn btn-sm btn-danger fw-bold rounded-pill px-2 py-1" title="Pending bank transfer receipts needing approval">
-                <i class="bi bi-bell-fill me-1"></i>{{ admin_pending_payments_count }} Pending
-              </a>
-            {% endif %}
-          {% endif %}
-
-          <a href="{% url 'logout' %}" class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-1" onclick="return confirm('Are you sure you want to log out?');" title="Log Out">
-            <i class="bi bi-box-arrow-right"></i>
-          </a>
+        <!-- VIP Status Badge -->
+        {% if user_has_subscription %}
+        <a href="{% url 'subscriptions:profile' %}"
+          class="btn btn-sm btn-warning text-dark fw-bold rounded-pill px-3 shadow-sm"
+          title="Your VIP subscription is active!">
+          <i class="bi bi-crown-fill me-1"></i>VIP Active
+        </a>
+        {% elif user_has_pending_payment %}
+        <a href="{% url 'subscriptions:profile' %}"
+          class="btn btn-sm btn-info text-dark fw-bold rounded-pill px-3 shadow-sm"
+          title="Bank transfer verification in progress">
+          <i class="bi bi-clock-history me-1"></i>Transfer Pending
+        </a>
         {% else %}
-          <!-- Guest Navigation -->
-          <a href="{% url 'pricing' %}" class="btn btn-sm btn-warning text-dark fw-bold rounded-pill px-3">
-            <i class="bi bi-crown me-1"></i>VIP Plans
-          </a>
-          <a href="{% url 'login' %}" class="btn admin-btn">
-            <i class="bi bi-box-arrow-in-right me-1"></i>Login
-          </a>
-          <a href="{% url 'register' %}" class="btn btn-sm btn-outline-light rounded-pill px-3">
-            Register
-          </a>
+        <a href="{% url 'pricing' %}" class="btn btn-sm btn-outline-warning rounded-pill px-3"
+          title="Upgrade via Bank Transfer">
+          <i class="bi bi-star-fill me-1"></i>Get VIP
+        </a>
+        {% endif %}
+
+        <!-- My Account -->
+        <a href="{% url 'subscriptions:profile' %}" class="btn admin-btn text-decoration-none"
+          title="My VIP Account & Payment Receipts">
+          <i class="bi bi-person-circle me-1 text-info"></i>{{ user.username }}
+        </a>
+
+        <!-- Staff / Admin Controls -->
+        {% if user.is_staff %}
+        <a href="{% url 'admin:index' %}" class="btn admin-btn" title="Django Admin Center">
+          <i class="bi bi-speedometer2 me-1 text-warning"></i>Admin
+        </a>
+        {% if admin_pending_payments_count > 0 %}
+        <a href="/admin/subscriptions/paymenttransaction/?status__exact=pending"
+          class="btn btn-sm btn-danger fw-bold rounded-pill px-2 py-1"
+          title="Pending bank transfer receipts needing approval">
+          <i class="bi bi-bell-fill me-1"></i>{{ admin_pending_payments_count }} Pending
+        </a>
+        {% endif %}
+        {% endif %}
+
+        <a href="{% url 'logout' %}" class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-1"
+          onclick="return confirm('Are you sure you want to log out?');" title="Log Out">
+          <i class="bi bi-box-arrow-right"></i>
+        </a>
+        {% else %}
+        <!-- Guest Navigation -->
+        <a href="{% url 'pricing' %}" class="btn btn-sm btn-warning text-dark fw-bold rounded-pill px-3">
+          <i class="bi bi-crown me-1"></i>VIP Plans
+        </a>
+        <a href="{% url 'login' %}" class="btn admin-btn">
+          <i class="bi bi-box-arrow-in-right me-1"></i>Login
+        </a>
+        <a href="{% url 'register' %}" class="btn btn-sm btn-outline-light rounded-pill px-3">
+          Register
+        </a>
         {% endif %}
 
         <a href="https://t.me/nzdworldhub" target="_blank" class="btn telegram-btn text-white">
@@ -273,20 +291,28 @@
   <nav class="category-nav mt-3">
     <div class="container">
       <div class="d-flex flex-wrap justify-content-center align-items-center gap-2">
-        <a href="{% url 'category' 'hollywood-movie' %}" class="btn category-btn"><i class="bi bi-film me-1"></i>Hollywood</a>
-        <a href="{% url 'category' 'action-movie' %}" class="btn category-btn"><i class="bi bi-fire me-1"></i>Action Movie</a>
-        <a href="{% url 'category' 'series' %}" class="btn category-btn"><i class="bi bi-camera-reels me-1"></i>Series</a>
-        <a href="{% url 'category' 'korean-drama' %}" class="btn category-btn"><i class="bi bi-heart-fill me-1"></i>Korean Drama</a>
-        <a href="{% url 'category' 'indian-Movie' %}" class="btn category-btn"><i class="bi bi-globe-asia-australia me-1"></i>Bollywood</a>
-        <a href="{% url 'category' 'animation' %}" class="btn category-btn"><i class="bi bi-lightning-fill me-1"></i>Animation</a>
-        <a href="{% url 'sports_list' %}" class="btn category-btn text-danger fw-bold" style="border-color: #ef4444; background: rgba(239, 68, 68, 0.12);"><i class="bi bi-trophy-fill me-1 text-danger"></i>Sports Streaming</a>
-        
+        <a href="{% url 'category' 'hollywood-movie' %}" class="btn category-btn"><i
+            class="bi bi-film me-1"></i>Hollywood</a>
+        <a href="{% url 'category' 'action-movie' %}" class="btn category-btn"><i class="bi bi-fire me-1"></i>Action
+          Movie</a>
+        <a href="{% url 'category' 'series' %}" class="btn category-btn"><i
+            class="bi bi-camera-reels me-1"></i>Series</a>
+        <a href="{% url 'category' 'korean-drama' %}" class="btn category-btn"><i
+            class="bi bi-heart-fill me-1"></i>Korean Drama</a>
+        <a href="{% url 'category' 'indian-Movie' %}" class="btn category-btn"><i
+            class="bi bi-globe-asia-australia me-1"></i>Bollywood</a>
+        <a href="{% url 'category' 'animation' %}" class="btn category-btn"><i
+            class="bi bi-lightning-fill me-1"></i>Animation</a>
+        <a href="{% url 'sports_list' %}" class="btn category-btn text-danger fw-bold"
+          style="border-color: #ef4444; background: rgba(239, 68, 68, 0.12);"><i
+            class="bi bi-trophy-fill me-1 text-danger"></i>Sports </a>
+
         <!-- Featured Direct Bank Transfer VIP Button -->
-        <a href="{% url 'pricing' %}" class="btn category-btn text-warning fw-bold" style="border-color: #f59e0b; background: rgba(245, 158, 11, 0.15);">
+        <a href="{% url 'pricing' %}" class="btn category-btn text-warning fw-bold"
+          style="border-color: #f59e0b; background: rgba(245, 158, 11, 0.15);">
           <i class="bi bi-bank me-1 text-warning"></i>VIP Plans
         </a>
       </div>
     </div>
   </nav>
 </header>
-
