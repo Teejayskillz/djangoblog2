@@ -1,313 +1,356 @@
 <style>
-/* This component assumes the dark/teal theme :root variables 
+    /* This component assumes the dark/teal theme :root variables 
   are defined in your base.html and are available globally.
 */
 
-.netflix-footer {
-    /* --- NEW: Dark, solid background for a grounded feel --- */
-    background: var(--darker-bg);
-    color: var(--text);
-    padding: 4rem 0 1rem;
-    margin-top: 5rem;
-    position: relative;
-    overflow: hidden;
-    /* --- UPDATED: Teal top border --- */
-    border-top: 4px solid var(--primary);
-    box-shadow: 0 -5px 20px var(--shadow);
-}
+    .netflix-footer {
+        /* --- NEW: Dark, solid background for a grounded feel --- */
+        background: var(--darker-bg);
+        color: var(--text);
+        padding: 4rem 0 1rem;
+        margin-top: 5rem;
+        position: relative;
+        overflow: hidden;
+        /* --- UPDATED: Teal top border --- */
+        border-top: 4px solid var(--primary);
+        box-shadow: 0 -5px 20px var(--shadow);
+    }
 
-.netflix-footer::before,
-.netflix-footer::after {
-    content: '';
-    position: absolute;
-    border-radius: 50%;
-    /* --- NEW: Teal radial glows --- */
-    background: radial-gradient(circle, rgba(0, 128, 128, 0.1) 0%, transparent 70%);
-}
+    .netflix-footer::before,
+    .netflix-footer::after {
+        content: '';
+        position: absolute;
+        border-radius: 50%;
+        /* --- NEW: Teal radial glows --- */
+        background: radial-gradient(circle, rgba(0, 128, 128, 0.1) 0%, transparent 70%);
+    }
 
-.netflix-footer::before {
-    top: -50px;
-    right: -50px;
-    width: 200px;
-    height: 200px;
-}
+    .netflix-footer::before {
+        top: -50px;
+        right: -50px;
+        width: 200px;
+        height: 200px;
+    }
 
-.netflix-footer::after {
-    bottom: -30px;
-    left: -30px;
-    width: 150px;
-    height: 150px;
-}
+    .netflix-footer::after {
+        bottom: -30px;
+        left: -30px;
+        width: 150px;
+        height: 150px;
+    }
 
-.footer-brand {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    margin-bottom: 1.5rem;
-}
+    .footer-brand {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 1.5rem;
+    }
 
-.footer-logo {
-    width: 50px;
-    height: 50px;
-    /* --- UPDATED: Teal gradient --- */
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-    font-weight: bold;
-    color: white;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
-}
+    .footer-logo {
+        width: 50px;
+        height: 50px;
+        /* --- UPDATED: Teal gradient --- */
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: white;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    }
 
-.brand-text {
-    font-size: 1.8rem;
-    font-weight: 700;
-    /* --- UPDATED: Teal color --- */
-    color: var(--primary);
-}
+    .brand-text {
+        font-size: 1.8rem;
+        font-weight: 700;
+        /* --- UPDATED: Teal color --- */
+        color: var(--primary);
+    }
 
-.footer-section h5 {
-    color: var(--text);
-    font-size: 1.3rem;
-    font-weight: 600;
-    margin-bottom: 1.5rem;
-    position: relative;
-    padding-bottom: 0.5rem;
-}
+    .footer-section h5 {
+        color: var(--text);
+        font-size: 1.3rem;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+        position: relative;
+        padding-bottom: 0.5rem;
+    }
 
-.footer-section h5::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 30px;
-    height: 2px;
-    /* --- UPDATED: Teal gradient underline --- */
-    background: linear-gradient(90deg, var(--primary) 0%, var(--primary-hover) 100%);
-    border-radius: 1px;
-}
+    .footer-section h5::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 30px;
+        height: 2px;
+        /* --- UPDATED: Teal gradient underline --- */
+        background: linear-gradient(90deg, var(--primary) 0%, var(--primary-hover) 100%);
+        border-radius: 1px;
+    }
 
-.footer-description {
-    /* --- UPDATED: Uses light muted text --- */
-    color: var(--text-muted);
-    font-size: 0.95rem;
-    line-height: 1.6;
-    margin-bottom: 1.5rem;
-}
+    .footer-description {
+        /* --- UPDATED: Uses light muted text --- */
+        color: var(--text-muted);
+        font-size: 0.95rem;
+        line-height: 1.6;
+        margin-bottom: 1.5rem;
+    }
 
-.footer-links {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
+    .footer-links {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
 
-.footer-links li {
-    margin-bottom: 0.75rem;
-}
+    .footer-links li {
+        margin-bottom: 0.75rem;
+    }
 
-.footer-links a {
-    /* --- UPDATED: Uses light dimmed text --- */
-    color: var(--text-dim);
-    text-decoration: none;
-    font-size: 0.95rem;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
+    .footer-links a {
+        /* --- UPDATED: Uses light dimmed text --- */
+        color: var(--text-dim);
+        text-decoration: none;
+        font-size: 0.95rem;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
 
-.footer-links a:hover {
-    /* --- UPDATED: Teal hover color --- */
-    color: var(--primary);
-    transform: translateX(5px);
-}
+    .footer-links a:hover {
+        /* --- UPDATED: Teal hover color --- */
+        color: var(--primary);
+        transform: translateX(5px);
+    }
 
-.footer-links a::before {
-    content: '▶';
-    font-size: 0.7rem;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
+    .footer-links a::before {
+        content: '▶';
+        font-size: 0.7rem;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
 
-.footer-links a:hover::before {
-    opacity: 1;
-}
+    .footer-links a:hover::before {
+        opacity: 1;
+    }
 
-.social-links {
-    display: flex;
-    gap: 15px;
-    margin-bottom: 1.5rem;
-}
+    .social-links {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 1.5rem;
+    }
 
-.social-link {
-    width: 45px;
-    height: 45px;
-    /* --- NEW: Dark, glassy social buttons --- */
-    background: var(--card-bg);
-    border: 2px solid var(--border-color);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--text-dim);
-    text-decoration: none;
-    font-size: 1.2rem;
-    transition: all 0.3s ease;
-}
+    .social-link {
+        width: 45px;
+        height: 45px;
+        /* --- NEW: Dark, glassy social buttons --- */
+        background: var(--card-bg);
+        border: 2px solid var(--border-color);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-dim);
+        text-decoration: none;
+        font-size: 1.2rem;
+        transition: all 0.3s ease;
+    }
 
-.social-link:hover {
-    /* --- UPDATED: Teal hover state --- */
-    background: var(--primary);
-    border-color: var(--primary);
-    color: white;
-    transform: translateY(-3px);
-    box-shadow: 0 5px 15px var(--glow);
-}
+    .social-link:hover {
+        /* --- UPDATED: Teal hover state --- */
+        background: var(--primary);
+        border-color: var(--primary);
+        color: white;
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px var(--glow);
+    }
 
-.telegram-btn {
-    /* NOTE: This button's blue gradient is intentionally preserved for brand identity. */
-    background: linear-gradient(135deg, #0088cc 0%, #00aaff 100%);
-    border: none;
-    padding: 12px 24px;
-    border-radius: 25px;
-    color: white;
-    font-weight: 600;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.95rem;
-    transition: all 0.3s ease;
-    margin-bottom: 1rem;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-}
+    .telegram-btn {
+        /* NOTE: This button's blue gradient is intentionally preserved for brand identity. */
+        background: linear-gradient(135deg, #0088cc 0%, #00aaff 100%);
+        border: none;
+        padding: 12px 24px;
+        border-radius: 25px;
+        color: white;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.95rem;
+        transition: all 0.3s ease;
+        margin-bottom: 1rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
 
-.telegram-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(0, 136, 204, 0.4);
-    color: white;
-}
+    .telegram-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0, 136, 204, 0.4);
+        color: white;
+    }
 
-.stats-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-}
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
 
-.stat-item {
-    text-align: center;
-    padding: 1rem;
-    /* --- NEW: Dark, glassy stats cards --- */
-    background: var(--card-bg);
-    border-radius: 8px;
-    border: 1px solid var(--border-color);
-}
+    .stat-item {
+        text-align: center;
+        padding: 1rem;
+        /* --- NEW: Dark, glassy stats cards --- */
+        background: var(--card-bg);
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+    }
 
-.stat-number {
-    font-size: 1.5rem;
-    font-weight: 700;
-    /* --- UPDATED: Teal stat number --- */
-    color: var(--primary);
-    display: block;
-}
+    .stat-number {
+        font-size: 1.5rem;
+        font-weight: 700;
+        /* --- UPDATED: Teal stat number --- */
+        color: var(--primary);
+        display: block;
+    }
 
-.stat-label {
-    font-size: 0.8rem;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
+    .stat-label {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
 
-.footer-divider {
-    border: none;
-    height: 1px;
-    /* --- UPDATED: Uses dark theme border color --- */
-    background: linear-gradient(90deg, transparent, var(--border-color), transparent);
-    margin: 3rem 0 2rem;
-}
+    .footer-divider {
+        border: none;
+        height: 1px;
+        /* --- UPDATED: Uses dark theme border color --- */
+        background: linear-gradient(90deg, transparent, var(--border-color), transparent);
+        margin: 3rem 0 2rem;
+    }
 
-.copyright-section {
-    text-align: center;
-    color: var(--text-muted);
-    font-size: 0.9rem;
-    position: relative;
-    z-index: 2;
-}
+    .copyright-section {
+        text-align: center;
+        color: var(--text-muted);
+        font-size: 0.9rem;
+        position: relative;
+        z-index: 2;
+    }
 
-.copyright-main {
-    margin-bottom: 0.5rem;
-    font-weight: 500;
-}
+    .copyright-main {
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+    }
 
-.disclaimer {
-    font-size: 0.8rem;
-    color: var(--text-dim);
-    font-style: italic;
-}
+    .disclaimer {
+        font-size: 0.8rem;
+        color: var(--text-dim);
+        font-style: italic;
+    }
 
-.footer-newsletter {
-    /* --- NEW: Teal alpha background --- */
-    background: rgba(0, 128, 128, 0.1);
-    padding: 1.5rem;
-    border-radius: 12px;
-    border: 1px solid rgba(0, 128, 128, 0.2);
-    margin-bottom: 1.5rem;
-}
+    .footer-newsletter {
+        /* --- NEW: Teal alpha background --- */
+        background: rgba(0, 128, 128, 0.1);
+        padding: 1.5rem;
+        border-radius: 12px;
+        border: 1px solid rgba(0, 128, 128, 0.2);
+        margin-bottom: 1.5rem;
+    }
 
-.newsletter-input {
-    /* --- NEW: Dark input field --- */
-    background: var(--dark-bg);
-    border: 2px solid var(--border-color);
-    border-radius: 25px;
-    padding: 10px 20px;
-    color: var(--text);
-    width: 100%;
-    margin-bottom: 10px;
-}
+    .newsletter-input {
+        /* --- NEW: Dark input field --- */
+        background: var(--dark-bg);
+        border: 2px solid var(--border-color);
+        border-radius: 25px;
+        padding: 10px 20px;
+        color: var(--text);
+        width: 100%;
+        margin-bottom: 10px;
+    }
 
-.newsletter-input:focus {
-    outline: none;
-    border-color: var(--primary); /* Teal focus border */
-    background: var(--darker-bg);
-}
+    .newsletter-input:focus {
+        outline: none;
+        border-color: var(--primary);
+        /* Teal focus border */
+        background: var(--darker-bg);
+    }
 
-.newsletter-btn {
-    /* --- UPDATED: Teal gradient button --- */
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
-    border: none;
-    padding: 10px 20px;
-    border-radius: 20px;
-    color: white;
-    font-weight: 600;
-    width: 100%;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
+    .newsletter-btn {
+        /* --- UPDATED: Teal gradient button --- */
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+        border: none;
+        padding: 10px 20px;
+        border-radius: 20px;
+        color: white;
+        font-weight: 600;
+        width: 100%;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
 
-.newsletter-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px var(--glow); /* Teal glow */
-}
+    .newsletter-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px var(--glow);
+        /* Teal glow */
+    }
 
-/* --- Mobile Responsive (Unchanged) --- */
-@media (max-width: 768px) {
-    .netflix-footer { padding: 3rem 0 1rem; margin-top: 3rem; }
-    .footer-brand { justify-content: center; text-align: center; flex-direction: column; gap: 10px; }
-    .brand-text { font-size: 1.5rem; }
-    .footer-section h5::after { left: 50%; transform: translateX(-50%); }
-    .social-links { justify-content: center; }
-    .stats-grid { grid-template-columns: 1fr; }
-}
-@media (max-width: 480px) {
-    .footer-logo { width: 40px; height: 40px; font-size: 1.2rem; }
-    .brand-text { font-size: 1.3rem; }
-    .footer-section h5 { font-size: 1.1rem; }
-    .social-links { gap: 10px; }
-    .social-link { width: 40px; height: 40px; font-size: 1rem; }
-}
+    /* --- Mobile Responsive (Unchanged) --- */
+    @media (max-width: 768px) {
+        .netflix-footer {
+            padding: 3rem 0 1rem;
+            margin-top: 3rem;
+        }
+
+        .footer-brand {
+            justify-content: center;
+            text-align: center;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .brand-text {
+            font-size: 1.5rem;
+        }
+
+        .footer-section h5::after {
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .social-links {
+            justify-content: center;
+        }
+
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .footer-logo {
+            width: 40px;
+            height: 40px;
+            font-size: 1.2rem;
+        }
+
+        .brand-text {
+            font-size: 1.3rem;
+        }
+
+        .footer-section h5 {
+            font-size: 1.1rem;
+        }
+
+        .social-links {
+            gap: 10px;
+        }
+
+        .social-link {
+            width: 40px;
+            height: 40px;
+            font-size: 1rem;
+        }
+    }
 </style>
 
 <footer class="netflix-footer">
@@ -320,8 +363,9 @@
                         <div class="brand-text">Nzdworld</div>
                     </div>
                     <p class="footer-description">
-                        🎬 Your premier destination for movies, TV series, and entertainment news. 
-                        Experience unlimited streaming with no login required - enjoy anonymous Browse and discover your next favorite show!
+                        🎬 Your premier destination for movies, TV series, and entertainment news.
+                        Experience unlimited streaming with no login required - enjoy anonymous Browse and discover your
+                        next favorite show!
                     </p>
                     <div class="stats-grid">
                         <div class="stat-item">
@@ -351,11 +395,11 @@
                 <div class="footer-section">
                     <h5>⚖️ Legal</h5>
                     <ul class="footer-links">
-                        <li><a href="#dmca">📋 DMCA</a></li>
-                        <li><a href="#privacy">🔒 Privacy Policy</a></li>
-                        <li><a href="#terms">📄 Terms of Service</a></li>
-                        <li><a href="#contact">📞 Contact Us</a></li>
-                        <li><a href="#about">ℹ️ About Us</a></li>
+                        <li><a href="/dcma-nzdworld">📋 DMCA</a></li>
+                        <li><a href="/privacy-policy-nzdworld">🔒 Privacy Policy</a></li>
+                        <li><a href="/terms-of-service-nzdworld">📄 Terms of Service</a></li>
+                        <li><a href="/contact-us-nzdworld">📞 Contact Us</a></li>
+                        <li><a href="/about-us-nzdworld">ℹ️ About Us</a></li>
                     </ul>
                 </div>
             </div>
@@ -386,60 +430,61 @@
         <hr class="footer-divider">
         <div class="copyright-section">
             <div class="copyright-main">
-                &copy; {% now "Y" %} <strong>Nzdworld</strong> - All rights reserved. 
+                &copy; {% now "Y" %} <strong>Nzdworld</strong> - All rights reserved.
                 Made with ❤️ for movie lovers worldwide. You can get stunning website templates from my site.
             </div>
             <div class="disclaimer">
-                ⚠️ Disclaimer: We do not host any files on our servers. All content is embedded from third-party sources.
+                ⚠️ Disclaimer: We do not host any files on our servers. All content is embedded from third-party
+                sources.
             </div>
         </div>
     </div>
 </footer>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const newsletterBtn = document.querySelector('.newsletter-btn');
-    const newsletterInput = document.querySelector('.newsletter-input');
-    
-    if (newsletterBtn && newsletterInput) {
-        newsletterBtn.addEventListener('click', function() {
-            const email = newsletterInput.value.trim();
-            if (email && email.includes('@')) {
-                // This logic is theme-agnostic and remains the same.
-                this.innerHTML = '✅ Subscribed!';
-                this.style.background = '#28a745'; // Green for success is universal.
-                newsletterInput.value = '';
-                
-                setTimeout(() => {
-                    this.innerHTML = 'Subscribe to Updates';
-                    // The CSS variables will correctly restore the teal gradient.
-                    this.style.background = 'linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%)'; 
-                }, 3000);
-            } else {
-                alert('Please enter a valid email address');
-                newsletterInput.focus();
-            }
-        });
-        
-        newsletterInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                newsletterBtn.click();
-            }
-        });
-    }
-    
-    // Smooth scroll for internal links, also theme-agnostic.
-    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-        anchor.addEventListener('click', function (e) {
-            e.preventDefault();
-            const target = document.querySelector(this.getAttribute('href'));
-            if (target) {
-                target.scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'start'
-                });
-            }
+    document.addEventListener('DOMContentLoaded', function () {
+        const newsletterBtn = document.querySelector('.newsletter-btn');
+        const newsletterInput = document.querySelector('.newsletter-input');
+
+        if (newsletterBtn && newsletterInput) {
+            newsletterBtn.addEventListener('click', function () {
+                const email = newsletterInput.value.trim();
+                if (email && email.includes('@')) {
+                    // This logic is theme-agnostic and remains the same.
+                    this.innerHTML = '✅ Subscribed!';
+                    this.style.background = '#28a745'; // Green for success is universal.
+                    newsletterInput.value = '';
+
+                    setTimeout(() => {
+                        this.innerHTML = 'Subscribe to Updates';
+                        // The CSS variables will correctly restore the teal gradient.
+                        this.style.background = 'linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%)';
+                    }, 3000);
+                } else {
+                    alert('Please enter a valid email address');
+                    newsletterInput.focus();
+                }
+            });
+
+            newsletterInput.addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') {
+                    newsletterBtn.click();
+                }
+            });
+        }
+
+        // Smooth scroll for internal links, also theme-agnostic.
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
         });
     });
-});
 </script>
