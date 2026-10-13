@@ -45,6 +45,7 @@
         </a>
     </div>
     <div class="latest-updates-grid">
+        {% load sanitize_tags %}
         {% for match in sports_matches %}
         <a href="{{ match.get_absolute_url }}" class="post-card">
             {% if match.thumbnail %}
@@ -53,9 +54,8 @@
             </div>
             {% endif %}
             <div class="post-card-content">
-                <h3>{{ match.title }}</h3>
-                <span class="category text-danger"><i class="bi bi-play-circle-fill me-1"></i>{{ match.sport }} • {{
-                    match.match_date|date:"M d" }}</span>
+                <h3>{{ match.title|strip_template_tags }}</h3>
+                <span class="category text-danger"><i class="bi bi-play-circle-fill me-1"></i>{{ match.sport|strip_template_tags }}{% if match.match_date %} • {{ match.match_date|date:"M d" }}{% endif %}</span>
             </div>
         </a>
         {% endfor %}
@@ -124,33 +124,33 @@
                 {% endif %}
 
                 {% for num in page_obj.paginator.page_range %}
-                {% if page_obj.number == num %}
-                <li class="page-item active">
-                    <span class="page-link current">{{ num }}</span>
-                </li>
-                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %} <li class="page-item">
-                    <a class="page-link" href="?page={{ num }}{% if query %}&q={{ query }}{% endif %}">{{ num }}</a>
-                    </li>
-                    {% elif num == 1 %}
-                    <li class="page-item">
-                        <a class="page-link" href="?page={{ num }}{% if query %}&q={{ query }}{% endif %}">{{ num }}</a>
-                    </li>
-                    {% if page_obj.number > 4 %}
-                    <li class="page-item disabled">
-                        <span class="page-link">...</span>
-                    </li>
-                    {% endif %}
-                    {% elif num == page_obj.paginator.num_pages %}
-                    {% if page_obj.number < page_obj.paginator.num_pages|add:'-3' %} <li class="page-item disabled">
-                        <span class="page-link">...</span>
-                        </li>
-                        {% endif %}
-                        <li class="page-item">
-                            <a class="page-link" href="?page={{ num }}{% if query %}&q={{ query }}{% endif %}">{{ num
-                                }}</a>
-                        </li>
-                        {% endif %}
-                        {% endfor %}
+                                {% if page_obj.number == num %}
+                                <li class="page-item active">
+                                    <span class="page-link current">{{ num }}</span>
+                                </li>
+                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %} <li class="page-item">
+                                    <a class="page-link" href="?page={{ num }}{% if query %}&q={{ query }}{% endif %}">{{ num }}</a>
+                                    </li>
+                                    {% elif num == 1 %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ num }}{% if query %}&q={{ query }}{% endif %}">{{ num }}</a>
+                                    </li>
+                                    {% if page_obj.number > 4 %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link">...</span>
+                                    </li>
+                                    {% endif %}
+                                    {% elif num == page_obj.paginator.num_pages %}
+                                    {% if page_obj.number < page_obj.paginator.num_pages|add:'-3' %} <li class="page-item disabled">
+                                        <span class="page-link">...</span>
+                                        </li>
+                                        {% endif %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ num }}{% if query %}&q={{ query }}{% endif %}">{{ num
+                                                }}</a>
+                                        </li>
+                                        {% endif %}
+                                        {% endfor %}
 
                         {% if page_obj.has_next %}
                         <li class="page-item">
