@@ -129,10 +129,19 @@ a:hover, a:focus {
   min-height: 100vh;
 }
 
-#adminmenuback, #adminmenuwrap {
+#adminmenuwrap {
   width: var(--wp-sidebar-width);
   background-color: var(--wp-sidebar-bg);
   flex-shrink: 0;
+}
+
+/* #adminmenuback is only an empty background div kept for WordPress markup
+   parity, so it must NOT occupy a column of the flex row. While it did, its
+   width added to #adminmenuwrap's, which (a) made the sidebar area twice as
+   wide as the menu and (b) pushed the fixed #adminmenu -- whose static
+   position sits inside #adminmenuwrap -- one full sidebar width to the right. */
+#adminmenuback {
+  display: none;
 }
 
 #adminmenu {
@@ -142,6 +151,8 @@ a:hover, a:focus {
   position: fixed;
   top: var(--wp-adminbar-height);
   bottom: 0;
+  left: 0; /* pin to the viewport edge; a fixed box with `left: auto` is placed
+              at its static position, i.e. after the preceding flex column */
   width: var(--wp-sidebar-width);
   background: var(--wp-sidebar-bg);
   overflow-y: auto;
@@ -196,6 +207,7 @@ a:hover, a:focus {
 #adminmenu li a .wp-menu-name {
   font-size: 13px;
   line-height: 1.3;
+  min-width: 0; /* let long labels shrink so the ellipsis below actually shows */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -639,7 +651,7 @@ textarea {
   #adminmenu.open {
     display: block;
   }
-  #adminmenuback, #adminmenuwrap {
+  #adminmenuwrap {
     width: 100%;
   }
   #wpwrap {
