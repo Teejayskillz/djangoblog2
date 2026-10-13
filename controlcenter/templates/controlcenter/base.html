@@ -36,12 +36,14 @@
       <ul id="adminmenu">
         <li class="{% if active_menu == 'dashboard' %}current{% endif %}">
           <a href="{% url 'controlcenter:dashboard' %}" class="{% if active_menu == 'dashboard' %}active{% endif %}">
-            <span>🏠 Dashboard</span>
+            <span class="wp-menu-icon">🏠</span>
+            <span class="wp-menu-name">Dashboard</span>
           </a>
         </li>
         <li class="{% if active_menu == 'analytics' %}current{% endif %}">
           <a href="{% url 'controlcenter:analytics' %}" class="{% if active_menu == 'analytics' %}active{% endif %}">
-            <span>📈 Site Analytics</span>
+            <span class="wp-menu-icon">📈</span>
+            <span class="wp-menu-name">Site Analytics</span>
           </a>
         </li>
 
@@ -51,7 +53,8 @@
           {% with menu_id=model.app_label|add:'_'|add:model.model_name %}
           <li class="{% if active_menu == menu_id %}current{% endif %}">
             <a href="{% url 'controlcenter:model_list' app_label=model.app_label model_name=model.model_name %}" class="{% if active_menu == menu_id %}active{% endif %}">
-              <span>{{ model.name }}</span>
+              <span class="wp-menu-icon">{{ model.icon }}</span>
+              <span class="wp-menu-name">{{ model.name }}</span>
             </a>
           </li>
           {% endwith %}

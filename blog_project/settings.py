@@ -33,11 +33,29 @@ CDN_SHARED_SECRET = os.getenv('CDN_SHARED_SECRET', SECRET_KEY)
 
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true' 
 
+# Staticfiles storage configuration with WhiteNoise
 if DEBUG:
-    # Use default storage in development
-    STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
 else:
-    STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
+
+# WhiteNoise settings for cPanel / production
+WHITENOISE_MAX_AGE = 31536000  # 1 year caching for immutable files
+WHITENOISE_MANIFEST_STRICT = False  # Prevent 500 errors if optional referenced static asset is missing
 
 # Handle ALLOWED_HOSTS for production deployments and local testing
 ALLOWED_HOSTS_STR = os.getenv('ALLOWED_HOSTS', '').split(',')

@@ -29,6 +29,27 @@ def get_model_from_url(app_label, model_name):
         return None
 
 
+def get_model_icon(app_label, model_name):
+    """Return appropriate dashicon-like emoji/symbol for WordPress sidebar."""
+    icons = {
+        'post': '📝',
+        'category': '📁',
+        'comment': '💬',
+        'tag': '🏷️',
+        'subscriber': '✉️',
+        'media': '🖼️',
+        'sportsmatch': '⚽',
+        'subscriptionplan': '💳',
+        'usersubscription': '⭐',
+        'paymenttransaction': '💰',
+        'ad': '📢',
+        'user': '👤',
+        'group': '👥',
+        'pagevisit': '📊',
+    }
+    return icons.get(model_name.lower(), '📄')
+
+
 def get_app_list_context(request):
     """
     Build structured navigation for the WordPress-style admin sidebar.
@@ -56,6 +77,7 @@ def get_app_list_context(request):
                     'singular_name': model._meta.verbose_name.title(),
                     'model_name': model_name,
                     'app_label': app_config.label,
+                    'icon': get_model_icon(app_config.label, model_name),
                 })
 
         if models:
