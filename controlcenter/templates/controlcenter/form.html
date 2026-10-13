@@ -1,0 +1,20 @@
+{% extends 'controlcenter/base.html' %}
+{% block title %}{{ action }} {{ model._meta.verbose_name }}{% endblock %}
+{% block content %}
+<h2>{{ action }} {{ model._meta.verbose_name|capfirst }}</h2>
+<form method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+  <div class="form-grid">
+    {{ form.non_field_errors }}
+    {% for field in form.visible_fields %}
+      <div class="form-row">
+        <label for="id_{{ field.name }}">{{ field.label }}</label>
+        <div class="form-input">{{ field.errors }}{{ field }}</div>
+        {% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}
+      </div>
+    {% endfor %}
+  </div>
+  <button class="btn" type="submit">Save</button>
+  <a class="btn" href="{% url 'controlcenter:model_list' app_label=model._meta.app_label model_name=model._meta.model_name %}">Cancel</a>
+</form>
+{% endblock %}

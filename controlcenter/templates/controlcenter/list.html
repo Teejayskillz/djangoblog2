@@ -1,0 +1,65 @@
+{% extends 'controlcenter/base.html' %}
+{% load custom_tags %}
+{% block title %}{{ model._meta.verbose_name_plural|capfirst }}{% endblock %}
+{% block content %}
+<h2>{{ model._meta.verbose_name_plural|capfirst }}</h2>
+<form method="get" class="search-form">
+  <input type="search" name="q" placeholder="Search..." value="{{ q|default:'' }}">
+  <button class="btn">Search</button>
+</form>
+
+<form method="post">
+  {% csrf_token %}
+  <div class="bulk-actions">
+    <select name="action">
+      <option value="">Bulk actions</option>
+    {% for key, desc in actions %}
+    <option value="{{ key }}">{{ desc }}</option>
+    {% endfor %}
+  </select>
+  <button class="btn" type="submit">Apply</button>
+  </div>
+
+  <table class="cc-table">
+    <thead>
+      <tr>
+        <th><input type="checkbox" id="select_all" onclick="document.querySelectorAll('.sel').forEach(cb => cb.checked = this.checked)"></th>
+        <th>ID</th>
+        {% for f in display_fields %}
+        <th>{{ f|capfirst }}</th>
+        {% endfor %}
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for obj in page_obj.object_list %}
+      <tr>
+        <td><input type="checkbox" name="selected" value="{{ obj.pk }}" class="sel"></td>
+        <td>{{ obj.pk }}</td>
+        {% for f in display_fields %}
+        <td>{{ obj|attr:f }}</td>
+        {% endfor %}
+        <td>
+          <a href="{% url 'controlcenter:model_change' app_label=app_label model_name=model_name pk=obj.pk %}">Edit</a> |
+          <a href="{% url 'controlcenter:model_delete' app_label=app_label model_name=model_name pk=obj.pk %}">Delete</a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="{{ display_fields|length|add:'3' }}">No records found</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</form>
+
+<div class="cc-pagination">
+  {% if page_obj.has_previous %}
+  <a href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}" class="btn">Previous</a>
+  {% endif %}
+  <span class="muted">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}
+  <a href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}" class="btn">Next</a>
+  {% endif %}
+</div>
+
+<a class="btn" href="{% url 'controlcenter:model_add' app_label=app_label model_name=model_name %}">Add New {{ model._meta.verbose_name }}</a>
+{% endblock %}

@@ -1,0 +1,47 @@
+{% load static %}
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Control Center - NZDWorld</title>
+  <link rel="stylesheet" href="{% static 'controlcenter/css/style.css' %}">
+</head>
+<body>
+  <div class="cc-wrapper">
+    <aside class="cc-sidebar">
+      <div class="cc-brand">NZDWorld Control Center</div>
+      <nav>
+        <ul>
+          <li><a href="{% url 'controlcenter:dashboard' %}">Dashboard</a></li>
+          {% for app in app_list %}
+          <li class="app-group">{{ app.name }}
+            <ul>
+              {% for model in app.models %}
+              <li><a href="{% url 'controlcenter:model_list' app_label=model.app_label model_name=model.model_name %}">{{ model.name }}</a></li>
+              {% endfor %}
+            </ul>
+          </li>
+          {% endfor %}
+        </ul>
+      </nav>
+    </aside>
+
+    <main class="cc-main">
+      <header class="cc-topbar">
+        <div class="cc-title">{% block title %}Control Center{% endblock %}</div>
+        <div class="cc-actions">
+          <a class="btn" href="/admin/">Django Admin</a>
+          <a class="btn" href="/admin/logout/">Logout</a>
+        </div>
+      </header>
+
+      <section class="cc-content">
+        {% block content %}{% endblock %}
+      </section>
+
+    </main>
+  </div>
+  <script src="{% static 'controlcenter/js/main.js' %}"></script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+{% extends 'controlcenter/base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<h2>Overview</h2>
+<div class="cc-stats">
+  <div class="cc-stat">Posts<br><span class="num">{{ stats.posts }}</span></div>
+  <div class="cc-stat">Subscribers<br><span class="num">{{ stats.subscribers }}</span></div>
+  <div class="cc-stat">Media<br><span class="num">{{ stats.media }}</span></div>
+  <div class="cc-stat">Comments<br><span class="num">{{ stats.comments }}</span></div>
+</div>
+
+<h3>Recent Posts</h3>
+<ul class="recent-list">
+  {% for p in recent_posts %}
+  <li><a href="{% url 'controlcenter:model_change' app_label='core' model_name='post' pk=p.id %}">{{ p.title }}</a> <span class="muted">• {{ p.published_date|date:'M d, Y' }}</span></li>
+  {% empty %}
+  <li class="muted">No posts yet</li>
+  {% endfor %}
+</ul>
+{% endblock %}
