@@ -691,3 +691,16 @@ class ModelDeleteView(StaffRequiredMixin, View):
         obj.delete()
         messages.success(request, f"Successfully deleted '{name}'.")
         return redirect(reverse('controlcenter:model_list', args=[app_label, model_name]))
+
+
+class LogoutStaffView(View):
+    """Logs out staff user and redirects to login."""
+    def get(self, request):
+        from django.contrib.auth import logout
+        logout(request)
+        return redirect('/accounts/login/?next=/control-center/')
+
+    def post(self, request):
+        from django.contrib.auth import logout
+        logout(request)
+        return redirect('/accounts/login/?next=/control-center/')

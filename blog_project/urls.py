@@ -25,6 +25,9 @@ from core.views import robots_txt ,  import_subscribers_view
 from subscriptions.views import plan_list as pricing_view
 
 
+from django.views.generic import RedirectView
+
+
 sitemaps = {
     'blog': PostSitemap, 
     'categories': CategorySitemap,
@@ -34,7 +37,11 @@ sitemaps = {
 
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    # Redirect all /admin/ traffic directly to the new WordPress Control Center
+    path('admin/', RedirectView.as_view(url='/control-center/', permanent=False)),
+    path('admin/<path:subpath>', RedirectView.as_view(url='/control-center/', permanent=False)),
+    # Django Admin site code preserved
+    path('django-admin-backend-internal/', admin.site.urls),
     path('control-center/', include('controlcenter.urls')),
     path('import-sub/', import_subscribers_view, name='import_subscribers'),
     path('media/<path:path>', serve, {'document_root': settings.MEDIA_ROOT}),

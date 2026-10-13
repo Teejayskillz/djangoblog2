@@ -11,4 +11,5 @@ urlpatterns = [
     path('<str:app_label>/<str:model_name>/<int:pk>/view/', views.ModelDetailView.as_view(), name='model_view'),
     path('<str:app_label>/<str:model_name>/<int:pk>/change/', views.ModelUpdateView.as_view(), name='model_change'),
     path('<str:app_label>/<str:model_name>/<int:pk>/delete/', views.ModelDeleteView.as_view(), name='model_delete'),
+    path('logout/', views.LogoutStaffView.as_view(), name='logout'),
 ]

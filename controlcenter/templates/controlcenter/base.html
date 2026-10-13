@@ -21,10 +21,9 @@
     </div>
     <div class="ab-actions">
       <a href="{% url 'controlcenter:analytics' %}">📊 Site Analytics</a>
-      <a href="/admin/" title="Standard Django Model Admin">Django Admin</a>
       <div class="ab-user">
         <span>Howdy, <strong>{{ request.user.username }}</strong></span>
-        <a href="/admin/logout/" style="margin-left: 6px; color:#d63638;">Log Out</a>
+        <a href="{% url 'controlcenter:logout' %}" style="margin-left: 6px; color:#d63638;">Log Out</a>
       </div>
     </div>
   </header>

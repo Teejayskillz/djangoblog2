@@ -79,3 +79,12 @@ class ControlCenterTests(TestCase):
         
         # Verify /control-center/ was NOT recorded in public traffic analytics
         self.assertFalse(PageVisit.objects.filter(path__startswith='/control-center/').exists())
+
+    def test_admin_redirects_to_control_center(self):
+        resp = self.client.get('/admin/')
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp.url, '/control-center/')
+
+        resp_sub = self.client.get('/admin/core/post/')
+        self.assertEqual(resp_sub.status_code, 302)
+        self.assertEqual(resp_sub.url, '/control-center/')
