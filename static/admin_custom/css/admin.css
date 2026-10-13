@@ -1,0 +1,30 @@
+:root{--bg:#0b1320;--panel:#0f1b23;--accent:#0fb2a6;--accent-2:#072f33;--muted:#9aa6b2;--card:#0f1720}
+body.dashboard, body{background:var(--bg);color:#e6f2f0}
+.nz-dashboard{display:flex;min-height:100vh}
+.nz-sidebar{width:260px;background:linear-gradient(180deg,var(--panel),#071018);padding:20px;box-shadow:2px 0 12px rgba(0,0,0,0.6);position:fixed;left:0;top:0;bottom:0;overflow:auto}
+.nz-sidebar .brand{font-size:1.2rem;font-weight:800;color:var(--accent);margin-bottom:18px}
+.nz-sidebar .sidebar-app{margin-bottom:14px}
+.nz-sidebar .app-name{color:var(--muted);font-size:0.85rem;margin-bottom:6px}
+.nz-sidebar a{color:#cfeeea;text-decoration:none}
+.nz-sidebar a:hover{color:var(--accent)}
+.nz-main{margin-left:280px;flex:1;padding:26px}
+.nz-topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:transparent;border-bottom:1px solid rgba(255,255,255,0.03);margin-bottom:20px}
+.btn{background:rgba(15,15,15,0.3);color:#e6f2f0;padding:8px 12px;border-radius:8px;text-decoration:none;border:1px solid rgba(255,255,255,0.03)}
+.btn:hover{background:linear-gradient(90deg,var(--accent-2),var(--accent));color:#001}
+.btn-logout{background:#ff5252;color:#fff}
+.btn-toggle{font-size:1.1rem;padding:8px 10px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:#e6f2f0}
+.nz-content h1{font-size:1.5rem;margin-bottom:12px}
+.dashboard-grid{display:grid;grid-template-columns:1fr 360px;gap:18px}
+.stats-cards{display:flex;flex-wrap:wrap;gap:14px}
+.stat-card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:18px;border-radius:12px;min-width:150px;flex:1}
+.stat-card .value{font-size:1.6rem;font-weight:800;color:var(--accent)}
+.stat-card .label{color:var(--muted);margin-top:6px}
+.card.recent{background:var(--panel);padding:14px;border-radius:12px}
+.card.recent h4{margin-top:0;color:var(--accent)}
+.card.recent ul{list-style:none;padding:0;margin:0}
+.card.recent li{padding:6px 0;border-bottom:1px dashed rgba(255,255,255,0.02);color:#cfeeea}
+.muted{color:var(--muted);font-size:0.9rem}
+@media(max-width:900px){.nz-sidebar{position:relative;width:100%;height:auto}.nz-main{margin-left:0}}
+/* subtle animations */
+.stat-card{transition:transform .18s ease,box-shadow .18s ease}
+.stat-card:hover{transform:translateY(-6px);box-shadow:0 10px 30px rgba(11,19,30,0.6)}
