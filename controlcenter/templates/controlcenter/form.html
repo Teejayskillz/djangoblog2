@@ -170,3 +170,65 @@
   </div>
 </form>
 {% endblock %}
+
+{% block extra_js %}
+{{ slug_sources|json_script:"cc-slug-sources" }}
+<script>
+  // Live slug prefill, mirroring the Django admin's prepopulate_fields behaviour
+  // (the admin JS that normally does this is only loaded by the admin's own
+  // change-form template, so the Control Center had to do it itself).
+  // The server regenerates the value on save, so this is convenience only.
+  (function () {
+    var dataEl = document.getElementById('cc-slug-sources');
+    var form = document.getElementById('post');
+    if (!dataEl || !form) return;
+
+    var sources;
+    try {
+      sources = JSON.parse(dataEl.textContent);
+    } catch (e) {
+      return;
+    }
+
+    // Mirrors django.utils.text.slugify() closely enough for live feedback.
+    function slugify(value) {
+      value = (value || '').toString();
+      if (value.normalize) {
+        value = value.normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
+      }
+      return value.toLowerCase()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/[-\s]+/g, '-')
+        .replace(/^[-_]+|[-_]+$/g, '');
+    }
+
+    function inputFor(name) {
+      return form.querySelector('[name="' + name + '"]');
+    }
+
+    Object.keys(sources).forEach(function (targetName) {
+      var target = inputFor(targetName);
+      var source = inputFor(sources[targetName]);
+      if (!target || !source || target === source) return;
+      if (typeof target.value !== 'string') return;
+
+      // Stop auto-filling once the slug has been typed/pasted by hand.
+      var manuallyEdited = target.value.trim() !== '';
+
+      target.addEventListener('input', function () {
+        manuallyEdited = true;
+      });
+
+      source.addEventListener('input', function () {
+        if (manuallyEdited) return;
+        target.value = slugify(source.value);
+      });
+
+      // Prefill when a re-displayed form has a source value but an empty slug.
+      if (!manuallyEdited && !target.value.trim() && source.value.trim()) {
+        target.value = slugify(source.value);
+      }
+    });
+  })();
+</script>
+{% endblock %}

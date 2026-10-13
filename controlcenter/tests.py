@@ -4,7 +4,12 @@ from django.contrib.auth import get_user_model
 from django.urls import resolve, reverse
 from django.utils import timezone
 from django.template.context import BaseContext
+from ads.models import Ad
+from core.models import Category, Page, Post
 from controlcenter.models import PageVisit
+from controlcenter.slug_utils import build_unique_slug, get_slug_sources
+from sports.models import SportsMatch
+from subscriptions.models import SubscriptionPlan
 
 # Compatibility patch for Python 3.14 test client template context copying
 def _basecontext_copy(self):
@@ -350,3 +355,224 @@ class NoStaffLinkPointsAtRetiredAdminTests(TestCase):
         )
         self.assertIn(expected, content)
         self.assertNotIn('/admin/subscriptions/paymenttransaction/', content)
+
+
+class SlugAutoGenerationInControlCenterTests(TestCase):
+    """
+    A blank slug box in the Control Center must auto-fill from the source field
+    (title/name), exactly like prepopulated_fields does in the Django admin.
+    """
+
+    def setUp(self):
+        self.client = Client()
+        self.staff = User.objects.create_superuser('slugstaff', 'slugstaff@example.com', 'pass')
+        self.client.force_login(self.staff)
+
+    @staticmethod
+    def _inline_management(prefix, total=0):
+        """Management form data a browser would send for an inline formset."""
+        return {
+            f'{prefix}-TOTAL_FORMS': str(total),
+            f'{prefix}-INITIAL_FORMS': '0',
+            f'{prefix}-MIN_NUM_FORMS': '0',
+            f'{prefix}-MAX_NUM_FORMS': '1000',
+        }
+
+    # ------------------------------------------------------------------ #
+    # Generic coverage: every slug field in every registered model
+    # ------------------------------------------------------------------ #
+    def test_every_registered_slug_model_has_an_auto_slug_source(self):
+        from django.contrib import admin as django_admin
+        from django.db import models as django_models
+
+        checked = 0
+        for model, modeladmin in django_admin.site._registry.items():
+            for field in model._meta.fields:
+                if not isinstance(field, django_models.SlugField):
+                    continue
+                checked += 1
+                with self.subTest(model=model._meta.label, field=field.name):
+                    self.assertIn(
+                        field.name,
+                        get_slug_sources(model, modeladmin),
+                        f'{model._meta.label}.{field.name} has no auto-slug source field',
+                    )
+        # Post, Category, Page, Tag, Ad, SubscriptionPlan, SportsMatch
+        self.assertGreaterEqual(checked, 7)
+
+    def test_known_models_map_to_the_expected_source_fields(self):
+        from django.contrib import admin as django_admin
+
+        expected = {
+            'core.Post': 'title',
+            'core.Category': 'name',
+            'core.Page': 'title',
+            'sports.SportsMatch': 'title',
+            'subscriptions.SubscriptionPlan': 'name',
+            'ads.Ad': 'name',
+        }
+        for label, source in expected.items():
+            model = next(m for m in django_admin.site._registry if m._meta.label == label)
+            modeladmin = django_admin.site._registry[model]
+            with self.subTest(model=label):
+                self.assertEqual(get_slug_sources(model, modeladmin), {'slug': source})
+
+    # ------------------------------------------------------------------ #
+    # End to end: create through the Control Center with a blank slug
+    # ------------------------------------------------------------------ #
+    def test_category_slug_auto_generates_from_name(self):
+        resp = self.client.post(
+            reverse('controlcenter:model_add', args=['core', 'category']),
+            {'name': 'Action Movies', 'slug': ''},
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(Category.objects.get(name='Action Movies').slug, 'action-movies')
+
+    def test_page_slug_auto_generates_from_title(self):
+        resp = self.client.post(
+            reverse('controlcenter:model_add', args=['core', 'page']),
+            {'title': 'About Us 2026', 'slug': '', 'content': '<p>Hello</p>'},
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(Page.objects.get(title='About Us 2026').slug, 'about-us-2026')
+
+    def test_post_slug_auto_generates_from_title(self):
+        author = User.objects.create_user('writer', 'writer@example.com', 'pass')
+        category = Category.objects.create(name='Series', slug='series')
+        payload = {
+            'title': 'Henry Danger S1 EP20',
+            'slug': '',
+            'content': '<p>episode</p>',
+            'author': author.pk,
+            'category': category.pk,
+            'tags': 'comedy, nick',
+        }
+        payload.update(self._inline_management('downloadquality_set'))
+        payload.update(self._inline_management('subtitle_set'))
+
+        resp = self.client.post(reverse('controlcenter:model_add', args=['core', 'post']), payload)
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(Post.objects.get(title='Henry Danger S1 EP20').slug, 'henry-danger-s1-ep20')
+
+    def test_sports_match_slug_auto_generates_from_title(self):
+        resp = self.client.post(
+            reverse('controlcenter:model_add', args=['sports', 'sportsmatch']),
+            {
+                'title': 'Chelsea vs Arsenal',
+                'slug': '',
+                'sport': 'Football',
+                'match_date': '2026-08-20',
+            },
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(SportsMatch.objects.get().slug, 'chelsea-vs-arsenal')
+
+    def test_subscription_plan_slug_auto_generates_from_name(self):
+        resp = self.client.post(
+            reverse('controlcenter:model_add', args=['subscriptions', 'subscriptionplan']),
+            {
+                'name': 'VIP Monthly',
+                'slug': '',
+                'price': '1000.00',
+                'currency': 'NGN',
+                'duration_days': '30',
+                'display_order': '0',
+            },
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(SubscriptionPlan.objects.get().slug, 'vip-monthly')
+
+    def test_ad_slug_is_filled_for_blank_optional_slug(self):
+        resp = self.client.post(
+            reverse('controlcenter:model_add', args=['ads', 'ad']),
+            {'name': 'Homepage Banner', 'slug': '', 'ad_content': '<div>ad</div>'},
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(Ad.objects.get().slug, 'homepage-banner')
+
+    # ------------------------------------------------------------------ #
+    # Edge cases
+    # ------------------------------------------------------------------ #
+    def test_duplicate_source_values_get_unique_slugs(self):
+        Category.objects.create(name='Series One', slug='series-one')
+
+        # Different name, identical slug once slugified.
+        resp = self.client.post(
+            reverse('controlcenter:model_add', args=['core', 'category']),
+            {'name': 'Series  One', 'slug': ''},
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(Category.objects.get(name='Series  One').slug, 'series-one-2')
+
+    def test_manually_entered_slug_is_never_overwritten(self):
+        resp = self.client.post(
+            reverse('controlcenter:model_add', args=['core', 'category']),
+            {'name': 'Action Movies', 'slug': 'my-own-slug'},
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(Category.objects.get(name='Action Movies').slug, 'my-own-slug')
+
+    def test_edit_with_blank_slug_regenerates_and_excludes_itself(self):
+        page = Page.objects.create(title='Old Title', slug='old-title', content='x')
+
+        resp = self.client.post(
+            reverse('controlcenter:model_change', args=['core', 'page', page.pk]),
+            {'title': 'New Title', 'slug': '', 'content': 'x'},
+        )
+        self.assertEqual(resp.status_code, 302)
+        page.refresh_from_db()
+        self.assertEqual(page.slug, 'new-title')
+
+    def test_edit_keeping_same_title_keeps_same_slug(self):
+        page = Page.objects.create(title='About Us', slug='about-us', content='x')
+
+        resp = self.client.post(
+            reverse('controlcenter:model_change', args=['core', 'page', page.pk]),
+            {'title': 'About Us', 'slug': '', 'content': 'x'},
+        )
+        self.assertEqual(resp.status_code, 302)
+        page.refresh_from_db()
+        self.assertEqual(page.slug, 'about-us')
+
+    def test_form_page_renders_the_slug_prefill_payload_and_script(self):
+        resp = self.client.get(reverse('controlcenter:model_add', args=['core', 'post']))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn('id="cc-slug-sources"', html)
+        self.assertIn('"slug": "title"', html)
+        self.assertIn('slugify', html)
+
+    def test_form_page_for_model_without_slug_still_renders(self):
+        resp = self.client.get(reverse('controlcenter:model_add', args=['core', 'comment']))
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn(
+            '<script id="cc-slug-sources" type="application/json">{}</script>',
+            resp.content.decode(),
+        )
+
+    def test_form_page_for_edit_also_renders_the_slug_payload(self):
+        # NOTE: Post.author has default=2, so the author must be set explicitly
+        # or the row fails the test database's foreign-key check on teardown.
+        post = Post.objects.create(
+            title='Something', slug='something', content='x', author=self.staff
+        )
+        resp = self.client.get(
+            reverse('controlcenter:model_change', args=['core', 'post', post.pk])
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('"slug": "title"', resp.content.decode())
+
+    def test_generated_slug_respects_field_max_length(self):
+        # Category.slug is max_length=100
+        self.assertEqual(len(build_unique_slug(Category, 'slug', 'x' * 300)), 100)
+
+    def test_slugify_strips_accents_and_punctuation(self):
+        self.assertEqual(
+            build_unique_slug(Category, 'slug', "Café & Crème: L'Été!"),
+            'cafe-creme-lete',
+        )
+
+    def test_non_latin_title_still_produces_a_usable_slug(self):
+        slug = build_unique_slug(Category, 'slug', 'नमस्ते दुनिया')
+        self.assertTrue(slug)
+        self.assertNotIn(' ', slug)

@@ -15,6 +15,7 @@ from django.db.models import Count, Q
 import datetime
 
 from .models import PageVisit
+from .slug_utils import apply_slug_defaults, get_slug_sources
 
 
 class AdminRetiredRedirectView(RedirectView):
@@ -464,6 +465,7 @@ class ModelCreateView(StaffRequiredMixin, View):
             'action': 'Add New',
             'inline_formsets': inline_formsets,
             'object': None,
+            'slug_sources': get_slug_sources(model, modeladmin=modeladmin, request=request),
             'active_menu': f"{app_label}_{model_name}",
         }
         context.update(get_app_list_context(request))
@@ -486,7 +488,11 @@ class ModelCreateView(StaffRequiredMixin, View):
         else:
             form_class = modelform_factory(model, fields='__all__')
 
-        form = form_class(request.POST, request.FILES)
+        # Fill slug fields left blank (the Django admin does this with
+        # prepopulated_fields + prepopulate.js, which the Control Center's own
+        # templates never loaded).
+        data = apply_slug_defaults(model, request.POST, modeladmin=modeladmin, request=request)
+        form = form_class(data, request.FILES)
         inline_formsets = []
         inline_instances = modeladmin.get_inline_instances(request) if modeladmin else []
         for inline in inline_instances:
@@ -584,6 +590,7 @@ class ModelUpdateView(StaffRequiredMixin, View):
             'object': obj,
             'action': 'Edit',
             'inline_formsets': inline_formsets,
+            'slug_sources': get_slug_sources(model, modeladmin=modeladmin, request=request, obj=obj),
             'active_menu': f"{app_label}_{model_name}",
         }
         context.update(get_app_list_context(request))
@@ -607,7 +614,12 @@ class ModelUpdateView(StaffRequiredMixin, View):
         else:
             form_class = modelform_factory(model, fields='__all__')
 
-        form = form_class(request.POST, request.FILES, instance=obj)
+        # Keep slug auto-generation working on edits too (blank slug -> rebuild
+        # from the source field, excluding this row from the uniqueness check).
+        data = apply_slug_defaults(
+            model, request.POST, modeladmin=modeladmin, request=request, instance=obj
+        )
+        form = form_class(data, request.FILES, instance=obj)
         inline_formsets = []
         inline_instances = modeladmin.get_inline_instances(request, obj) if modeladmin else []
         for inline in inline_instances:
