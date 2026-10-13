@@ -131,6 +131,19 @@ class ModelListView(StaffRequiredMixin, View):
             except Exception:
                 pass
 
+        # Ensure deterministic ordering to avoid paginator warnings
+        try:
+            # Django QuerySet has an .ordered attribute on newer versions
+            ordered = getattr(queryset, 'ordered', None)
+            if not ordered:
+                # fallback: apply PK ordering
+                queryset = queryset.order_by(model._meta.pk.name)
+        except Exception:
+            try:
+                queryset = queryset.order_by(model._meta.pk.name)
+            except Exception:
+                pass
+
         paginator = Paginator(queryset, 20)
         page = request.GET.get('page')
         page_obj = paginator.get_page(page)
@@ -249,7 +262,8 @@ class ModelCreateView(StaffRequiredMixin, View):
             'readonly_fields': readonly_fields,
             'object': None,
         }
-        context.update(self.get_app_list_context(request))
+        # use module-level helper to build app list context
+        context.update(get_app_list_context(request))
         return render(request, 'controlcenter/form.html', context)
 
     def post(self, request, app_label, model_name):

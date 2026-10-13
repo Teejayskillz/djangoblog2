@@ -31,10 +31,18 @@
       <header class="cc-topbar">
         <div class="cc-title">{% block title %}Control Center{% endblock %}</div>
         <div class="cc-actions">
-          <a class="btn" href="/admin/">Django Admin</a>
-          <a class="btn" href="/admin/logout/">Logout</a>
+          <a class="btn secondary" href="/admin/">Django Admin</a>
+          <a class="btn ghost" href="/admin/logout/">Logout</a>
         </div>
       </header>
+
+      {% if messages %}
+      <div class="messages">
+        {% for message in messages %}
+          <div class="card" role="alert">{{ message }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
 
       <section class="cc-content">
         {% block content %}{% endblock %}

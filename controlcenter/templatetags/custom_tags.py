@@ -13,6 +13,17 @@ def attr(obj, name):
         except Exception:
             return ''
 
+@register.filter
+def getitem(obj, key):
+    """Return obj[key] for mapping-like objects (BoundField lookup, dicts)"""
+    try:
+        return obj[key]
+    except Exception:
+        try:
+            return getattr(obj, key)
+        except Exception:
+            return ''
+
 @register.simple_tag
 def admin_display(modeladmin, method_name, obj):
     """Call a ModelAdmin method (like get_thumbnail_preview) passing the object and return safe string."""
