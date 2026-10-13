@@ -44,4 +44,29 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     notice.appendChild(dismissBtn);
   });
+
+  // Dynamic Inlines ("Add another [Download Quality/Subtitle]")
+  var addInlineButtons = document.querySelectorAll('.add-inline-row-btn');
+  addInlineButtons.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var prefix = this.getAttribute('data-prefix');
+      var group = document.getElementById(prefix + '-group');
+      if (!group) return;
+
+      var totalFormsInput = group.querySelector('input[name="' + prefix + '-TOTAL_FORMS"]');
+      if (!totalFormsInput) return;
+
+      var currentCount = parseInt(totalFormsInput.value, 10);
+      var tbody = group.querySelector('.inline-tbody');
+      var templateContainer = group.querySelector('.empty-form-template');
+
+      if (tbody && templateContainer) {
+        var templateHtml = templateContainer.querySelector('tr').outerHTML;
+        // Replace __prefix__ with currentCount index
+        var newRowHtml = templateHtml.replace(/__prefix__/g, currentCount);
+        tbody.insertAdjacentHTML('beforeend', newRowHtml);
+        totalFormsInput.value = currentCount + 1;
+      }
+    });
+  });
 });

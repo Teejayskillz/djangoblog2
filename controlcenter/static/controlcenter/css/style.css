@@ -560,6 +560,38 @@ textarea {
   }
 }
 
+/* Inline Formsets (Download Qualities & Subtitles) */
+.inline-group-wrapper {
+  margin-top: 25px;
+}
+.inline-group {
+  margin-bottom: 24px;
+}
+.inline-table {
+  margin: 0;
+  border: none;
+}
+.inline-table th {
+  background: #f6f7f7;
+  font-weight: 600;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+.inline-table td {
+  padding: 8px 10px;
+  vertical-align: middle;
+}
+.inline-table select,
+.inline-table input[type="text"],
+.inline-table input[type="url"] {
+  width: 100%;
+  max-width: 100%;
+}
+.inline-table input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
+}
+
 /* Pagination */
 .tablenav-pages {
   display: flex;

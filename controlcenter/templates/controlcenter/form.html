@@ -51,25 +51,90 @@
           {{ hidden }}
         {% endfor %}
 
-        <!-- Inline Formsets (if any related objects) -->
+        <!-- Inline Formsets (Tabular inlines with column headers and Add Another support) -->
         {% if inline_formsets %}
-        <div style="margin-top: 30px; border-top: 2px solid #f0f0f1; padding-top: 15px;">
-          <h3>Related Items</h3>
-          {% for fs in inline_formsets %}
-            <div style="margin-bottom: 20px; background: #fafafa; padding: 12px; border: 1px solid #dcdcde; border-radius: 3px;">
-              {{ fs.management_form }}
-              {% for f in fs.forms %}
-                <div style="padding: 10px 0; border-bottom: 1px dashed #dcdcde;">
-                  {% for field in f.visible_fields %}
-                    <div style="margin-bottom: 8px;">
-                      <label style="font-weight: 600; font-size: 12px;">{{ field.label }}</label>
-                      {{ field.errors }}
-                      <div>{{ field }}</div>
-                    </div>
-                  {% endfor %}
-                </div>
-              {% endfor %}
+        <div class="inline-group-wrapper" style="margin-top: 30px;">
+          {% for inline in inline_formsets %}
+          <div class="postbox inline-group" id="{{ inline.prefix }}-group" data-prefix="{{ inline.prefix }}">
+            <div class="postbox-header">
+              <h2>{{ inline.title }}</h2>
             </div>
+            <div class="inside" style="padding: 0; overflow-x: auto;">
+              {{ inline.formset.management_form }}
+              <table class="wp-list-table widefat striped inline-table">
+                <thead>
+                  <tr>
+                    {% for form in inline.formset.forms|slice:":1" %}
+                      {% for field in form.visible_fields %}
+                        <th scope="col">{{ field.label }}</th>
+                      {% endfor %}
+                    {% endfor %}
+                    {% if inline.formset.can_delete %}
+                      <th scope="col" style="width: 70px;">Delete?</th>
+                    {% endif %}
+                  </tr>
+                </thead>
+                <tbody class="inline-tbody">
+                  {% for form in inline.formset.forms %}
+                  <tr class="inline-row">
+                    {% for hidden in form.hidden_fields %}
+                      {{ hidden }}
+                    {% endfor %}
+                    {% for field in form.visible_fields %}
+                      {% if field.name == 'DELETE' %}
+                        <!-- handled in delete column -->
+                      {% else %}
+                        <td>
+                          {{ field.errors }}
+                          {{ field }}
+                          {% if field.help_text %}
+                            <p class="description">{{ field.help_text }}</p>
+                          {% endif %}
+                        </td>
+                      {% endif %}
+                    {% endfor %}
+                    {% if inline.formset.can_delete %}
+                      <td style="text-align: center;">
+                        {{ form.DELETE }}
+                      </td>
+                    {% endif %}
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+
+              <!-- Empty form template for dynamic adding -->
+              <div class="empty-form-template" style="display:none;">
+                <table>
+                  <tr class="inline-row">
+                    {% for hidden in inline.formset.empty_form.hidden_fields %}
+                      {{ hidden }}
+                    {% endfor %}
+                    {% for field in inline.formset.empty_form.visible_fields %}
+                      {% if field.name == 'DELETE' %}
+                        <!-- delete column -->
+                      {% else %}
+                        <td>
+                          {{ field }}
+                        </td>
+                      {% endif %}
+                    {% endfor %}
+                    {% if inline.formset.can_delete %}
+                      <td style="text-align: center;">
+                        {{ inline.formset.empty_form.DELETE }}
+                      </td>
+                    {% endif %}
+                  </tr>
+                </table>
+              </div>
+
+              <div style="padding: 10px 14px; background: #fbfbfc; border-top: 1px solid #dcdcde;">
+                <button type="button" class="button button-secondary add-inline-row-btn" data-prefix="{{ inline.prefix }}">
+                  + Add another {{ inline.verbose_name }}
+                </button>
+              </div>
+            </div>
+          </div>
           {% endfor %}
         </div>
         {% endif %}

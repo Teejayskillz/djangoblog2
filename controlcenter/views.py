@@ -410,7 +410,13 @@ class ModelCreateView(StaffRequiredMixin, View):
                 try:
                     FormSet = inline.get_formset(request)
                     prefix = f"{inline.opts.model._meta.model_name}_set"
-                    inline_formsets.append(FormSet(prefix=prefix))
+                    fs = FormSet(prefix=prefix)
+                    inline_formsets.append({
+                        'title': inline.verbose_name_plural.title() if hasattr(inline, 'verbose_name_plural') else inline.opts.model._meta.verbose_name_plural.title(),
+                        'verbose_name': inline.verbose_name.title() if hasattr(inline, 'verbose_name') else inline.opts.model._meta.verbose_name.title(),
+                        'formset': fs,
+                        'prefix': prefix,
+                    })
                 except Exception:
                     pass
 
@@ -478,12 +484,20 @@ class ModelCreateView(StaffRequiredMixin, View):
             return redirect(reverse('controlcenter:model_list', args=[app_label, model_name]))
 
         opts = model._meta
+        rendered_inlines = []
+        for inline, fs in inline_formsets:
+            rendered_inlines.append({
+                'title': inline.verbose_name_plural.title() if hasattr(inline, 'verbose_name_plural') else inline.opts.model._meta.verbose_name_plural.title(),
+                'verbose_name': inline.verbose_name.title() if hasattr(inline, 'verbose_name') else inline.opts.model._meta.verbose_name.title(),
+                'formset': fs,
+                'prefix': fs.prefix,
+            })
         context = {
             'form': form,
             'model': model,
             'opts': opts,
             'action': 'Add New',
-            'inline_formsets': [fs for _, fs in inline_formsets],
+            'inline_formsets': rendered_inlines,
             'active_menu': f"{app_label}_{model_name}",
         }
         context.update(get_app_list_context(request))
@@ -516,7 +530,13 @@ class ModelUpdateView(StaffRequiredMixin, View):
                 try:
                     FormSet = inline.get_formset(request, obj)
                     prefix = f"{inline.opts.model._meta.model_name}_set"
-                    inline_formsets.append(FormSet(instance=obj, prefix=prefix))
+                    fs = FormSet(instance=obj, prefix=prefix)
+                    inline_formsets.append({
+                        'title': inline.verbose_name_plural.title() if hasattr(inline, 'verbose_name_plural') else inline.opts.model._meta.verbose_name_plural.title(),
+                        'verbose_name': inline.verbose_name.title() if hasattr(inline, 'verbose_name') else inline.opts.model._meta.verbose_name.title(),
+                        'formset': fs,
+                        'prefix': prefix,
+                    })
                 except Exception:
                     pass
 
@@ -583,13 +603,21 @@ class ModelUpdateView(StaffRequiredMixin, View):
             return redirect(reverse('controlcenter:model_list', args=[app_label, model_name]))
 
         opts = model._meta
+        rendered_inlines = []
+        for inline, fs in inline_formsets:
+            rendered_inlines.append({
+                'title': inline.verbose_name_plural.title() if hasattr(inline, 'verbose_name_plural') else inline.opts.model._meta.verbose_name_plural.title(),
+                'verbose_name': inline.verbose_name.title() if hasattr(inline, 'verbose_name') else inline.opts.model._meta.verbose_name.title(),
+                'formset': fs,
+                'prefix': fs.prefix,
+            })
         context = {
             'form': form,
             'model': model,
             'opts': opts,
             'object': obj,
             'action': 'Edit',
-            'inline_formsets': [fs for _, fs in inline_formsets],
+            'inline_formsets': rendered_inlines,
             'active_menu': f"{app_label}_{model_name}",
         }
         context.update(get_app_list_context(request))
