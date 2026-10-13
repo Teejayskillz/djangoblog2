@@ -1,55 +1,84 @@
 {% load static %}
 <!doctype html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Control Center - NZDWorld</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Dashboard{% endblock %} &lsaquo; NZDWorld Control Center</title>
   <link rel="stylesheet" href="{% static 'controlcenter/css/style.css' %}">
+  {% block extra_head %}{% endblock %}
 </head>
-<body>
-  <div class="cc-wrapper">
-    <aside class="cc-sidebar">
-      <div class="cc-brand">NZDWorld Control Center</div>
-      <nav>
-        <ul>
-          <li><a href="{% url 'controlcenter:dashboard' %}">Dashboard</a></li>
-          {% for app in app_list %}
-          <li class="app-group">{{ app.name }}
-            <ul>
-              {% for model in app.models %}
-              <li><a href="{% url 'controlcenter:model_list' app_label=model.app_label model_name=model.model_name %}">{{ model.name }}</a></li>
-              {% endfor %}
-            </ul>
-          </li>
-          {% endfor %}
-        </ul>
-      </nav>
-    </aside>
+<body class="wp-admin wp-core-ui">
 
-    <main class="cc-main">
-      <header class="cc-topbar">
-        <div class="cc-title">{% block title %}Control Center{% endblock %}</div>
-        <div class="cc-actions">
-          <a class="btn secondary" href="/admin/">Django Admin</a>
-          <a class="btn ghost" href="/admin/logout/">Logout</a>
-        </div>
-      </header>
-
-      {% if messages %}
-      <div class="messages">
-        {% for message in messages %}
-          <div class="card" role="alert">{{ message }}</div>
-        {% endfor %}
+  <!-- Top Admin Bar -->
+  <header id="wpadminbar">
+    <div class="ab-brand">
+      <button type="button" class="menu-toggle-btn" id="wp-menu-toggle" aria-label="Toggle navigation">☰</button>
+      <a href="{% url 'controlcenter:dashboard' %}">
+        <strong>NZDWorld</strong> Control Center
+      </a>
+      <a href="/" target="_blank" class="site-pill">Visit Site ↗</a>
+    </div>
+    <div class="ab-actions">
+      <a href="{% url 'controlcenter:analytics' %}">📊 Site Analytics</a>
+      <a href="/admin/" title="Standard Django Model Admin">Django Admin</a>
+      <div class="ab-user">
+        <span>Howdy, <strong>{{ request.user.username }}</strong></span>
+        <a href="/admin/logout/" style="margin-left: 6px; color:#d63638;">Log Out</a>
       </div>
-      {% endif %}
+    </div>
+  </header>
 
-      <section class="cc-content">
+  <div id="wpwrap">
+    <!-- Left Navigation Sidebar -->
+    <div id="adminmenuback"></div>
+    <div id="adminmenuwrap">
+      <ul id="adminmenu">
+        <li class="{% if active_menu == 'dashboard' %}current{% endif %}">
+          <a href="{% url 'controlcenter:dashboard' %}" class="{% if active_menu == 'dashboard' %}active{% endif %}">
+            <span>🏠 Dashboard</span>
+          </a>
+        </li>
+        <li class="{% if active_menu == 'analytics' %}current{% endif %}">
+          <a href="{% url 'controlcenter:analytics' %}" class="{% if active_menu == 'analytics' %}active{% endif %}">
+            <span>📈 Site Analytics</span>
+          </a>
+        </li>
+
+        {% for app in app_list %}
+        <li class="menu-section-header">{{ app.name }}</li>
+          {% for model in app.models %}
+          {% with menu_id=model.app_label|add:'_'|add:model.model_name %}
+          <li class="{% if active_menu == menu_id %}current{% endif %}">
+            <a href="{% url 'controlcenter:model_list' app_label=model.app_label model_name=model.model_name %}" class="{% if active_menu == menu_id %}active{% endif %}">
+              <span>{{ model.name }}</span>
+            </a>
+          </li>
+          {% endwith %}
+          {% endfor %}
+        {% endfor %}
+      </ul>
+    </div>
+
+    <!-- Main Content -->
+    <div id="wpcontent">
+      <div id="wpbody-content">
+        {% if messages %}
+        <div class="messages-wrap">
+          {% for message in messages %}
+            <div class="notice notice-{% if message.tags == 'error' %}error{% elif message.tags == 'warning' %}warning{% else %}success{% endif %} is-dismissible">
+              <p>{{ message }}</p>
+            </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
         {% block content %}{% endblock %}
-      </section>
-
-    </main>
+      </div>
+    </div>
   </div>
+
   <script src="{% static 'controlcenter/js/main.js' %}"></script>
+  {% block extra_js %}{% endblock %}
 </body>
 </html>

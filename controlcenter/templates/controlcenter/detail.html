@@ -1,24 +1,47 @@
 {% extends 'controlcenter/base.html' %}
-{% load custom_tags %}
-{% block title %}{{ opts.verbose_name }} Detail{% endblock %}
-{% block content %}
-<h2>{{ opts.verbose_name|capfirst }}: {{ object }}</h2>
-<div class="detail-grid">
-  <div class="card">
-    <h4>Fields</h4>
-    <ul>
-      {% for f in opts.fields %}
-      <li><strong>{{ f.name }}:</strong> {{ object|attr:f.name }}</li>
-      {% endfor %}
+{% block title %}{{ opts.verbose_name|capfirst }} #{{ object.pk }}{% endblock %}
 
-      {% if modeladmin and modeladmin.readonly_fields %}
-        {% for rf in modeladmin.readonly_fields %}
-          <li><strong>{{ rf }}:</strong> {% admin_display modeladmin rf object %}</li>
-        {% endfor %}
-      {% endif %}
-    </ul>
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+  <div>
+    <h1 class="wp-heading-inline">{{ opts.verbose_name|capfirst }}: {{ object }}</h1>
+    <a href="{% url 'controlcenter:model_change' app_label=opts.app_label model_name=opts.model_name pk=object.pk %}" class="page-title-action">Edit</a>
+  </div>
+  <div>
+    <a href="{% url 'controlcenter:model_list' app_label=opts.app_label model_name=opts.model_name %}" class="button button-secondary">&larr; Back to {{ opts.verbose_name_plural|title }}</a>
   </div>
 </div>
-<a class="btn" href="{% url 'controlcenter:model_change' app_label=opts.app_label model_name=opts.model_name pk=object.pk %}">Edit</a>
-<a class="btn" href="{% url 'controlcenter:model_delete' app_label=opts.app_label model_name=opts.model_name pk=object.pk %}">Delete</a>
+<hr class="wp-header-end">
+
+<div class="postbox">
+  <div class="postbox-header">
+    <h2>Record Overview</h2>
+    <span class="text-muted">ID: {{ object.pk }}</span>
+  </div>
+  <div class="inside" style="padding: 0;">
+    <table class="wp-list-table" style="margin: 0; border: none; box-shadow: none;">
+      <tbody>
+        {% for field in fields_data %}
+        <tr>
+          <th style="width: 220px; font-weight: 600; color: #2c3338; background: #fbfbfc; border-right: 1px solid #f0f0f1;">
+            {{ field.label }}
+          </th>
+          <td>
+            {% if field.value|stringformat:"s"|slice:":7" == "/media/" or field.value|stringformat:"s"|slice:":8" == "http://" or field.value|stringformat:"s"|slice:":9" == "https://" %}
+              <a href="{{ field.value }}" target="_blank">{{ field.value }}</a>
+            {% else %}
+              {{ field.value|default:"—"|linebreaksbr }}
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div style="margin-top: 15px; display: flex; gap: 10px;">
+  <a href="{% url 'controlcenter:model_change' app_label=opts.app_label model_name=opts.model_name pk=object.pk %}" class="button button-primary">Edit {{ opts.verbose_name|title }}</a>
+  <a href="{% url 'controlcenter:model_delete' app_label=opts.app_label model_name=opts.model_name pk=object.pk %}" class="button button-secondary text-danger">Delete</a>
+</div>
 {% endblock %}

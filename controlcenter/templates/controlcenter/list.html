@@ -1,90 +1,159 @@
 {% extends 'controlcenter/base.html' %}
 {% load custom_tags %}
 {% block title %}{{ opts.verbose_name_plural|capfirst }}{% endblock %}
+
 {% block content %}
-<h2>{{ opts.verbose_name_plural|capfirst }}</h2>
-<div class="list-top">
-  <form method="get" class="search-form">
-  <input type="search" name="q" placeholder="Search..." value="{{ q|default:'' }}">
-  <button class="btn">Search</button>
-  </form>
-
-  {% if filters %}
-  <div class="filters">
-  <strong>Filters:</strong>
-  {% for f in filters %}
-    <div class="filter-group">
-      <span class="filter-name">{{ f.field|capfirst }}:</span>
-      {% for v in f.values %}
-        <a class="btn" href="?{{ f.field }}={{ v }}">{{ v }}</a>
-      {% endfor %}
-    </div>
-  {% endfor %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+  <div>
+    <h1 class="wp-heading-inline">{{ opts.verbose_name_plural|capfirst }}</h1>
+    <a href="{% url 'controlcenter:model_add' app_label=app_label model_name=model_name %}" class="page-title-action">Add New</a>
   </div>
-  {% endif %}
+  <div>
+    <!-- Search Box -->
+    <form method="get" style="display: flex; gap: 4px;">
+      <input type="search" name="q" placeholder="Search {{ opts.verbose_name_plural }}..." value="{{ q|default:'' }}">
+      <button class="button button-secondary" type="submit">Search</button>
+      {% if q %}
+      <a href="{% url 'controlcenter:model_list' app_label=app_label model_name=model_name %}" class="button button-secondary">Reset</a>
+      {% endif %}
+    </form>
+  </div>
 </div>
+<hr class="wp-header-end">
 
-<form method="post">
-  {% csrf_token %}
-  <div class="bulk-actions">
-  <select name="action">
-    <option value="">Bulk actions</option>
-    {% for key, desc in actions %}
-    <option value="{{ key }}">{{ desc }}</option>
+<!-- Quick filter links if available -->
+{% if filter_specs %}
+<div class="tablenav" style="margin-bottom: 12px; background: #ffffff; padding: 8px 12px; border: 1px solid var(--wp-border-light); border-radius: 3px;">
+  <form method="get" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+    {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+    <span class="text-muted" style="font-weight: 600;">Filter by:</span>
+    {% for f in filter_specs %}
+    <div style="display: flex; align-items: center; gap: 4px;">
+      <label style="font-size: 12px;">{{ f.title }}:</label>
+      <select name="{{ f.field }}" onchange="this.form.submit()" style="min-height: 28px; font-size: 12px;">
+        <option value="">All</option>
+        {% for val in f.values %}
+        <option value="{{ val }}" {% if f.current == val|stringformat:"s" %}selected{% endif %}>{{ val }}</option>
+        {% endfor %}
+      </select>
+    </div>
     {% endfor %}
-  </select>
-  <button class="btn" type="submit">Apply</button>
+    <button type="submit" class="button button-secondary" style="font-size: 12px; min-height: 28px; line-height: 2;">Filter</button>
+  </form>
+</div>
+{% endif %}
+
+<!-- Main Table Form for Bulk Actions -->
+<form method="post" id="posts-filter">
+  {% csrf_token %}
+  
+  <div class="tablenav top">
+    <div class="alignleft actions bulkactions">
+      <select name="action" id="bulk-action-selector-top">
+        <option value="">Bulk Actions</option>
+        {% for key, desc in actions %}
+        <option value="{{ key }}">{{ desc }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="button button-secondary action">Apply</button>
+    </div>
+
+    <div class="tablenav-pages">
+      <span class="displaying-num">{{ page_obj.paginator.count }} item{{ page_obj.paginator.count|pluralize }}</span>
+      <span class="pagination-links">
+        {% if page_obj.has_previous %}
+        <a class="prev-page button" href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}">&lsaquo;</a>
+        {% endif %}
+        <span class="paging-input">
+          <span class="current-page">{{ page_obj.number }}</span> of <span class="total-pages">{{ page_obj.paginator.num_pages }}</span>
+        </span>
+        {% if page_obj.has_next %}
+        <a class="next-page button" href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}">&rsaquo;</a>
+        {% endif %}
+      </span>
+    </div>
   </div>
 
-  <table class="cc-table">
+  <table class="wp-list-table widefat striped table-view-list">
     <thead>
       <tr>
-        <th><input type="checkbox" id="select_all" onclick="document.querySelectorAll('.sel').forEach(cb => cb.checked = this.checked)"></th>
-        <th>ID</th>
+        <td id="cb" class="manage-column column-cb check-column">
+          <input id="cb-select-all-1" type="checkbox">
+        </td>
+        <th scope="col" style="width: 50px;">ID</th>
         {% for col in display_columns %}
-        <th>{{ col.label }}</th>
+        <th scope="col">{{ col.label }}</th>
         {% endfor %}
-        <th>Actions</th>
+        <th scope="col" style="width: 140px;">Actions</th>
       </tr>
     </thead>
     <tbody>
       {% for obj in page_obj.object_list %}
       <tr>
-        <td><input type="checkbox" name="selected" value="{{ obj.pk }}" class="sel"></td>
-        <td>{{ obj.pk }}</td>
+        <th scope="row" class="check-column">
+          <input type="checkbox" name="selected" value="{{ obj.pk }}">
+        </th>
+        <td class="text-muted">{{ obj.pk }}</td>
         {% for col in display_columns %}
         <td>
-          {% if col.type == 'field' and col.name in model_field_names %}
-            {{ obj|attr:col.name }}
-          {% elif col.type == 'callable' %}
-            {% admin_display modeladmin col.name obj %}
-          {% else %}
-            {{ obj|attr:col.name }}
-          {% endif %}
+          {% render_list_column col obj modeladmin %}
         </td>
         {% endfor %}
         <td>
-          <a href="{% url 'controlcenter:model_view' app_label=app_label model_name=model_name pk=obj.pk %}">View</a> |
-          <a href="{% url 'controlcenter:model_change' app_label=app_label model_name=model_name pk=obj.pk %}">Edit</a> |
-          <a href="{% url 'controlcenter:model_delete' app_label=app_label model_name=model_name pk=obj.pk %}">Delete</a>
+          <div class="row-actions">
+            <span><a href="{% url 'controlcenter:model_view' app_label=app_label model_name=model_name pk=obj.pk %}">View</a> | </span>
+            <span><a href="{% url 'controlcenter:model_change' app_label=app_label model_name=model_name pk=obj.pk %}">Edit</a> | </span>
+            <span class="trash"><a href="{% url 'controlcenter:model_delete' app_label=app_label model_name=model_name pk=obj.pk %}" class="delete">Delete</a></span>
+          </div>
         </td>
       </tr>
       {% empty %}
-      <tr><td colspan="{{ display_columns|length|add:'3' }}">No records found</td></tr>
+      <tr class="no-items">
+        <td class="colspanchange" colspan="{{ display_columns|length|add:'3' }}" style="text-align: center; padding: 24px; color: #646970;">
+          No items found in this section.
+        </td>
+      </tr>
       {% endfor %}
     </tbody>
+    <tfoot>
+      <tr>
+        <td class="manage-column column-cb check-column">
+          <input id="cb-select-all-2" type="checkbox">
+        </td>
+        <th scope="col">ID</th>
+        {% for col in display_columns %}
+        <th scope="col">{{ col.label }}</th>
+        {% endfor %}
+        <th scope="col">Actions</th>
+      </tr>
+    </tfoot>
   </table>
+
+  <div class="tablenav bottom">
+    <div class="alignleft actions bulkactions">
+      <select name="action" id="bulk-action-selector-bottom">
+        <option value="">Bulk Actions</option>
+        {% for key, desc in actions %}
+        <option value="{{ key }}">{{ desc }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="button button-secondary action">Apply</button>
+    </div>
+
+    <div class="tablenav-pages">
+      <span class="displaying-num">{{ page_obj.paginator.count }} item{{ page_obj.paginator.count|pluralize }}</span>
+      <span class="pagination-links">
+        {% if page_obj.has_previous %}
+        <a class="prev-page button" href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}">&lsaquo;</a>
+        {% endif %}
+        <span class="paging-input">
+          <span class="current-page">{{ page_obj.number }}</span> of <span class="total-pages">{{ page_obj.paginator.num_pages }}</span>
+        </span>
+        {% if page_obj.has_next %}
+        <a class="next-page button" href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}">&rsaquo;</a>
+        {% endif %}
+      </span>
+    </div>
+  </div>
 </form>
-
-<div class="cc-pagination">
-  {% if page_obj.has_previous %}
-  <a href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}" class="btn">Previous</a>
-  {% endif %}
-  <span class="muted">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
-  {% if page_obj.has_next %}
-  <a href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}" class="btn">Next</a>
-  {% endif %}
-</div>
-
-<a class="btn" href="{% url 'controlcenter:model_add' app_label=app_label model_name=model_name %}">Add New {{ opts.verbose_name }}</a>
 {% endblock %}

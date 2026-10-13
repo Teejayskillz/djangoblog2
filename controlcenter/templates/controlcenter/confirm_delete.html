@@ -1,11 +1,23 @@
 {% extends 'controlcenter/base.html' %}
 {% block title %}Delete {{ opts.verbose_name }}{% endblock %}
+
 {% block content %}
-<h2>Delete {{ opts.verbose_name }}</h2>
-<p>Are you sure you want to delete <strong>{{ object }}</strong>?</p>
-<form method="post">
-  {% csrf_token %}
-  <button class="btn" type="submit">Yes, delete</button>
-  <a class="btn" href="{% url 'controlcenter:model_list' app_label=opts.app_label model_name=opts.model_name %}">Cancel</a>
-</form>
+<h1 class="wp-heading-inline text-danger">Delete {{ opts.verbose_name|capfirst }}</h1>
+<hr class="wp-header-end">
+
+<div class="postbox" style="max-width: 600px; border-left: 4px solid #d63638;">
+  <div class="postbox-header">
+    <h2>Confirm Deletion</h2>
+  </div>
+  <div class="inside">
+    <p>Are you sure you want to permanently delete <strong>{{ object }}</strong>?</p>
+    <p class="description">This action cannot be undone and will remove this {{ opts.verbose_name }} from NZDWorld.</p>
+
+    <form method="post" style="margin-top: 20px; display: flex; gap: 12px; align-items: center;">
+      {% csrf_token %}
+      <button type="submit" class="button button-primary" style="background: #d63638; border-color: #d63638;">Confirm Delete</button>
+      <a href="{% url 'controlcenter:model_list' app_label=opts.app_label model_name=opts.model_name %}" class="button button-secondary">Cancel</a>
+    </form>
+  </div>
+</div>
 {% endblock %}

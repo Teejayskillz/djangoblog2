@@ -1,14 +1,19 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.views import View
-from django.views.generic import ListView
-from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin, UserPassesTestMixin
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.apps import apps
 from django.core.paginator import Paginator
 from django.forms import modelform_factory
 from django.contrib import admin
-from django.http import HttpResponseForbidden, HttpResponse
+from django.contrib import messages
+from django.http import HttpResponseForbidden, HttpResponse, Http404
 from django.utils.text import capfirst
+from django.utils import timezone
+from django.db.models import Count, Q
+import datetime
+
+from .models import PageVisit
 
 
 class StaffRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
@@ -24,50 +29,180 @@ def get_model_from_url(app_label, model_name):
         return None
 
 
+def get_app_list_context(request):
+    """
+    Build structured navigation for the WordPress-style admin sidebar.
+    Groups apps and models, filters models by user view permissions,
+    and sorts prominent apps (Posts, Sports, Subscriptions, Ads) first.
+    """
+    app_list = []
+    # Primary apps order
+    app_order = {'core': 1, 'sports': 2, 'subscriptions': 3, 'ads': 4, 'auth': 5, 'controlcenter': 6}
+
+    for app_config in sorted(apps.get_app_configs(), key=lambda a: app_order.get(a.label, 99)):
+        # Skip internal or third party utility apps that have no registered models or should be hidden
+        if app_config.label in ('sites', 'contenttypes', 'sessions', 'messages', 'staticfiles', 'taggit', 'django_cleanup', 'whitenoise', 'anymail'):
+            continue
+
+        models = []
+        for model in app_config.get_models():
+            # Check view or change permission
+            model_name = model._meta.model_name
+            perm_view = f"{app_config.label}.view_{model_name}"
+            perm_change = f"{app_config.label}.change_{model_name}"
+            if request.user.is_superuser or request.user.has_perm(perm_view) or request.user.has_perm(perm_change):
+                models.append({
+                    'name': model._meta.verbose_name_plural.title(),
+                    'singular_name': model._meta.verbose_name.title(),
+                    'model_name': model_name,
+                    'app_label': app_config.label,
+                })
+
+        if models:
+            app_list.append({
+                'app_label': app_config.label,
+                'name': app_config.verbose_name.title(),
+                'models': sorted(models, key=lambda m: m['name']),
+            })
+
+    return {'app_list': app_list}
+
+
 class DashboardView(StaffRequiredMixin, View):
     def get(self, request):
-        # Gather basic stats
+        # Query core models safely
         Post = apps.get_model('core', 'Post')
         Subscriber = apps.get_model('core', 'Subscriber')
-        Media = apps.get_model('core', 'Media')
         Comment = apps.get_model('core', 'Comment')
+        SportsMatch = apps.get_model('sports', 'SportsMatch')
+        UserSubscription = apps.get_model('subscriptions', 'UserSubscription')
+
+        now = timezone.now()
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        # Traffic quick numbers (today)
+        today_views = PageVisit.objects.filter(timestamp__gte=today_start).count()
+        today_visitors = PageVisit.objects.filter(timestamp__gte=today_start).values('visitor_id').distinct().count()
+
         stats = {
-            'posts': Post.objects.count(),
-            'subscribers': Subscriber.objects.count(),
-            'media': Media.objects.count(),
-            'comments': Comment.objects.count(),
+            'posts': Post.objects.count() if Post else 0,
+            'subscribers': Subscriber.objects.count() if Subscriber else 0,
+            'comments': Comment.objects.count() if Comment else 0,
+            'sports_matches': SportsMatch.objects.count() if SportsMatch else 0,
+            'active_vip': UserSubscription.objects.filter(is_active=True, end_date__gt=now).count() if UserSubscription else 0,
+            'today_views': today_views,
+            'today_visitors': today_visitors,
         }
-        recent_posts = Post.objects.order_by('-published_date')[:8]
-        context = {'stats': stats, 'recent_posts': recent_posts}
+
+        recent_posts = Post.objects.order_by('-published_date')[:6] if Post else []
+        recent_matches = SportsMatch.objects.order_by('-created_at')[:5] if SportsMatch else []
+        recent_visits = PageVisit.objects.order_by('-timestamp')[:8]
+
+        context = {
+            'stats': stats,
+            'recent_posts': recent_posts,
+            'recent_matches': recent_matches,
+            'recent_visits': recent_visits,
+            'active_menu': 'dashboard',
+        }
         context.update(get_app_list_context(request))
         return render(request, 'controlcenter/dashboard.html', context)
 
 
-def get_app_list_context(request):
-    """Build a simplified app_list similar to admin app_list for sidebar."""
-    app_list = []
-    for app_config in apps.get_app_configs():
-        models = []
-        for model in app_config.get_models():
-            models.append({
-                'name': model._meta.verbose_name.title(),
-                'model_name': model._meta.model_name,
-                'app_label': app_config.label
+class AnalyticsView(StaffRequiredMixin, View):
+    """
+    Dedicated Site Analytics view providing WordPress-style traffic reports:
+    Daily trends, unique visitors, top pages, referrers, and device breakdown.
+    """
+    def get(self, request):
+        now = timezone.now()
+        range_param = request.GET.get('range', '7d')
+
+        if range_param == 'today':
+            start_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            days_count = 1
+            range_label = 'Today'
+        elif range_param == '30d':
+            start_date = (now - datetime.timedelta(days=30)).replace(hour=0, minute=0, second=0, microsecond=0)
+            days_count = 30
+            range_label = 'Last 30 Days'
+        else: # default 7d
+            start_date = (now - datetime.timedelta(days=7)).replace(hour=0, minute=0, second=0, microsecond=0)
+            days_count = 7
+            range_label = 'Last 7 Days'
+
+        visits_qs = PageVisit.objects.filter(timestamp__gte=start_date)
+
+        total_views = visits_qs.count()
+        unique_visitors = visits_qs.values('visitor_id').distinct().count()
+
+        # Top 10 Pages
+        top_pages = (
+            visits_qs.values('path')
+            .annotate(views=Count('id'), unique_visitors=Count('visitor_id', distinct=True))
+            .order_by('-views')[:10]
+        )
+
+        # Top Referrers
+        top_referrers = (
+            visits_qs.exclude(referrer_domain__in=['', 'internal'])
+            .values('referrer_domain')
+            .annotate(hits=Count('id'))
+            .order_by('-hits')[:10]
+        )
+
+        # Device Breakdown
+        device_breakdown = (
+            visits_qs.values('device_type')
+            .annotate(count=Count('id'))
+            .order_by('-count')
+        )
+
+        # Build day-by-day series for chart
+        daily_stats = []
+        for i in range(days_count - 1, -1, -1):
+            day_target = (now - datetime.timedelta(days=i)).date()
+            day_start = timezone.make_aware(datetime.datetime.combine(day_target, datetime.time.min))
+            day_end = timezone.make_aware(datetime.datetime.combine(day_target, datetime.time.max))
+
+            day_qs = visits_qs.filter(timestamp__range=(day_start, day_end))
+            day_views = day_qs.count()
+            day_visitors = day_qs.values('visitor_id').distinct().count()
+
+            daily_stats.append({
+                'date': day_target.strftime('%b %d'),
+                'views': day_views,
+                'visitors': day_visitors,
             })
-        if models:
-            app_list.append({'name': app_config.verbose_name.title(), 'models': models})
-    return {'app_list': app_list}
+
+        # Recent 25 raw visits
+        recent_visits = visits_qs.order_by('-timestamp')[:25]
+
+        context = {
+            'range_param': range_param,
+            'range_label': range_label,
+            'total_views': total_views,
+            'unique_visitors': unique_visitors,
+            'top_pages': top_pages,
+            'top_referrers': top_referrers,
+            'device_breakdown': device_breakdown,
+            'daily_stats': daily_stats,
+            'recent_visits': recent_visits,
+            'active_menu': 'analytics',
+        }
+        context.update(get_app_list_context(request))
+        return render(request, 'controlcenter/analytics.html', context)
 
 
 class ModelListView(StaffRequiredMixin, View):
     def post(self, request, app_label, model_name):
-        # Handle bulk actions
         model = get_model_from_url(app_label, model_name)
         if not model:
             return HttpResponse('Model not found', status=404)
         perm = f"{app_label}.change_{model._meta.model_name}"
-        if not request.user.has_perm(perm):
+        if not (request.user.is_superuser or request.user.has_perm(perm)):
             return HttpResponseForbidden('Insufficient permissions')
+
         action = request.POST.get('action')
         selected = request.POST.getlist('selected')
         if action and selected:
@@ -79,22 +214,27 @@ class ModelListView(StaffRequiredMixin, View):
                     queryset = model.objects.filter(pk__in=selected)
                     try:
                         func(modeladmin, request, queryset)
-                        return redirect(request.path + ('?' + request.META.get('QUERY_STRING','') if request.META.get('QUERY_STRING') else ''))
+                        messages.success(request, f"Successfully executed '{desc}' on {queryset.count()} item(s).")
                     except Exception as e:
-                        return HttpResponse(f'Action failed: {e}', status=500)
-        return redirect(request.path)
+                        messages.error(request, f"Action failed: {e}")
+            elif action == 'delete_selected':
+                count = model.objects.filter(pk__in=selected).delete()[0]
+                messages.success(request, f"Deleted {count} item(s).")
+
+        query_string = request.META.get('QUERY_STRING', '')
+        redirect_url = request.path + (f'?{query_string}' if query_string else '')
+        return redirect(redirect_url)
 
     def get(self, request, app_label, model_name):
         model = get_model_from_url(app_label, model_name)
         if not model:
             return HttpResponse('Model not found', status=404)
 
-        # Permission: view
-        perm = f"{app_label}.view_{model._meta.model_name}"
-        if not request.user.has_perm(perm):
+        perm_view = f"{app_label}.view_{model._meta.model_name}"
+        perm_change = f"{app_label}.change_{model._meta.model_name}"
+        if not (request.user.is_superuser or request.user.has_perm(perm_view) or request.user.has_perm(perm_change)):
             return HttpResponseForbidden('Insufficient permissions')
 
-        # Use ModelAdmin.get_queryset if available to preserve custom querysets
         modeladmin = admin.site._registry.get(model)
         if modeladmin and hasattr(modeladmin, 'get_queryset'):
             try:
@@ -104,21 +244,30 @@ class ModelListView(StaffRequiredMixin, View):
         else:
             queryset = model.objects.all()
 
-        # Search: prefer ModelAdmin.search_fields
-        q = request.GET.get('q')
+        # Search
+        q = request.GET.get('q', '').strip()
         if q:
-            from django.db.models import Q
-            qs = Q()
+            search_query = Q()
             if modeladmin and getattr(modeladmin, 'search_fields', None):
                 for sf in modeladmin.search_fields:
-                    qs |= Q(**{f'{sf}__icontains': q})
+                    search_query |= Q(**{f'{sf}__icontains': q})
             else:
                 for f in model._meta.fields:
                     if getattr(f, 'get_internal_type', lambda: '')() in ['CharField', 'TextField']:
-                        qs |= Q(**{f'{f.name}__icontains': q})
-            queryset = queryset.filter(qs).distinct()
+                        search_query |= Q(**{f'{f.name}__icontains': q})
+            queryset = queryset.filter(search_query).distinct()
 
-        # ordering: honor admin ordering if provided
+        # Filtering by exact params
+        active_filters = {}
+        for key, value in request.GET.items():
+            if key not in ('q', 'o', 'page') and value:
+                try:
+                    queryset = queryset.filter(**{key: value})
+                    active_filters[key] = value
+                except Exception:
+                    pass
+
+        # Ordering
         order = request.GET.get('o')
         if order:
             try:
@@ -131,47 +280,42 @@ class ModelListView(StaffRequiredMixin, View):
             except Exception:
                 pass
 
-        # Ensure deterministic ordering to avoid paginator warnings
+        # Ensure deterministic ordering for pagination
         try:
-            # Django QuerySet has an .ordered attribute on newer versions
-            ordered = getattr(queryset, 'ordered', None)
-            if not ordered:
-                # fallback: apply PK ordering
-                queryset = queryset.order_by(model._meta.pk.name)
+            if not getattr(queryset, 'ordered', False):
+                queryset = queryset.order_by(f"-{model._meta.pk.name}")
         except Exception:
-            try:
-                queryset = queryset.order_by(model._meta.pk.name)
-            except Exception:
-                pass
+            pass
 
         paginator = Paginator(queryset, 20)
         page = request.GET.get('page')
         page_obj = paginator.get_page(page)
 
-        # get columns: build display_columns to allow callables and fields
+        # Build list_display columns
         display_columns = []
         if modeladmin and getattr(modeladmin, 'list_display', None):
             raw_list = list(modeladmin.list_display)
         else:
-            raw_list = [f.name for f in model._meta.fields if f.name not in ('id','password','content')][:6]
+            raw_list = [f.name for f in model._meta.fields if f.name not in ('id', 'password', 'content')][:6]
 
         for item in raw_list:
             col = {'label': None, 'name': None, 'type': 'field'}
             if callable(item):
-                # callable provided directly on ModelAdmin class
-                name = getattr(item, '__name__', None)
-                col.update({'label': getattr(item, 'short_description', name) or name, 'name': name, 'type': 'callable'})
+                name = getattr(item, '__name__', 'custom')
+                label = getattr(item, 'short_description', name.replace('_', ' ').title())
+                col.update({'label': label, 'name': name, 'type': 'callable'})
             elif isinstance(item, str):
-                # string could be field name or ModelAdmin method/property
                 if modeladmin and hasattr(modeladmin, item) and callable(getattr(modeladmin, item)):
-                    col.update({'label': getattr(getattr(modeladmin, item), 'short_description', item).capitalize(), 'name': item, 'type': 'callable'})
+                    attr_func = getattr(modeladmin, item)
+                    label = getattr(attr_func, 'short_description', item.replace('_', ' ').title())
+                    col.update({'label': label, 'name': item, 'type': 'callable'})
                 else:
-                    # treat as model field
-                    col.update({'label': item.replace('_', ' ').capitalize(), 'name': item, 'type': 'field'})
+                    col.update({'label': item.replace('_', ' ').title(), 'name': item, 'type': 'field'})
             else:
-                col.update({'label': str(item), 'name': str(item), 'type': 'field'})
+                col.update({'label': str(item).title(), 'name': str(item), 'type': 'field'})
             display_columns.append(col)
 
+        # Available bulk actions
         actions = []
         if modeladmin:
             try:
@@ -179,19 +323,25 @@ class ModelListView(StaffRequiredMixin, View):
                 actions = [(k, v[2]) for k, v in acts.items()]
             except Exception:
                 actions = []
+        if not actions:
+            actions = [('delete_selected', 'Delete selected items')]
 
-        # Map simple list filters (supporting field-name filters)
-        filters = []
+        # Build filter options for sidebar/dropdowns
+        filter_specs = []
         if modeladmin:
             for lf in getattr(modeladmin, 'list_filter', ()):
                 if isinstance(lf, str):
                     try:
-                        vals = list(model.objects.order_by(lf).values_list(lf, flat=True).distinct()[:100])
-                        filters.append({'field': lf, 'values': [v for v in vals if v is not None]})
+                        vals = list(model.objects.order_by(lf).values_list(lf, flat=True).distinct()[:50])
+                        filter_specs.append({
+                            'field': lf,
+                            'title': lf.replace('_', ' ').title(),
+                            'values': [v for v in vals if v is not None and v != ''],
+                            'current': request.GET.get(lf, '')
+                        })
                     except Exception:
                         continue
 
-        model_field_names = [f.name for f in model._meta.fields]
         opts = model._meta
         context = {
             'model': model,
@@ -202,9 +352,10 @@ class ModelListView(StaffRequiredMixin, View):
             'display_columns': display_columns,
             'q': q,
             'actions': actions,
-            'filters': filters,
+            'filter_specs': filter_specs,
+            'active_filters': active_filters,
             'modeladmin': modeladmin,
-            'model_field_names': model_field_names,
+            'active_menu': f"{app_label}_{model_name}",
         }
         context.update(get_app_list_context(request))
         return render(request, 'controlcenter/list.html', context)
@@ -216,11 +367,10 @@ class ModelCreateView(StaffRequiredMixin, View):
         if not model:
             return HttpResponse('Model not found', status=404)
         perm = f"{app_label}.add_{model._meta.model_name}"
-        if not request.user.has_perm(perm):
+        if not (request.user.is_superuser or request.user.has_perm(perm)):
             return HttpResponseForbidden('Insufficient permissions')
 
         modeladmin = admin.site._registry.get(model)
-        # Try reuse admin form if available
         if modeladmin:
             try:
                 form_class = modeladmin.get_form(request)
@@ -230,39 +380,28 @@ class ModelCreateView(StaffRequiredMixin, View):
             form_class = modelform_factory(model, fields='__all__')
 
         form = form_class()
+
         # Inline formsets
         inline_formsets = []
-        inline_instances = modeladmin.get_inline_instances(request) if modeladmin else []
-        for inline in inline_instances:
-            FormSet = inline.get_formset(request)
-            prefix = f"{inline.opts.model._meta.model_name}_set"
-            inline_formsets.append(FormSet(prefix=prefix))
-
-        # fieldsets and readonly fields
-        fieldsets = None
-        readonly_fields = ()
         if modeladmin:
-            try:
-                fieldsets = modeladmin.get_fieldsets(request, None)
-            except Exception:
-                fieldsets = getattr(modeladmin, 'fieldsets', None)
-            try:
-                readonly_fields = modeladmin.get_readonly_fields(request, None)
-            except Exception:
-                readonly_fields = getattr(modeladmin, 'readonly_fields', ())
+            for inline in modeladmin.get_inline_instances(request):
+                try:
+                    FormSet = inline.get_formset(request)
+                    prefix = f"{inline.opts.model._meta.model_name}_set"
+                    inline_formsets.append(FormSet(prefix=prefix))
+                except Exception:
+                    pass
 
         opts = model._meta
         context = {
             'form': form,
             'model': model,
             'opts': opts,
-            'action': 'Add',
+            'action': 'Add New',
             'inline_formsets': inline_formsets,
-            'fieldsets': fieldsets,
-            'readonly_fields': readonly_fields,
             'object': None,
+            'active_menu': f"{app_label}_{model_name}",
         }
-        # use module-level helper to build app list context
         context.update(get_app_list_context(request))
         return render(request, 'controlcenter/form.html', context)
 
@@ -271,7 +410,7 @@ class ModelCreateView(StaffRequiredMixin, View):
         if not model:
             return HttpResponse('Model not found', status=404)
         perm = f"{app_label}.add_{model._meta.model_name}"
-        if not request.user.has_perm(perm):
+        if not (request.user.is_superuser or request.user.has_perm(perm)):
             return HttpResponseForbidden('Insufficient permissions')
 
         modeladmin = admin.site._registry.get(model)
@@ -284,36 +423,47 @@ class ModelCreateView(StaffRequiredMixin, View):
             form_class = modelform_factory(model, fields='__all__')
 
         form = form_class(request.POST, request.FILES)
-        # prepare inline formsets
-        inline_instances = modeladmin.get_inline_instances(request) if modeladmin else []
         inline_formsets = []
+        inline_instances = modeladmin.get_inline_instances(request) if modeladmin else []
         for inline in inline_instances:
-            FormSet = inline.get_formset(request)
-            prefix = f"{inline.opts.model._meta.model_name}_set"
-            fs = FormSet(request.POST, request.FILES, prefix=prefix)
-            inline_formsets.append((inline, fs))
+            try:
+                FormSet = inline.get_formset(request)
+                prefix = f"{inline.opts.model._meta.model_name}_set"
+                fs = FormSet(request.POST, request.FILES, prefix=prefix)
+                inline_formsets.append((inline, fs))
+            except Exception:
+                pass
 
         if form.is_valid() and all(fs.is_valid() for _, fs in inline_formsets):
-            # Save object via ModelAdmin if available to preserve hooks
             obj = form.save(commit=False)
             if modeladmin and hasattr(modeladmin, 'save_model'):
                 modeladmin.save_model(request, obj, form, False)
             else:
                 obj.save()
-            # Save inline formsets
+            form.save_m2m()
+
             for inline, fs in inline_formsets:
                 fs.instance = obj
                 fs.save()
-            # call save_related if provided
+
             if modeladmin and hasattr(modeladmin, 'save_related'):
                 try:
                     modeladmin.save_related(request, form, [fs for _, fs in inline_formsets], False)
                 except Exception:
                     pass
+
+            messages.success(request, f"{model._meta.verbose_name.title()} was created successfully.")
             return redirect(reverse('controlcenter:model_list', args=[app_label, model_name]))
 
         opts = model._meta
-        context = {'form': form, 'model': model, 'opts': opts, 'action': 'Add', 'inline_formsets': [fs for _, fs in inline_formsets]}
+        context = {
+            'form': form,
+            'model': model,
+            'opts': opts,
+            'action': 'Add New',
+            'inline_formsets': [fs for _, fs in inline_formsets],
+            'active_menu': f"{app_label}_{model_name}",
+        }
         context.update(get_app_list_context(request))
         return render(request, 'controlcenter/form.html', context)
 
@@ -324,8 +474,9 @@ class ModelUpdateView(StaffRequiredMixin, View):
         if not model:
             return HttpResponse('Model not found', status=404)
         perm = f"{app_label}.change_{model._meta.model_name}"
-        if not request.user.has_perm(perm):
+        if not (request.user.is_superuser or request.user.has_perm(perm)):
             return HttpResponseForbidden('Insufficient permissions')
+
         obj = get_object_or_404(model, pk=pk)
         modeladmin = admin.site._registry.get(model)
         if modeladmin:
@@ -335,30 +486,28 @@ class ModelUpdateView(StaffRequiredMixin, View):
                 form_class = modelform_factory(model, fields='__all__')
         else:
             form_class = modelform_factory(model, fields='__all__')
-        form = form_class(instance=obj)
-        # prepare inline formsets
-        inline_formsets = []
-        inline_instances = modeladmin.get_inline_instances(request, obj) if modeladmin else []
-        for inline in inline_instances:
-            FormSet = inline.get_formset(request, obj)
-            prefix = f"{inline.opts.model._meta.model_name}_set"
-            inline_formsets.append(FormSet(instance=obj, prefix=prefix))
 
-        # fieldsets and readonly fields
-        fieldsets = None
-        readonly_fields = ()
+        form = form_class(instance=obj)
+        inline_formsets = []
         if modeladmin:
-            try:
-                fieldsets = modeladmin.get_fieldsets(request, obj)
-            except Exception:
-                fieldsets = getattr(modeladmin, 'fieldsets', None)
-            try:
-                readonly_fields = modeladmin.get_readonly_fields(request, obj)
-            except Exception:
-                readonly_fields = getattr(modeladmin, 'readonly_fields', ())
+            for inline in modeladmin.get_inline_instances(request, obj):
+                try:
+                    FormSet = inline.get_formset(request, obj)
+                    prefix = f"{inline.opts.model._meta.model_name}_set"
+                    inline_formsets.append(FormSet(instance=obj, prefix=prefix))
+                except Exception:
+                    pass
 
         opts = model._meta
-        context = {'form': form, 'model': model, 'opts': opts, 'object': obj, 'action': 'Edit', 'inline_formsets': inline_formsets, 'fieldsets': fieldsets, 'readonly_fields': readonly_fields}
+        context = {
+            'form': form,
+            'model': model,
+            'opts': opts,
+            'object': obj,
+            'action': 'Edit',
+            'inline_formsets': inline_formsets,
+            'active_menu': f"{app_label}_{model_name}",
+        }
         context.update(get_app_list_context(request))
         return render(request, 'controlcenter/form.html', context)
 
@@ -367,8 +516,9 @@ class ModelUpdateView(StaffRequiredMixin, View):
         if not model:
             return HttpResponse('Model not found', status=404)
         perm = f"{app_label}.change_{model._meta.model_name}"
-        if not request.user.has_perm(perm):
+        if not (request.user.is_superuser or request.user.has_perm(perm)):
             return HttpResponseForbidden('Insufficient permissions')
+
         obj = get_object_or_404(model, pk=pk)
         modeladmin = admin.site._registry.get(model)
         if modeladmin:
@@ -378,34 +528,48 @@ class ModelUpdateView(StaffRequiredMixin, View):
                 form_class = modelform_factory(model, fields='__all__')
         else:
             form_class = modelform_factory(model, fields='__all__')
-        form = form_class(request.POST, request.FILES, instance=obj)
 
-        inline_instances = modeladmin.get_inline_instances(request, obj) if modeladmin else []
+        form = form_class(request.POST, request.FILES, instance=obj)
         inline_formsets = []
+        inline_instances = modeladmin.get_inline_instances(request, obj) if modeladmin else []
         for inline in inline_instances:
-            FormSet = inline.get_formset(request, obj)
-            prefix = f"{inline.opts.model._meta.model_name}_set"
-            fs = FormSet(request.POST, request.FILES, instance=obj, prefix=prefix)
-            inline_formsets.append((inline, fs))
+            try:
+                FormSet = inline.get_formset(request, obj)
+                prefix = f"{inline.opts.model._meta.model_name}_set"
+                fs = FormSet(request.POST, request.FILES, instance=obj, prefix=prefix)
+                inline_formsets.append((inline, fs))
+            except Exception:
+                pass
 
         if form.is_valid() and all(fs.is_valid() for _, fs in inline_formsets):
-            # Save via ModelAdmin.save_model if exists to preserve custom behavior
             if modeladmin and hasattr(modeladmin, 'save_model'):
                 modeladmin.save_model(request, form.instance, form, True)
             else:
                 form.save()
-            # save inlines
+
             for inline, fs in inline_formsets:
                 fs.instance = form.instance
                 fs.save()
+
             if modeladmin and hasattr(modeladmin, 'save_related'):
                 try:
                     modeladmin.save_related(request, form, [fs for _, fs in inline_formsets], True)
                 except Exception:
                     pass
+
+            messages.success(request, f"{model._meta.verbose_name.title()} was updated successfully.")
             return redirect(reverse('controlcenter:model_list', args=[app_label, model_name]))
+
         opts = model._meta
-        context = {'form': form, 'model': model, 'opts': opts, 'object': obj, 'action': 'Edit', 'inline_formsets': [fs for _, fs in inline_formsets]}
+        context = {
+            'form': form,
+            'model': model,
+            'opts': opts,
+            'object': obj,
+            'action': 'Edit',
+            'inline_formsets': [fs for _, fs in inline_formsets],
+            'active_menu': f"{app_label}_{model_name}",
+        }
         context.update(get_app_list_context(request))
         return render(request, 'controlcenter/form.html', context)
 
@@ -416,12 +580,30 @@ class ModelDetailView(StaffRequiredMixin, View):
         if not model:
             return HttpResponse('Model not found', status=404)
         perm = f"{app_label}.view_{model._meta.model_name}"
-        if not request.user.has_perm(perm):
+        if not (request.user.is_superuser or request.user.has_perm(perm)):
             return HttpResponseForbidden('Insufficient permissions')
+
         obj = get_object_or_404(model, pk=pk)
         modeladmin = admin.site._registry.get(model)
         opts = model._meta
-        context = {'model': model, 'opts': opts, 'object': obj, 'modeladmin': modeladmin}
+
+        fields_data = []
+        for f in model._meta.fields:
+            val = getattr(obj, f.name, '')
+            fields_data.append({
+                'label': f.verbose_name.title(),
+                'value': val,
+                'name': f.name,
+            })
+
+        context = {
+            'model': model,
+            'opts': opts,
+            'object': obj,
+            'fields_data': fields_data,
+            'modeladmin': modeladmin,
+            'active_menu': f"{app_label}_{model_name}",
+        }
         context.update(get_app_list_context(request))
         return render(request, 'controlcenter/detail.html', context)
 
@@ -432,11 +614,17 @@ class ModelDeleteView(StaffRequiredMixin, View):
         if not model:
             return HttpResponse('Model not found', status=404)
         perm = f"{app_label}.delete_{model._meta.model_name}"
-        if not request.user.has_perm(perm):
+        if not (request.user.is_superuser or request.user.has_perm(perm)):
             return HttpResponseForbidden('Insufficient permissions')
+
         obj = get_object_or_404(model, pk=pk)
         opts = model._meta
-        context = {'object': obj, 'model': model, 'opts': opts}
+        context = {
+            'object': obj,
+            'model': model,
+            'opts': opts,
+            'active_menu': f"{app_label}_{model_name}",
+        }
         context.update(get_app_list_context(request))
         return render(request, 'controlcenter/confirm_delete.html', context)
 
@@ -445,8 +633,11 @@ class ModelDeleteView(StaffRequiredMixin, View):
         if not model:
             return HttpResponse('Model not found', status=404)
         perm = f"{app_label}.delete_{model._meta.model_name}"
-        if not request.user.has_perm(perm):
+        if not (request.user.is_superuser or request.user.has_perm(perm)):
             return HttpResponseForbidden('Insufficient permissions')
+
         obj = get_object_or_404(model, pk=pk)
+        name = str(obj)
         obj.delete()
+        messages.success(request, f"Successfully deleted '{name}'.")
         return redirect(reverse('controlcenter:model_list', args=[app_label, model_name]))

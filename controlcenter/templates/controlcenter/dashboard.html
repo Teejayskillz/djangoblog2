@@ -1,20 +1,124 @@
 {% extends 'controlcenter/base.html' %}
 {% block title %}Dashboard{% endblock %}
+
 {% block content %}
-<h2>Overview</h2>
-<div class="cc-stats">
-  <div class="cc-stat">Posts<br><span class="num">{{ stats.posts }}</span></div>
-  <div class="cc-stat">Subscribers<br><span class="num">{{ stats.subscribers }}</span></div>
-  <div class="cc-stat">Media<br><span class="num">{{ stats.media }}</span></div>
-  <div class="cc-stat">Comments<br><span class="num">{{ stats.comments }}</span></div>
+<h1 class="wp-heading-inline">Dashboard</h1>
+<hr class="wp-header-end">
+
+<!-- Quick Stats Overview -->
+<div class="wp-stat-grid">
+  <div class="wp-stat-card">
+    <div class="stat-label">Total Posts</div>
+    <div class="stat-val">{{ stats.posts }}</div>
+    <div class="stat-sub"><a href="{% url 'controlcenter:model_list' app_label='core' model_name='post' %}">Manage Posts &rarr;</a></div>
+  </div>
+  <div class="wp-stat-card">
+    <div class="stat-label">Sports Matches</div>
+    <div class="stat-val">{{ stats.sports_matches }}</div>
+    <div class="stat-sub"><a href="{% url 'controlcenter:model_list' app_label='sports' model_name='sportsmatch' %}">Manage Streams &rarr;</a></div>
+  </div>
+  <div class="wp-stat-card">
+    <div class="stat-label">Active VIP Members</div>
+    <div class="stat-val">{{ stats.active_vip }}</div>
+    <div class="stat-sub"><a href="{% url 'controlcenter:model_list' app_label='subscriptions' model_name='usersubscription' %}">Subscriptions &rarr;</a></div>
+  </div>
+  <div class="wp-stat-card" style="border-top-color: #008a20;">
+    <div class="stat-label">Today's Traffic</div>
+    <div class="stat-val">{{ stats.today_views }} <small style="font-size: 14px; font-weight: normal; color: #646970;">views</small></div>
+    <div class="stat-sub">{{ stats.today_visitors }} unique visitors &bull; <a href="{% url 'controlcenter:analytics' %}">Analytics &rarr;</a></div>
+  </div>
 </div>
 
-<h3>Recent Posts</h3>
-<ul class="recent-list">
-  {% for p in recent_posts %}
-  <li><a href="{% url 'controlcenter:model_change' app_label='core' model_name='post' pk=p.id %}">{{ p.title }}</a> <span class="muted">• {{ p.published_date|date:'M d, Y' }}</span></li>
-  {% empty %}
-  <li class="muted">No posts yet</li>
-  {% endfor %}
-</ul>
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+  <!-- At a Glance / Recent Posts -->
+  <div class="postbox">
+    <div class="postbox-header">
+      <h2>Recent Posts & Content</h2>
+      <a href="{% url 'controlcenter:model_add' app_label='core' model_name='post' %}" class="page-title-action">+ Add Post</a>
+    </div>
+    <div class="inside">
+      <ul style="list-style: none; padding: 0; margin: 0;">
+        {% for p in recent_posts %}
+        <li style="padding: 8px 0; border-bottom: 1px solid #f0f0f1; display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <a href="{% url 'controlcenter:model_change' app_label='core' model_name='post' pk=p.id %}" style="font-weight: 600;">{{ p.title }}</a>
+            <div class="text-muted" style="font-size: 11px;">Published: {{ p.published_date|date:'M d, Y' }}</div>
+          </div>
+          <div>
+            <a href="{% url 'controlcenter:model_change' app_label='core' model_name='post' pk=p.id %}" class="button button-secondary" style="font-size: 11px; min-height: 24px; line-height: 2;">Edit</a>
+          </div>
+        </li>
+        {% empty %}
+        <li class="text-muted">No posts found.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
+  <!-- Recent Live / Upcoming Sports Matches -->
+  <div class="postbox">
+    <div class="postbox-header">
+      <h2>Recent Sports Matches</h2>
+      <a href="{% url 'controlcenter:model_add' app_label='sports' model_name='sportsmatch' %}" class="page-title-action">+ Add Match</a>
+    </div>
+    <div class="inside">
+      <ul style="list-style: none; padding: 0; margin: 0;">
+        {% for match in recent_matches %}
+        <li style="padding: 8px 0; border-bottom: 1px solid #f0f0f1; display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <a href="{% url 'controlcenter:model_change' app_label='sports' model_name='sportsmatch' pk=match.id %}" style="font-weight: 600;">{{ match.title }}</a>
+            <div class="text-muted" style="font-size: 11px;">
+              Date: {{ match.match_date|default:'TBD' }} {{ match.match_time|default:'' }}
+              {% if match.is_published %}&bull; <span class="text-success">Active</span>{% else %}&bull; <span class="text-danger">Unpublished</span>{% endif %}
+            </div>
+          </div>
+          <div>
+            <a href="{% url 'controlcenter:model_change' app_label='sports' model_name='sportsmatch' pk=match.id %}" class="button button-secondary" style="font-size: 11px; min-height: 24px; line-height: 2;">Edit</a>
+          </div>
+        </li>
+        {% empty %}
+        <li class="text-muted">No sports matches found.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- Live Traffic Activity Feed -->
+<div class="postbox" style="margin-top: 10px;">
+  <div class="postbox-header">
+    <h2>Live Traffic Feed (Recent Visits)</h2>
+    <a href="{% url 'controlcenter:analytics' %}" class="button button-secondary">View Full Analytics &rarr;</a>
+  </div>
+  <div class="inside" style="padding: 0;">
+    <table class="wp-list-table" style="margin: 0; border: none; box-shadow: none;">
+      <thead>
+        <tr>
+          <th style="width: 140px;">Time</th>
+          <th>Page Path</th>
+          <th>Device</th>
+          <th>Referrer</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for visit in recent_visits %}
+        <tr>
+          <td class="text-muted">{{ visit.timestamp|date:'M d, H:i:s' }}</td>
+          <td><strong>{{ visit.path }}</strong></td>
+          <td><span style="text-transform: capitalize;">{{ visit.device_type }}</span></td>
+          <td class="text-muted">{{ visit.referrer_domain|default:'Direct / None' }}</td>
+          <td><span class="text-success">{{ visit.status_code }}</span></td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" class="text-muted" style="text-align: center; padding: 20px;">
+            No public page visits recorded yet today. Traffic is captured live as visitors access public pages.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
 {% endblock %}
