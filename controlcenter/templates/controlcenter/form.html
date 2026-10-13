@@ -1,20 +1,71 @@
 {% extends 'controlcenter/base.html' %}
-{% block title %}{{ action }} {{ model._meta.verbose_name }}{% endblock %}
+{% block title %}{{ action }} {{ opts.verbose_name }}{% endblock %}
 {% block content %}
-<h2>{{ action }} {{ model._meta.verbose_name|capfirst }}</h2>
+<h2>{{ action }} {{ opts.verbose_name|capfirst }}</h2>
 <form method="post" enctype="multipart/form-data">
   {% csrf_token %}
+  {{ form.media }}
   <div class="form-grid">
     {{ form.non_field_errors }}
-    {% for field in form.visible_fields %}
-      <div class="form-row">
-        <label for="id_{{ field.name }}">{{ field.label }}</label>
-        <div class="form-input">{{ field.errors }}{{ field }}</div>
-        {% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}
-      </div>
-    {% endfor %}
+    {% if fieldsets %}
+      {% for fs in fieldsets %}
+        {% with title=fs.0 opts=fs.1 %}
+          <fieldset class="cc-fieldset {% if opts.classes %}{{ opts.classes|join:' ' }}{% endif %}">
+            {% if title %}<legend>{{ title }}</legend>{% endif %}
+            {% if opts.description %}<p class="help">{{ opts.description }}</p>{% endif %}
+            {% for fname in opts.fields %}
+              {% with field=form[fname] %}
+                <div class="form-row">
+                  <label for="id_{{ field.name }}">{{ field.label }}</label>
+                  <div class="form-input">
+                    {% if readonly_fields and fname in readonly_fields %}
+                      {% if object %}
+                        {{ object|attr:fname }}
+                      {% else %}
+                        {{ field.value }}
+                      {% endif %}
+                    {% else %}
+                      {{ field.errors }}{{ field }}
+                    {% endif %}
+                  </div>
+                  {% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}
+                </div>
+              {% endwith %}
+            {% endfor %}
+          </fieldset>
+        {% endwith %}
+      {% endfor %}
+    {% else %}
+      {% for field in form.visible_fields %}
+        <div class="form-row">
+          <label for="id_{{ field.name }}">{{ field.label }}</label>
+          <div class="form-input">{{ field.errors }}{{ field }}</div>
+          {% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}
+        </div>
+      {% endfor %}
+    {% endif %}
   </div>
+
+  {% if inline_formsets %}
+  <h3>Related</h3>
+  {% for fs in inline_formsets %}
+    <div class="inline-formset">
+      {{ fs.management_form }}
+      {% for f in fs.forms %}
+        <div class="inline-row">
+          {% for field in f.visible_fields %}
+            <div class="form-row">
+              <label>{{ field.label }}</label>
+              <div class="form-input">{{ field.errors }}{{ field }}</div>
+            </div>
+          {% endfor %}
+        </div>
+      {% endfor %}
+    </div>
+  {% endfor %}
+  {% endif %}
+
   <button class="btn" type="submit">Save</button>
-  <a class="btn" href="{% url 'controlcenter:model_list' app_label=model._meta.app_label model_name=model._meta.model_name %}">Cancel</a>
+  <a class="btn" href="{% url 'controlcenter:model_list' app_label=opts.app_label model_name=opts.model_name %}">Cancel</a>
 </form>
 {% endblock %}

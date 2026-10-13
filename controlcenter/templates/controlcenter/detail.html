@@ -1,0 +1,24 @@
+{% extends 'controlcenter/base.html' %}
+{% load custom_tags %}
+{% block title %}{{ opts.verbose_name }} Detail{% endblock %}
+{% block content %}
+<h2>{{ opts.verbose_name|capfirst }}: {{ object }}</h2>
+<div class="detail-grid">
+  <div class="card">
+    <h4>Fields</h4>
+    <ul>
+      {% for f in opts.fields %}
+      <li><strong>{{ f.name }}:</strong> {{ object|attr:f.name }}</li>
+      {% endfor %}
+
+      {% if modeladmin and modeladmin.readonly_fields %}
+        {% for rf in modeladmin.readonly_fields %}
+          <li><strong>{{ rf }}:</strong> {% admin_display modeladmin rf object %}</li>
+        {% endfor %}
+      {% endif %}
+    </ul>
+  </div>
+</div>
+<a class="btn" href="{% url 'controlcenter:model_change' app_label=opts.app_label model_name=opts.model_name pk=object.pk %}">Edit</a>
+<a class="btn" href="{% url 'controlcenter:model_delete' app_label=opts.app_label model_name=opts.model_name pk=object.pk %}">Delete</a>
+{% endblock %}
