@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.views import View
+from django.views.generic import RedirectView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.apps import apps
 from django.core.paginator import Paginator
@@ -14,6 +15,41 @@ from django.db.models import Count, Q
 import datetime
 
 from .models import PageVisit
+
+
+class AdminRetiredRedirectView(RedirectView):
+    """
+    Retires the default Django admin from normal use.
+
+    Every request for /admin, /admin/ or /admin/<anything> is sent to the
+    custom Control Center with a temporary 302 redirect.
+
+    Design notes:
+    * ``permanent = False`` -> 302, so the decision stays reversible and is
+      never cached permanently by browsers, proxies or CDNs.
+    * ``query_string = False`` -> stale admin query parameters are dropped
+      instead of being appended to the Control Center URL.
+    * All common HTTP methods redirect. An old bookmarked admin form that
+      POSTs back to /admin/... must not raise 405/500; it lands on the
+      Control Center instead.
+
+    django.contrib.admin itself is untouched: the app stays installed, its
+    models/ModelAdmin registrations stay registered, and its full URL set is
+    still mounted under a private prefix in blog_project/urls.py so that
+    ``reverse('admin:...')`` and a future rollback keep working.
+    """
+
+    permanent = False
+    query_string = False
+    url = '/control-center/'
+
+    def post(self, request, *args, **kwargs):
+        return self.get(request, *args, **kwargs)
+
+    put = post
+    patch = post
+    delete = post
+    head = post
 
 
 class StaffRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):

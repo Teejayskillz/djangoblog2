@@ -3,6 +3,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
+from django.urls import reverse
 from django.utils.html import strip_tags
 from django.db import models
 
@@ -60,11 +61,21 @@ def send_receipt_uploaded_notifications(transaction, request=None):
     amount = f"{transaction.amount:,.2f}" if transaction.amount else "0.00"
 
     admin_url = None
+    # Deep link into the custom Control Center (the default Django admin is
+    # retired: /admin/... now 302-redirects to the Control Center dashboard,
+    # which would lose the direct link to this payment transaction).
+    try:
+        admin_path = reverse(
+            'controlcenter:model_change',
+            args=['subscriptions', 'paymenttransaction', transaction.id],
+        )
+    except Exception:
+        admin_path = f"/control-center/subscriptions/paymenttransaction/{transaction.id}/change/"
     if request:
         try:
-            admin_url = request.build_absolute_uri(f"/admin/subscriptions/paymenttransaction/{transaction.id}/change/")
+            admin_url = request.build_absolute_uri(admin_path)
         except Exception:
-            admin_url = f"/admin/subscriptions/paymenttransaction/{transaction.id}/change/"
+            admin_url = admin_path
 
     # 1. Send receipt upload confirmation email to user
     if user and user.email:

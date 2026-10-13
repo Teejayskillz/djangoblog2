@@ -15,7 +15,7 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, re_path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from django.views.static import serve
@@ -23,9 +23,7 @@ from core.sitemaps import PostSitemap, CategorySitemap, TagSitemap, StaticViewSi
 from django.contrib.sitemaps.views import sitemap
 from core.views import robots_txt ,  import_subscribers_view
 from subscriptions.views import plan_list as pricing_view
-
-
-from django.views.generic import RedirectView
+from controlcenter.views import AdminRetiredRedirectView
 
 
 sitemaps = {
@@ -37,10 +35,24 @@ sitemaps = {
 
 
 urlpatterns = [
-    # Redirect all /admin/ traffic directly to the new WordPress Control Center
-    path('admin/', RedirectView.as_view(url='/control-center/', permanent=False)),
-    path('admin/<path:subpath>', RedirectView.as_view(url='/control-center/', permanent=False)),
-    # Django Admin site code preserved
+    # ---------------------------------------------------------------------
+    # Default Django admin retired from normal use (2026-08).
+    #
+    # One pattern covers every shape of the public admin URL:
+    #   /admin, /admin/, /admin/login/, /admin/core/post/ ...  -> 302 -> /control-center/
+    # The trailing-slash-less form is matched explicitly so CommonMiddleware
+    # never issues its own permanent 301 APPEND_SLASH redirect for /admin.
+    #
+    # django.contrib.admin is still installed and still fully mounted below
+    # under a private prefix, so admin templates, ModelAdmin registrations,
+    # reverse('admin:...') lookups, permissions and migrations keep working.
+    # ---------------------------------------------------------------------
+    re_path(
+        r'^admin(?:/.*)?$',
+        AdminRetiredRedirectView.as_view(),
+        name='admin_retired',
+    ),
+    # Built-in Django admin site code preserved (private, not linked publicly)
     path('django-admin-backend-internal/', admin.site.urls),
     path('control-center/', include('controlcenter.urls')),
     path('import-sub/', import_subscribers_view, name='import_subscribers'),

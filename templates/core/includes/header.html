@@ -251,11 +251,11 @@
 
         <!-- Staff / Admin Controls -->
         {% if user.is_staff %}
-        <a href="{% url 'admin:index' %}" class="btn admin-btn" title="Django Admin Center">
+        <a href="{% url 'controlcenter:dashboard' %}" class="btn admin-btn" title="NZDWorld Control Center">
           <i class="bi bi-speedometer2 me-1 text-warning"></i>Admin
         </a>
         {% if admin_pending_payments_count > 0 %}
-        <a href="/admin/subscriptions/paymenttransaction/?status__exact=pending"
+        <a href="/control-center/subscriptions/paymenttransaction/?status__exact=pending"
           class="btn btn-sm btn-danger fw-bold rounded-pill px-2 py-1"
           title="Pending bank transfer receipts needing approval">
           <i class="bi bi-bell-fill me-1"></i>{{ admin_pending_payments_count }} Pending
