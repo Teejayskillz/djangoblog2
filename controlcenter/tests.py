@@ -91,15 +91,17 @@ class ControlCenterTests(TestCase):
         self.assertEqual(resp.status_code, 302)
         self.assertEqual(resp.url, '/control-center/')
 
+        # Deep admin links keep their path under the Control Center prefix.
         resp_sub = self.client.get('/admin/core/post/')
         self.assertEqual(resp_sub.status_code, 302)
-        self.assertEqual(resp_sub.url, '/control-center/')
+        self.assertEqual(resp_sub.url, '/control-center/core/post/')
 
 
 class AdminRetirementTests(TestCase):
     """
     The built-in Django admin is retired from normal use but must stay
-    installed, registered and reversible (302, never 301).
+    installed, registered and reversible (302, never 301). Deep links are
+    translated to their Control Center equivalent.
     """
 
     def setUp(self):
@@ -108,15 +110,48 @@ class AdminRetirementTests(TestCase):
             username='staffadmin', email='staffadmin@example.com', password='pass'
         )
 
-    def test_all_public_admin_url_shapes_redirect_with_302(self):
+    def test_deep_admin_links_keep_their_path(self):
+        expected = {
+            '/admin/core/post/': '/control-center/core/post/',
+            '/admin/core/post/add/': '/control-center/core/post/add/',
+            '/admin/core/category/3/change/': '/control-center/core/category/3/change/',
+            '/admin/core/category/3/delete/': '/control-center/core/category/3/delete/',
+            '/admin/core/post/25/view/': '/control-center/core/post/25/view/',
+            '/admin/subscriptions/paymenttransaction/':
+                '/control-center/subscriptions/paymenttransaction/',
+            # The exact URL shape reported by the site owner:
+            '/admin/subscriptions/paymenttransaction/25/change/':
+                '/control-center/subscriptions/paymenttransaction/25/change/',
+            '/admin/sports/sportsmatch/7/change/':
+                '/control-center/sports/sportsmatch/7/change/',
+            '/admin/ads/ad/4/change/': '/control-center/ads/ad/4/change/',
+            # Control Center logout exists, so an old admin logout link maps too.
+            '/admin/logout/': '/control-center/logout/',
+        }
+        for source, target in expected.items():
+            with self.subTest(path=source):
+                resp = self.client.get(source)
+                self.assertEqual(resp.status_code, 302, f"{source} did not 302")
+                self.assertEqual(resp['Location'], target)
+                # The translated target must be a real Control Center route.
+                self.assertIn('controlcenter', resolve(target).namespaces)
+
+    def test_admin_root_and_unknown_admin_routes_fall_back_to_dashboard(self):
+        # Admin-only URLs have no Control Center counterpart, so they must not
+        # 302 into a dead Control Center path.
         for path in (
             '/admin',
             '/admin/',
             '/admin/login/',
-            '/admin/logout/',
-            '/admin/core/post/',
-            '/admin/core/post/add/',
-            '/admin/subscriptions/paymenttransaction/',
+            '/admin/password_change/',
+            '/admin/jsi18n/',
+            '/admin/autocomplete/',
+            '/admin/core/',                      # app index
+            '/admin/core/post/5/history/',       # admin-only history view
+            '/admin/core/post/abc/change/',      # non-numeric pk
+            '/admin/core/post/5/unknown-action/',
+            '/admin/notanapp/notamodel/',        # unknown app/model pair
+            '/admin/core/notamodel/',            # known app, unknown model
         ):
             with self.subTest(path=path):
                 resp = self.client.get(path)
@@ -125,7 +160,12 @@ class AdminRetirementTests(TestCase):
 
     def test_admin_redirect_is_temporary_not_permanent(self):
         # No 301 anywhere in the chain: the move must stay reversible.
-        for path in ('/admin', '/admin/', '/admin/core/post/'):
+        for path in (
+            '/admin',
+            '/admin/',
+            '/admin/core/post/',
+            '/admin/subscriptions/paymenttransaction/25/change/',
+        ):
             with self.subTest(path=path):
                 self.assertNotEqual(self.client.get(path).status_code, 301)
 
@@ -135,10 +175,15 @@ class AdminRetirementTests(TestCase):
         self.assertEqual(resp.status_code, 302)
         self.assertEqual(resp['Location'], '/control-center/')
 
+        # A deep path without its trailing slash still maps to the right page.
+        resp = self.client.get('/admin/core/post')
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp['Location'], '/control-center/core/post/')
+
     def test_admin_query_string_is_dropped_without_error(self):
         resp = self.client.get('/admin/core/post/?q=vip&page=2&o=1')
         self.assertEqual(resp.status_code, 302)
-        self.assertEqual(resp['Location'], '/control-center/')
+        self.assertEqual(resp['Location'], '/control-center/core/post/')
 
     def test_admin_redirect_does_not_loop(self):
         resp = self.client.get('/admin/', follow=True)
@@ -150,19 +195,41 @@ class AdminRetirementTests(TestCase):
             )
         self.assertEqual(resp.status_code, 200)
 
+    def test_deep_admin_link_reaches_the_control_center_login_then_the_page(self):
+        # Anonymous: deep link -> matching Control Center page -> login page.
+        resp = self.client.get('/admin/subscriptions/paymenttransaction/25/change/')
+        self.assertEqual(resp['Location'], '/control-center/subscriptions/paymenttransaction/25/change/')
+        login = self.client.get(resp['Location'])
+        self.assertEqual(login.status_code, 302)
+        self.assertIn('/accounts/login/', login['Location'])
+        self.assertIn('next=/control-center/subscriptions/paymenttransaction/25/change/', login['Location'])
+
     def test_admin_redirect_answers_non_get_methods(self):
         # An old bookmarked admin form posting back must not 405/500.
         resp = self.client.post('/admin/login/', {'username': 'x', 'password': 'y'})
         self.assertEqual(resp.status_code, 302)
         self.assertEqual(resp['Location'], '/control-center/')
 
-    def test_admin_redirect_is_a_queryless_url_name(self):
+        resp = self.client.post(
+            '/admin/subscriptions/paymenttransaction/25/change/',
+            {'status': 'completed'},
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(
+            resp['Location'],
+            '/control-center/subscriptions/paymenttransaction/25/change/',
+        )
+
+    def test_admin_redirect_is_a_named_url(self):
         match = resolve('/admin/core/post/')
         self.assertEqual(match.url_name, 'admin_retired')
+        self.assertEqual(match.kwargs, {'subpath': 'core/post/'})
         self.assertEqual(reverse('admin_retired'), '/admin')
+        self.assertEqual(reverse('admin_retired', kwargs={'subpath': 'core/post/'}), '/admin/core/post/')
 
     def test_retired_admin_hits_are_not_tracked_as_public_traffic(self):
         self.client.get('/admin/')
+        self.client.get('/admin/subscriptions/paymenttransaction/25/change/')
         self.assertFalse(PageVisit.objects.filter(path__startswith='/admin').exists())
 
     def test_django_admin_app_still_installed_and_mounted(self):

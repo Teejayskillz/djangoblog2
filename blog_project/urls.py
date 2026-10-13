@@ -38,8 +38,17 @@ urlpatterns = [
     # ---------------------------------------------------------------------
     # Default Django admin retired from normal use (2026-08).
     #
-    # One pattern covers every shape of the public admin URL:
-    #   /admin, /admin/, /admin/login/, /admin/core/post/ ...  -> 302 -> /control-center/
+    # One pattern covers every shape of the public admin URL and forwards it to
+    # the matching Control Center page (deep links keep working):
+    #   /admin                        -> /control-center/
+    #   /admin/                       -> /control-center/
+    #   /admin/core/post/             -> /control-center/core/post/
+    #   /admin/core/post/add/         -> /control-center/core/post/add/
+    #   /admin/subscriptions/paymenttransaction/25/change/
+    #                                 -> /control-center/subscriptions/paymenttransaction/25/change/
+    # Admin-only routes with no Control Center equivalent (login, jsi18n, app
+    # indexes, history, ...) fall back to the Control Center dashboard.
+    #
     # The trailing-slash-less form is matched explicitly so CommonMiddleware
     # never issues its own permanent 301 APPEND_SLASH redirect for /admin.
     #
@@ -48,7 +57,7 @@ urlpatterns = [
     # reverse('admin:...') lookups, permissions and migrations keep working.
     # ---------------------------------------------------------------------
     re_path(
-        r'^admin(?:/.*)?$',
+        r'^admin(?:/(?P<subpath>.*))?$',
         AdminRetiredRedirectView.as_view(),
         name='admin_retired',
     ),

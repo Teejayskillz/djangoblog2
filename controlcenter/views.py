@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.urls import reverse
+from django.urls import Resolver404, resolve, reverse
 from django.views import View
 from django.views.generic import RedirectView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
@@ -20,10 +20,24 @@ from .slug_utils import apply_slug_defaults, get_slug_sources
 
 class AdminRetiredRedirectView(RedirectView):
     """
-    Retires the default Django admin from normal use.
+    Retires the default Django admin from normal use, sending its URLs to the
+    matching page of the custom Control Center with a temporary 302 redirect.
 
-    Every request for /admin, /admin/ or /admin/<anything> is sent to the
-    custom Control Center with a temporary 302 redirect.
+    The two URL layouts are deliberately parallel
+    (``<app>/<model>/``, ``.../add/``, ``.../<pk>/change/``, ``.../<pk>/delete/``),
+    so deep links keep working instead of dumping everyone on the dashboard::
+
+        /admin/                                                   -> /control-center/
+        /admin/core/post/                                         -> /control-center/core/post/
+        /admin/core/post/add/                                     -> /control-center/core/post/add/
+        /admin/subscriptions/paymenttransaction/25/change/         -> /control-center/subscriptions/paymenttransaction/25/change/
+        /admin/subscriptions/paymenttransaction/25/delete/         -> /control-center/subscriptions/paymenttransaction/25/delete/
+
+    Django-admin-only routes with no Control Center counterpart (``/admin/login/``,
+    ``/admin/jsi18n/``, app indexes, ``.../<pk>/history/``, ...) fall back to the
+    Control Center dashboard rather than 404ing. Targets are validated with the
+    URL resolver, so the mapping follows the Control Center's own routes and
+    never has to be kept in sync by hand.
 
     Design notes:
     * ``permanent = False`` -> 302, so the decision stays reversible and is
@@ -42,7 +56,33 @@ class AdminRetiredRedirectView(RedirectView):
 
     permanent = False
     query_string = False
-    url = '/control-center/'
+    fallback_url = '/control-center/'  # also used as the Control Center prefix
+
+    def get_redirect_url(self, *args, **kwargs):
+        subpath = (kwargs.get('subpath') or '').strip('/')
+        if subpath:
+            candidate = f'{self.fallback_url}{subpath}/'
+            if self._is_control_center_route(candidate):
+                return candidate
+        return self.fallback_url
+
+    @staticmethod
+    def _is_control_center_route(path):
+        """True when `path` is a live Control Center URL (not a dead end)."""
+        try:
+            match = resolve(path)
+        except Resolver404:
+            return False
+        if 'controlcenter' not in (match.namespaces or ()):
+            return False
+        # Model routes are generic (<app_label>/<model_name>/...), so verify the
+        # model exists -- otherwise the visitor would land on a Control Center 404.
+        if 'app_label' in match.kwargs and 'model_name' in match.kwargs:
+            try:
+                apps.get_model(match.kwargs['app_label'], match.kwargs['model_name'])
+            except LookupError:
+                return False
+        return True
 
     def post(self, request, *args, **kwargs):
         return self.get(request, *args, **kwargs)
