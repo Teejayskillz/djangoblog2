@@ -5,6 +5,16 @@
 <h1 class="wp-heading-inline">Dashboard</h1>
 <hr class="wp-header-end">
 
+{% if pending_comments_count %}
+<div class="notice notice-warning"
+  style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+  <p style="margin: 0;">
+    💬 <strong>{{ pending_comments_count }}</strong> comment{{ pending_comments_count|pluralize }} awaiting moderation.
+  </p>
+  <a href="{% url 'controlcenter:comments' %}" class="button button-primary">Review comments</a>
+</div>
+{% endif %}
+
 <!-- Quick Stats Overview -->
 <div class="wp-stat-grid">
   <div class="wp-stat-card">

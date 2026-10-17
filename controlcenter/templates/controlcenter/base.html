@@ -6,6 +6,154 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}Dashboard{% endblock %} &lsaquo; NZDWorld Control Center</title>
   <link rel="stylesheet" href="{% static 'controlcenter/css/style.css' %}">
+  <style>
+    /* Comment moderation chrome. Kept inline so the moderator UI works without
+       a collectstatic run (the shared stylesheet is manifest-versioned). */
+    .cc-count-badge {
+      margin-left: auto;
+      min-width: 20px;
+      padding: 0 6px;
+      border-radius: 10px;
+      background: #d63638;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 18px;
+      text-align: center;
+    }
+
+    .cc-sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    .cc-comments-table .check-column input[type="checkbox"],
+    .cc-comments-table th.manage-column input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      margin: 0;
+      cursor: pointer;
+      accent-color: #2271b1;
+      vertical-align: middle;
+    }
+
+    .cc-status-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 18px;
+      list-style: none;
+      margin: 0 0 12px;
+      padding: 0;
+      font-size: 13px;
+    }
+
+    .cc-status-tabs a {
+      color: #2271b1;
+      text-decoration: none;
+    }
+
+    .cc-status-tabs li.current a {
+      color: #1d2327;
+      font-weight: 700;
+    }
+
+    .cc-status-count {
+      color: #646970;
+    }
+
+    .cc-status-count.is-pending {
+      color: #b32d2e;
+      font-weight: 700;
+    }
+
+    .cc-status-count.is-approved {
+      color: #008a20;
+      font-weight: 700;
+    }
+
+    .cc-status-pill {
+      display: inline-block;
+      padding: 2px 9px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      white-space: nowrap;
+    }
+
+    .cc-status-pill.is-approved {
+      background: #edfaef;
+      color: #008a20;
+      border: 1px solid #b8e6bf;
+    }
+
+    .cc-status-pill.is-pending {
+      background: #fcf4e6;
+      color: #8a5700;
+      border: 1px solid #f0d9a8;
+    }
+
+    .cc-tag-vip {
+      display: inline-block;
+      margin-left: 4px;
+      padding: 1px 6px;
+      border-radius: 9px;
+      background: linear-gradient(135deg, #ffd700, #ffb700);
+      color: #1a1a1a;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.4px;
+      vertical-align: middle;
+    }
+
+    .cc-comments-table .cc-comment-body {
+      color: #2c3338;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      max-width: 420px;
+    }
+
+    .cc-cell-meta {
+      color: #646970;
+      font-size: 11px;
+      line-height: 1.4;
+      overflow-wrap: anywhere;
+    }
+
+    .cc-row-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .cc-inline-form {
+      display: inline;
+      margin: 0;
+    }
+
+    .cc-row-actions .button {
+      min-height: 26px;
+      line-height: 2;
+      font-size: 11px;
+      padding: 0 8px;
+    }
+
+    .cc-help-text {
+      color: #646970;
+      font-size: 12px;
+      margin-top: 14px;
+    }
+  </style>
   {% block extra_head %}{% endblock %}
 </head>
 <body class="wp-admin wp-core-ui">
@@ -43,6 +191,16 @@
           <a href="{% url 'controlcenter:analytics' %}" class="{% if active_menu == 'analytics' %}active{% endif %}">
             <span class="wp-menu-icon">📈</span>
             <span class="wp-menu-name">Site Analytics</span>
+          </a>
+        </li>
+        <li class="{% if active_menu == 'comments' %}current{% endif %}">
+          <a href="{% url 'controlcenter:comments' %}" class="{% if active_menu == 'comments' %}active{% endif %}">
+            <span class="wp-menu-icon">💬</span>
+            <span class="wp-menu-name">Comments</span>
+            {% if pending_comments_count %}
+            <span class="cc-count-badge"
+              title="{{ pending_comments_count }} comment{{ pending_comments_count|pluralize }} awaiting moderation">{{ pending_comments_count }}</span>
+            {% endif %}
           </a>
         </li>
 

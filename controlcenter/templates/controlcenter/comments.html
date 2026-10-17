@@ -1,0 +1,195 @@
+{% extends 'controlcenter/base.html' %}
+{% block title %}Comments{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+  <div>
+    <h1 class="wp-heading-inline">Comments</h1>
+    <a href="{% url 'controlcenter:model_list' app_label='core' model_name='comment' %}" class="page-title-action">Browse all (table view)</a>
+  </div>
+  <form method="get" style="display: flex; gap: 4px;">
+    <input type="hidden" name="status" value="{{ status }}">
+    <input type="search" name="q" placeholder="Search comments, authors, posts..." value="{{ q }}">
+    <button class="button button-secondary" type="submit">Search</button>
+    {% if q %}
+    <a href="{% url 'controlcenter:comments' %}?status={{ status }}" class="button button-secondary">Reset</a>
+    {% endif %}
+  </form>
+</div>
+<hr class="wp-header-end">
+
+<!-- Status tabs (same pattern as WordPress' subsubsub filters) -->
+<ul class="cc-status-tabs">
+  <li class="{% if status == 'pending' %}current{% endif %}">
+    <a href="?status=pending{% if q %}&amp;q={{ q|urlencode }}{% endif %}">
+      Pending <span class="cc-status-count is-pending">{{ counts.pending }}</span>
+    </a>
+  </li>
+  <li class="{% if status == 'approved' %}current{% endif %}">
+    <a href="?status=approved{% if q %}&amp;q={{ q|urlencode }}{% endif %}">
+      Approved <span class="cc-status-count is-approved">{{ counts.approved }}</span>
+    </a>
+  </li>
+  <li class="{% if status == 'all' %}current{% endif %}">
+    <a href="?status=all{% if q %}&amp;q={{ q|urlencode }}{% endif %}">
+      All <span class="cc-status-count">{{ counts.all }}</span>
+    </a>
+  </li>
+</ul>
+
+{# One form for the bulk action bar. Row checkboxes join it with form="bulk-form". #}
+<form method="post" id="bulk-form">
+  {% csrf_token %}
+  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+  <input type="hidden" name="status" value="{{ status }}">
+  <input type="hidden" name="q" value="{{ q }}">
+  <input type="hidden" name="page" value="{{ page_obj.number }}">
+
+  <div class="tablenav top">
+    <div class="alignleft actions bulkactions">
+      <label for="bulk-action-selector" class="cc-sr-only">Select bulk action</label>
+      <select name="action" id="bulk-action-selector">
+        <option value="">Bulk actions</option>
+        <option value="approve">Approve (publish)</option>
+        <option value="unapprove">Unapprove (hide)</option>
+        {% if can_delete %}<option value="delete">Delete permanently</option>{% endif %}
+      </select>
+      <button type="submit" class="button button-secondary">Apply</button>
+    </div>
+    <div class="tablenav-pages">
+      <span class="displaying-num">{{ page_obj.paginator.count }} comment{{ page_obj.paginator.count|pluralize }}</span>
+      <span class="pagination-links">
+        {% if page_obj.has_previous %}
+        <a class="prev-page button" href="?status={{ status }}{% if q %}&amp;q={{ q|urlencode }}{% endif %}&amp;page={{ page_obj.previous_page_number }}">&lsaquo;</a>
+        {% endif %}
+        <span class="paging-input">
+          <span class="current-page">{{ page_obj.number }}</span> of <span class="total-pages">{{ page_obj.paginator.num_pages }}</span>
+        </span>
+        {% if page_obj.has_next %}
+        <a class="next-page button" href="?status={{ status }}{% if q %}&amp;q={{ q|urlencode }}{% endif %}&amp;page={{ page_obj.next_page_number }}">&rsaquo;</a>
+        {% endif %}
+      </span>
+    </div>
+  </div>
+</form>
+
+<table class="wp-list-table widefat striped table-view-list cc-comments-table">
+  <thead>
+    <tr>
+      <td class="manage-column column-cb check-column">
+        <input id="cb-select-all-1" type="checkbox" aria-label="Select all comments">
+      </td>
+      <th scope="col" style="width: 180px;">Author</th>
+      <th scope="col">Comment</th>
+      <th scope="col" style="width: 200px;">In response to</th>
+      <th scope="col" style="width: 130px;">Submitted</th>
+      <th scope="col" style="width: 110px;">Status</th>
+      <th scope="col" style="width: 210px;">Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for c in comments %}
+    <tr>
+      <th scope="row" class="check-column">
+        <input type="checkbox" name="selected" value="{{ c.pk }}" form="bulk-form"
+          aria-label="Select comment by {{ c.display_name }}">
+      </th>
+      <td>
+        <strong>{{ c.display_name }}</strong>
+        {% if c.is_premium %}<span class="cc-tag-vip" title="VIP subscriber">VIP</span>{% endif %}
+        {% if c.user_id %}
+        <div class="cc-cell-meta">{{ c.user.email|default:'' }}</div>
+        {% elif c.email %}
+        <div class="cc-cell-meta">{{ c.email }}</div>
+        {% endif %}
+      </td>
+      <td class="cc-comment-body">{{ c.comment|linebreaksbr }}</td>
+      <td>
+        {% if c.post_id %}
+        <a href="{{ c.post.get_absolute_url }}" target="_blank" rel="noopener">{{ c.post.title }}</a>
+        <div class="cc-cell-meta">
+          <a href="{% url 'controlcenter:model_change' app_label='core' model_name='post' pk=c.post_id %}">Edit post</a>
+        </div>
+        {% else %}
+        <span class="text-muted">Post deleted</span>
+        {% endif %}
+      </td>
+      <td class="cc-cell-meta">{{ c.created_at|date:"M d, Y" }}<br>{{ c.created_at|date:"g:i A" }}</td>
+      <td>
+        {% if c.is_approved %}
+        <span class="cc-status-pill is-approved">Approved</span>
+        {% else %}
+        <span class="cc-status-pill is-pending">Pending</span>
+        {% endif %}
+      </td>
+      <td>
+        <div class="cc-row-actions">
+          <form method="post" class="cc-inline-form">
+            {% csrf_token %}
+            <input type="hidden" name="comment_id" value="{{ c.pk }}">
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            {% if c.is_approved %}
+            <button type="submit" name="action" value="unapprove" class="button button-secondary"
+              title="Hide this comment from the website">Unapprove</button>
+            {% else %}
+            <button type="submit" name="action" value="approve" class="button button-primary"
+              title="Publish this comment on the website">Approve</button>
+            {% endif %}
+          </form>
+          <a class="button button-secondary"
+            href="{% url 'controlcenter:model_change' app_label='core' model_name='comment' pk=c.pk %}">Edit</a>
+          {% if can_delete %}
+          <form method="post" class="cc-inline-form"
+            onsubmit="return confirm('Permanently delete this comment? This cannot be undone.');">
+            {% csrf_token %}
+            <input type="hidden" name="comment_id" value="{{ c.pk }}">
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <button type="submit" class="button-link-delete">Delete</button>
+          </form>
+          {% endif %}
+        </div>
+      </td>
+    </tr>
+    {% empty %}
+    <tr class="no-items">
+      <td colspan="7" style="text-align: center; padding: 28px; color: #646970;">
+        {% if q %}
+        No comments match “{{ q }}”.
+        {% elif status == 'pending' %}
+        🎉 Nothing to moderate — there are no comments waiting for approval.
+        {% elif status == 'approved' %}
+        No approved comments yet.
+        {% else %}
+        No comments yet.
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if page_obj.has_other_pages %}
+<div class="tablenav bottom">
+  <div class="tablenav-pages">
+    <span class="displaying-num">{{ page_obj.paginator.count }} comment{{ page_obj.paginator.count|pluralize }}</span>
+    <span class="pagination-links">
+      {% if page_obj.has_previous %}
+      <a class="prev-page button" href="?status={{ status }}{% if q %}&amp;q={{ q|urlencode }}{% endif %}&amp;page={{ page_obj.previous_page_number }}">&lsaquo;</a>
+      {% endif %}
+      <span class="paging-input">
+        <span class="current-page">{{ page_obj.number }}</span> of <span class="total-pages">{{ page_obj.paginator.num_pages }}</span>
+      </span>
+      {% if page_obj.has_next %}
+      <a class="next-page button" href="?status={{ status }}{% if q %}&amp;q={{ q|urlencode }}{% endif %}&amp;page={{ page_obj.next_page_number }}">&rsaquo;</a>
+      {% endif %}
+    </span>
+  </div>
+</div>
+{% endif %}
+
+<p class="cc-help-text">
+  Approved comments are visible to everyone (including visitors who are not logged in).
+  Unapproved comments are hidden from the website but stay in the database.
+</p>
+{% endblock %}

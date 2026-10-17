@@ -5,7 +5,7 @@ from django.urls import resolve, reverse
 from django.utils import timezone
 from django.template.context import BaseContext
 from ads.models import Ad
-from core.models import Category, Page, Post
+from core.models import Category, Comment, Page, Post
 from controlcenter.models import PageVisit
 from controlcenter.slug_utils import build_unique_slug, get_slug_sources
 from sports.models import SportsMatch
@@ -644,3 +644,199 @@ class SlugAutoGenerationInControlCenterTests(TestCase):
         slug = build_unique_slug(Category, 'slug', 'नमस्ते दुनिया')
         self.assertTrue(slug)
         self.assertNotIn(' ', slug)
+
+
+COMMENTS_URL = '/control-center/comments/'
+
+
+class CommentModerationScreenTests(TestCase):
+    """The Control Center comment moderation screen (view / approve / unapprove)."""
+
+    def setUp(self):
+        self.client = Client()
+        self.moderator = User.objects.create_superuser(
+            'moderator', 'moderator@example.com', 'pass'
+        )
+        self.author = User.objects.create_user('commenter', 'commenter@example.com', 'pass')
+        category = Category.objects.get_or_create(name='Moderation', slug='moderation')[0]
+        self.post = Post.objects.create(
+            title='Mod Post',
+            slug='mod-post',
+            content='<p>body</p>',
+            author=self.moderator,
+            category=category,
+            is_published=True,
+        )
+        self.pending = Comment.objects.create(
+            post=self.post, user=self.author, name='commenter',
+            comment='Pending comment text', is_approved=False,
+        )
+        self.approved = Comment.objects.create(
+            post=self.post, user=self.author, name='commenter',
+            comment='Approved comment text', is_approved=True,
+        )
+        self.client.force_login(self.moderator)
+
+    # -- access ---------------------------------------------------------
+    def test_only_staff_can_open_the_moderation_screen(self):
+        anonymous = Client()
+        self.assertEqual(anonymous.get(COMMENTS_URL).status_code, 302)
+
+        plain = User.objects.create_user('plain', 'plain@example.com', 'pass')
+        plain_client = Client()
+        plain_client.force_login(plain)
+        self.assertIn(plain_client.get(COMMENTS_URL).status_code, (302, 403))
+
+    def test_staff_can_open_the_moderation_screen(self):
+        response = self.client.get(COMMENTS_URL)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Comments')
+        self.assertContains(response, 'csrfmiddlewaretoken')
+
+    # -- listing --------------------------------------------------------
+    def test_default_view_lists_only_pending_comments(self):
+        response = self.client.get(COMMENTS_URL)
+
+        self.assertContains(response, 'Pending comment text')
+        self.assertNotContains(response, 'Approved comment text')
+
+    def test_approved_tab_lists_only_approved_comments(self):
+        response = self.client.get(f'{COMMENTS_URL}?status=approved')
+
+        self.assertContains(response, 'Approved comment text')
+        self.assertNotContains(response, 'Pending comment text')
+
+    def test_all_tab_lists_every_comment(self):
+        response = self.client.get(f'{COMMENTS_URL}?status=all')
+
+        self.assertContains(response, 'Pending comment text')
+        self.assertContains(response, 'Approved comment text')
+
+    def test_empty_pending_state_is_friendly(self):
+        Comment.objects.filter(is_approved=False).delete()
+
+        response = self.client.get(COMMENTS_URL)
+
+        self.assertContains(response, 'Nothing to moderate')
+
+    def test_counts_are_shown_per_status(self):
+        response = self.client.get(f'{COMMENTS_URL}?status=all')
+
+        self.assertContains(response, 'cc-status-count is-pending')
+        self.assertContains(response, 'cc-status-count is-approved')
+        self.assertEqual(response.context['counts'], {'pending': 1, 'approved': 1, 'all': 2})
+
+    def test_search_matches_comment_text_and_post_title(self):
+        self.assertContains(
+            self.client.get(f'{COMMENTS_URL}?status=all&q=Pending'), 'Pending comment text'
+        )
+        self.assertNotContains(
+            self.client.get(f'{COMMENTS_URL}?status=all&q=Pending'), 'Approved comment text'
+        )
+        self.assertContains(
+            self.client.get(f'{COMMENTS_URL}?status=all&q=Mod Post'), 'Pending comment text'
+        )
+
+    # -- approve / unapprove --------------------------------------------
+    def test_approve_single_comment(self):
+        response = self.client.post(
+            COMMENTS_URL, {'comment_id': self.pending.pk, 'action': 'approve'}
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.pending.refresh_from_db()
+        self.assertTrue(self.pending.is_approved)
+        self.assertContains(self.client.get(self.post.get_absolute_url()), 'Pending comment text')
+
+    def test_unapprove_single_comment_hides_it_again(self):
+        response = self.client.post(
+            COMMENTS_URL, {'comment_id': self.approved.pk, 'action': 'unapprove'}
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.approved.refresh_from_db()
+        self.assertFalse(self.approved.is_approved)
+        self.assertNotContains(
+            self.client.get(self.post.get_absolute_url()), 'Approved comment text'
+        )
+
+    def test_bulk_actions_apply_to_selected_comments(self):
+        second = Comment.objects.create(
+            post=self.post, user=self.author, name='commenter',
+            comment='Another pending comment', is_approved=False,
+        )
+
+        response = self.client.post(COMMENTS_URL, {
+            'selected': [str(self.pending.pk), str(second.pk)],
+            'action': 'approve',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        self.pending.refresh_from_db()
+        second.refresh_from_db()
+        self.assertTrue(self.pending.is_approved)
+        self.assertTrue(second.is_approved)
+
+    def test_delete_removes_the_comment(self):
+        response = self.client.post(
+            COMMENTS_URL, {'comment_id': self.pending.pk, 'action': 'delete'}
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(Comment.objects.filter(pk=self.pending.pk).exists())
+
+    def test_action_without_selection_reports_an_error(self):
+        response = self.client.post(COMMENTS_URL, {'action': 'approve'}, follow=True)
+
+        self.assertContains(response, 'Please select at least one comment.')
+        self.assertEqual(Comment.objects.filter(is_approved=False).count(), 1)
+
+    def test_unknown_action_is_rejected(self):
+        response = self.client.post(
+            COMMENTS_URL, {'comment_id': self.pending.pk, 'action': 'nonsense'}, follow=True
+        )
+
+        self.assertContains(response, 'Unknown action')
+        self.pending.refresh_from_db()
+        self.assertFalse(self.pending.is_approved)
+
+    def test_actions_return_to_the_same_filtered_view(self):
+        target = f'{COMMENTS_URL}?status=approved&q=comment'
+
+        response = self.client.post(COMMENTS_URL, {
+            'comment_id': self.pending.pk,
+            'action': 'approve',
+            'next': target,
+        })
+
+        self.assertEqual(response['Location'], target)
+
+    def test_next_parameter_cannot_redirect_off_site(self):
+        response = self.client.post(COMMENTS_URL, {
+            'comment_id': self.pending.pk,
+            'action': 'approve',
+            'next': 'https://evil.example.com/phish',
+        })
+
+        self.assertEqual(response['Location'], COMMENTS_URL)
+
+    # -- navigation / prompts -------------------------------------------
+    def test_sidebar_shows_a_pending_badge(self):
+        response = self.client.get('/control-center/')
+
+        self.assertContains(response, 'class="cc-count-badge"')
+        self.assertContains(response, 'Review comments')
+
+    def test_dashboard_prompts_to_review_pending_comments(self):
+        response = self.client.get('/control-center/')
+
+        self.assertContains(response, '1 comment awaiting moderation')
+
+    def test_approved_comments_do_not_trigger_the_dashboard_prompt(self):
+        Comment.objects.filter(is_approved=False).delete()
+
+        response = self.client.get('/control-center/')
+
+        self.assertNotContains(response, 'awaiting moderation')
+        self.assertNotContains(response, 'class="cc-count-badge"')

@@ -13,6 +13,7 @@ from django.utils.text import capfirst
 from django.utils import timezone
 from django.db.models import Count, Q
 import datetime
+from urllib.parse import urlencode
 
 from .models import PageVisit
 from .slug_utils import apply_slug_defaults, get_slug_sources
@@ -164,7 +165,25 @@ def get_app_list_context(request):
                 'models': sorted(models, key=lambda m: m['name']),
             })
 
-    return {'app_list': app_list}
+    return {
+        'app_list': app_list,
+        'pending_comments_count': get_pending_comments_count(request),
+    }
+
+
+def get_pending_comments_count(request):
+    """
+    Number of comments waiting for approval, for the sidebar badge.
+
+    Returns 0 for users who cannot moderate comments (and if the app is absent).
+    """
+    if not (request.user.is_superuser or request.user.has_perm('core.change_comment')):
+        return 0
+    try:
+        Comment = apps.get_model('core', 'Comment')
+        return Comment.objects.filter(is_approved=False).count()
+    except LookupError:
+        return 0
 
 
 class DashboardView(StaffRequiredMixin, View):
@@ -291,6 +310,163 @@ class AnalyticsView(StaffRequiredMixin, View):
         }
         context.update(get_app_list_context(request))
         return render(request, 'controlcenter/analytics.html', context)
+
+
+COMMENT_STATUS_FILTERS = {
+    'pending': 'Pending',
+    'approved': 'Approved',
+    'all': 'All',
+}
+
+
+class CommentModerationView(StaffRequiredMixin, View):
+    """
+    Dedicated comment moderation screen.
+
+    Staff with the `core.change_comment` permission can review every comment,
+    approve it (makes it public on the site), unapprove it (hides it again) or
+    delete it -- per comment or in bulk.
+    """
+
+    template_name = 'controlcenter/comments.html'
+    per_page = 20
+    change_permission = 'core.change_comment'
+    delete_permission = 'core.delete_comment'
+
+    # -- helpers ---------------------------------------------------------
+    @staticmethod
+    def _comment_model():
+        return apps.get_model('core', 'Comment')
+
+    def _can_moderate(self, request):
+        return request.user.is_superuser or request.user.has_perm(self.change_permission)
+
+    def _can_delete(self, request):
+        return request.user.is_superuser or request.user.has_perm(self.delete_permission)
+
+    def _counts(self):
+        Comment = self._comment_model()
+        return {
+            'pending': Comment.objects.filter(is_approved=False).count(),
+            'approved': Comment.objects.filter(is_approved=True).count(),
+            'all': Comment.objects.count(),
+        }
+
+    def _filtered_queryset(self, request):
+        data = request.POST if request.method == 'POST' else request.GET
+        status = (data.get('status') or 'pending').strip()
+        if status not in COMMENT_STATUS_FILTERS:
+            status = 'pending'
+
+        queryset = self._comment_model().objects.select_related(
+            'post', 'user', 'user__subscription'
+        )
+        if status == 'pending':
+            queryset = queryset.filter(is_approved=False)
+        elif status == 'approved':
+            queryset = queryset.filter(is_approved=True)
+
+        query = (data.get('q') or '').strip()
+        if query:
+            queryset = queryset.filter(
+                Q(comment__icontains=query)
+                | Q(name__icontains=query)
+                | Q(user__username__icontains=query)
+                | Q(post__title__icontains=query)
+            )
+
+        return queryset.order_by('-created_at'), status, query
+
+    def _redirect_target(self, request):
+        """Return to the same filtered view after an action."""
+        next_url = (request.POST.get('next') or '').strip()
+        # Only allow returning to this moderation screen (no open redirect).
+        if next_url.startswith('/control-center/comments'):
+            return next_url
+
+        url = reverse('controlcenter:comments')
+        params = {}
+        status = (request.POST.get('status') or '').strip()
+        if status in COMMENT_STATUS_FILTERS:
+            params['status'] = status
+        query = (request.POST.get('q') or '').strip()
+        if query:
+            params['q'] = query
+        page = (request.POST.get('page') or '').strip()
+        if page.isdigit() and page != '1':
+            params['page'] = page
+        if params:
+            url = f"{url}?{urlencode(params)}"
+        return url
+
+    def _selected_ids(self, request):
+        raw_ids = request.POST.getlist('selected')
+        single = request.POST.get('comment_id')
+        if single:
+            raw_ids = [single]
+        return [int(pk) for pk in raw_ids if str(pk).strip().isdigit()]
+
+    # -- views -----------------------------------------------------------
+    def get(self, request):
+        if not self._can_moderate(request):
+            return HttpResponseForbidden('You do not have permission to moderate comments.')
+
+        queryset, status, query = self._filtered_queryset(request)
+        paginator = Paginator(queryset, self.per_page)
+        page_obj = paginator.get_page(request.GET.get('page'))
+
+        context = {
+            'comments': page_obj.object_list,
+            'page_obj': page_obj,
+            'status': status,
+            'q': query,
+            'status_filters': COMMENT_STATUS_FILTERS,
+            'counts': self._counts(),
+            'can_delete': self._can_delete(request),
+            'active_menu': 'comments',
+        }
+        context.update(get_app_list_context(request))
+        return render(request, self.template_name, context)
+
+    def post(self, request):
+        if not self._can_moderate(request):
+            return HttpResponseForbidden('You do not have permission to moderate comments.')
+
+        action = (request.POST.get('action') or '').strip()
+        ids = self._selected_ids(request)
+        redirect_to = self._redirect_target(request)
+
+        if not ids:
+            messages.error(request, 'Please select at least one comment.')
+            return redirect(redirect_to)
+
+        queryset = self._comment_model().objects.filter(pk__in=ids)
+
+        if action == 'approve':
+            updated = queryset.update(is_approved=True)
+            messages.success(
+                request,
+                f'{updated} comment{"" if updated == 1 else "s"} approved and now visible on the site.',
+            )
+        elif action == 'unapprove':
+            updated = queryset.update(is_approved=False)
+            messages.success(
+                request,
+                f'{updated} comment{"" if updated == 1 else "s"} unapproved and hidden from the site.',
+            )
+        elif action == 'delete':
+            if not self._can_delete(request):
+                messages.error(request, 'You do not have permission to delete comments.')
+                return redirect(redirect_to)
+            deleted, _details = queryset.delete()
+            messages.success(
+                request,
+                f'{deleted} comment{"" if deleted == 1 else "s"} permanently deleted.',
+            )
+        else:
+            messages.error(request, 'Unknown action.')
+
+        return redirect(redirect_to)
 
 
 class ModelListView(StaffRequiredMixin, View):

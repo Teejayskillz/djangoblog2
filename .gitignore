@@ -18,3 +18,7 @@ db.sqlite3
 .env 
 media/
 
+# Local scratch artifacts (headless browser profiles used for UI checks)
+tmp/_chrome_profile/
+tmp/*.sqlite3
+
