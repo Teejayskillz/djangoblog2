@@ -2,19 +2,46 @@
 {% load static %}
 {% load subscription_tags %}
 
-{% block title %}
-{{ post.get_page_title }}
+{% block title %}{{ post.get_page_title }}{% endblock %}
+
+{% block extra_head %}
+{% if post_json_ld %}
+<script type="application/ld+json">{{ post_json_ld|safe }}</script>
+{% endif %}
+{% if breadcrumb_json_ld %}
+<script type="application/ld+json">{{ breadcrumb_json_ld|safe }}</script>
+{% endif %}
 {% endblock %}
 
 {% block content %}
 <article class="post-detail">
 
+    <nav class="post-breadcrumbs" aria-label="Breadcrumb">
+        <ol>
+            {% for crumb_name, crumb_path in breadcrumbs %}
+            <li>
+                {% if crumb_path %}
+                <a href="{{ crumb_path }}">{{ crumb_name }}</a>
+                {% else %}
+                <span aria-current="page">{{ crumb_name }}</span>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ol>
+    </nav>
+
     <header class="post-header my-4">
-        <div class="d-flex justify-content-between align-items-center">
-            <h1 class="display-4">{{ post.title }}</h1>
-        </div>
-        <div class="text-muted mb-3">
-            Published on {{ post.published_date|date:"F j, Y" }}
+        <h1 class="display-4">{{ post.title }}</h1>
+        <div class="post-meta text-muted mb-3">
+            <span class="post-author">
+                <i class="bi bi-person-circle me-1"></i>By {{ post.author.get_full_name|default:post.author.username }}
+            </span>
+            <span class="post-meta-sep" aria-hidden="true">•</span>
+            <time datetime="{{ post.published_date|date:'c' }}">Published {{ post.published_date|date:"F j, Y" }}</time>
+            <span class="post-meta-sep" aria-hidden="true">•</span>
+            <a href="#comments" class="post-meta-comments">
+                <i class="bi bi-chat-dots me-1"></i>{{ comments_count }} comment{{ comments_count|pluralize }}
+            </a>
         </div>
         {% if post.category %}
         <a href="{% url 'category' post.category.slug %}" class="badge fs-6 text-decoration-none">
@@ -28,10 +55,10 @@
     </div>
 
     {% if post.thumbnail %}
-    <div class="featured-image">
-        <img src="{{ post.thumbnail.url }}" alt="{{ post.title }}" class="img-fluid w-100 rounded"
-            style="max-height: 500px; object-fit: cover;" loading="lazy">
-    </div>
+    <figure class="featured-image">
+        <img src="{{ post.thumbnail.url }}" alt="{{ post.title }} featured image" class="img-fluid w-100 rounded"
+            style="max-height: 500px; object-fit: cover;" loading="eager" fetchpriority="high" decoding="async">
+    </figure>
     {% endif %}
 
     <div class="ad-slot-container header-ad-container">
@@ -144,70 +171,129 @@
     </section>
     {% endif %}
 
-    <div class="comments-section" id="comments">
-        {% if messages %}
-        <div class="messages">
-            {% for message in messages %}
-            <div class="alert alert-{{ message.tags }}">
-                {{ message }}
-            </div>
-            {% endfor %}
+    <section class="comments-section" id="comments" aria-labelledby="comments-heading">
+        <div class="comments-header">
+            <h2 class="comments-title" id="comments-heading">
+                <i class="bi bi-chat-square-text me-2"></i>Comments
+                <span class="comment-count" aria-label="{{ comments_count }} comments">{{ comments_count }}</span>
+            </h2>
+            {% if comments_count %}
+            <p class="comments-summary">
+                {{ comments_count }} comment{{ comments_count|pluralize }} — reading is open to everyone.
+            </p>
+            {% endif %}
         </div>
-        {% endif %}
 
         <div class="comment-list">
-            {% for comment in post.comments.all %}
-            {% if comment.is_approved %}
-            <div class="comment">
-                <div class="comment-header">
-                    <span class="comment-author">{{ comment.name }}</span>
-                    <span class="comment-date">{{ comment.created_at|date:"F j, Y g:i A" }}</span>
-                </div>
-                <p class="comment-text">{{ comment.comment|linebreaks }}</p>
-            </div>
-            {% endif %}
+            {% for comment in comments %}
+            <article class="comment" id="comment-{{ comment.pk }}">
+                <header class="comment-header">
+                    <span class="comment-avatar" aria-hidden="true">{{ comment.avatar_initial }}</span>
+                    <div class="comment-identity">
+                        <span class="comment-author">
+                            {{ comment.display_name }}
+                            {% if comment.is_premium %}
+                            <span class="premium-badge vip-badge" title="VIP subscriber" aria-label="VIP subscriber">
+                                <i class="bi bi-crown-fill" aria-hidden="true"></i><span class="vip-badge-text">VIP</span>
+                            </span>
+                            {% endif %}
+                        </span>
+                        <time class="comment-date" datetime="{{ comment.created_at|date:'c' }}">
+                            {{ comment.created_at|date:"F j, Y \a\t g:i A" }}
+                        </time>
+                    </div>
+                </header>
+                <div class="comment-text">{{ comment.comment|linebreaks }}</div>
+            </article>
             {% empty %}
             <div class="no-comments">
-                <p>💬 No comments yet. Be the first to share your thoughts!</p>
+                <p class="mb-1">💬 No comments yet. Be the first to share your thoughts!</p>
+                {% if not user.is_authenticated %}
+                <p class="mb-0 small">
+                    <a href="{% url 'login' %}?next={{ request.path|urlencode }}">Log in</a> to join the discussion.
+                </p>
+                {% endif %}
             </div>
             {% endfor %}
         </div>
 
-        <div class="comment-form">
-            <h5 class="form-title">✨ Leave a Comment</h5>
-            <form method="post" action="{% url 'post_detail' category=post.category.slug slug=post.slug %}#comments">
+        {% if comments_page_obj.has_other_pages %}
+        <nav class="comments-pagination" aria-label="Comment pages">
+            {% if comments_page_obj.has_previous %}
+            <a class="comments-page-link"
+                href="?comments_page={{ comments_page_obj.previous_page_number }}#comments" rel="prev">
+                <i class="bi bi-chevron-left" aria-hidden="true"></i> Newer comments
+            </a>
+            {% else %}
+            <span class="comments-page-link is-disabled" aria-disabled="true">
+                <i class="bi bi-chevron-left" aria-hidden="true"></i> Newer comments
+            </span>
+            {% endif %}
+
+            <span class="comments-page-status">
+                Page {{ comments_page_obj.number }} of {{ comments_page_obj.paginator.num_pages }}
+            </span>
+
+            {% if comments_page_obj.has_next %}
+            <a class="comments-page-link"
+                href="?comments_page={{ comments_page_obj.next_page_number }}#comments" rel="next">
+                Older comments <i class="bi bi-chevron-right" aria-hidden="true"></i>
+            </a>
+            {% else %}
+            <span class="comments-page-link is-disabled" aria-disabled="true">
+                Older comments <i class="bi bi-chevron-right" aria-hidden="true"></i>
+            </span>
+            {% endif %}
+        </nav>
+        {% endif %}
+
+        {% if user.is_authenticated %}
+        <div class="comment-form" id="comment-form">
+            <h2 class="form-title">✨ Leave a Comment</h2>
+            <form method="post" action="{{ request.path }}#comments">
                 {% csrf_token %}
 
-                <div class="form-group">
-                    <input type="text" name="name" class="form-control" placeholder="Your Name" required
-                        value="{{ comment_form.name.value|default:'' }}">
-                    {% if comment_form.name.errors %}
-                    <small class="text-danger">{{ comment_form.name.errors.0 }}</small>
-                    {% endif %}
+                {# Honeypot: hidden from people, tempting to bots. #}
+                <div class="comment-honeypot-wrap" aria-hidden="true">{{ comment_form.website }}</div>
+
+                {% if comment_form.non_field_errors %}
+                <div class="alert alert-danger" role="alert">
+                    {{ comment_form.non_field_errors.0 }}
                 </div>
+                {% endif %}
 
                 <div class="form-group">
-                    <input type="email" name="email" class="form-control" placeholder="Your Email (won't be published)"
-                        required value="{{ comment_form.email.value|default:'' }}">
-                    {% if comment_form.email.errors %}
-                    <small class="text-danger">{{ comment_form.email.errors.0 }}</small>
-                    {% endif %}
-                </div>
-
-                <div class="form-group">
-                    <textarea name="comment" class="form-control" rows="4" placeholder="Share your thoughts..."
-                        required>{{ comment_form.comment.value|default:'' }}</textarea>
+                    <label class="visually-hidden" for="{{ comment_form.comment.id_for_label }}">Your comment</label>
+                    {{ comment_form.comment }}
                     {% if comment_form.comment.errors %}
-                    <small class="text-danger">{{ comment_form.comment.errors.0 }}</small>
+                    <small class="text-danger d-block mt-1">{{ comment_form.comment.errors.0 }}</small>
                     {% endif %}
                 </div>
 
                 <button type="submit" class="submit-btn">
                     🚀 Post Comment
                 </button>
+                <p class="comment-form-note">
+                    Posting as <strong>{{ user.get_full_name|default:user.username }}</strong>.
+                    Comments are moderated and appear once approved.
+                </p>
             </form>
         </div>
-    </div>
+        {% else %}
+        <div class="comment-login-cta">
+            <h2 class="form-title">Join the discussion</h2>
+            <p class="comment-login-text">
+                You can read every comment without an account. Log in to add your own.
+            </p>
+            <div class="comment-login-actions">
+                <a href="{% url 'login' %}?next={{ request.path|urlencode }}" class="submit-btn comment-login-btn">
+                    <i class="bi bi-box-arrow-in-right me-2" aria-hidden="true"></i>Log in to comment
+                </a>
+                <a href="{% url 'register' %}" class="comment-register-link">Create an account</a>
+            </div>
+        </div>
+        {% endif %}
+    </section>
 </article>
 
 <script>
@@ -228,9 +314,10 @@
 
         const textarea = document.querySelector('textarea[name="comment"]');
         if (textarea) {
-            const maxLength = 500;
+            const maxLength = parseInt(textarea.getAttribute('maxlength'), 10) || 2000;
             const counter = document.createElement('small');
             counter.className = 'char-counter';
+            counter.setAttribute('aria-live', 'polite');
             textarea.parentElement.appendChild(counter);
 
             function updateCounter() {
@@ -539,6 +626,15 @@
     }
 
     /* Comments Section */
+    /* Self-contained layout: the comment UI keeps its sizes even if the
+       Bootstrap CDN fails to load (it must not depend on a global reset). */
+    .comments-section,
+    .comments-section *,
+    .comments-section *::before,
+    .comments-section *::after {
+        box-sizing: border-box;
+    }
+
     .comments-section {
         max-width: 800px;
         margin: 3rem auto 0;
@@ -551,20 +647,30 @@
         border-bottom: 2px solid var(--border-color);
     }
 
-    .comments-header h4 {
+    .comments-title {
         color: var(--text);
         font-size: 1.8rem;
+        font-weight: 700;
         display: flex;
         align-items: center;
         gap: 10px;
+        margin: 0;
+        flex-wrap: wrap;
+    }
+
+    .comments-summary {
+        margin: 0.6rem 0 0;
+        color: var(--text-dim);
+        font-size: 0.95rem;
     }
 
     .comment-count {
         background: var(--primary);
-        color: white;
-        padding: 4px 12px;
+        color: #fff;
+        padding: 2px 12px;
         border-radius: 20px;
         font-size: 0.9rem;
+        line-height: 1.6;
     }
 
     .comment-list {
@@ -588,16 +694,235 @@
 
     .comment-header {
         display: flex;
-        justify-content: space-between;
+        justify-content: flex-start;
         align-items: center;
+        gap: 0.85rem;
         margin-bottom: 1rem;
         flex-wrap: wrap;
+    }
+
+    .comment-avatar {
+        flex: 0 0 auto;
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 1.05rem;
+        color: #fff;
+        background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+        box-shadow: 0 2px 10px var(--glow);
+        text-transform: uppercase;
+        user-select: none;
+    }
+
+    .comment-identity {
+        display: flex;
+        flex-direction: column;
+        line-height: 1.35;
+        min-width: 0;
     }
 
     .comment-author {
         color: var(--primary);
         font-weight: 600;
-        font-size: 1.1rem;
+        font-size: 1.05rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        flex-wrap: wrap;
+    }
+
+    /* Premium badge: reuses the existing .premium-badge look, tuned for a
+       comment header so it is readable on the dark theme at small sizes. */
+    .vip-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.1rem 0.5rem;
+        border-radius: 999px;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+        color: #1a1a1a;
+        background: linear-gradient(135deg, #ffd700, #ffb700);
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        box-shadow: 0 1px 6px rgba(255, 200, 0, 0.35);
+        line-height: 1.5;
+        white-space: nowrap;
+        vertical-align: middle;
+    }
+
+    .vip-badge i {
+        font-size: 0.75rem;
+        color: #7a5b00;
+    }
+
+    @media (max-width: 480px) {
+        .vip-badge-text {
+            display: none;
+        }
+
+        .vip-badge {
+            padding: 0.1rem 0.35rem;
+        }
+    }
+
+    /* Comment pagination */
+    .comments-pagination {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin: -1rem 0 2.5rem;
+        padding: 0.9rem 1rem;
+        background: rgba(39, 52, 77, 0.45);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+    }
+
+    .comments-page-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.45rem 0.9rem;
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        color: var(--text);
+        text-decoration: none;
+        font-size: 0.9rem;
+        transition: all 0.2s ease;
+    }
+
+    a.comments-page-link:hover {
+        border-color: var(--primary);
+        color: var(--primary);
+        background: var(--dark-bg);
+    }
+
+    .comments-page-link.is-disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+    }
+
+    .comments-page-status {
+        color: var(--text-dim);
+        font-size: 0.9rem;
+    }
+
+    /* Logged-out call to action */
+    .comment-login-cta {
+        background: rgba(39, 52, 77, 0.7);
+        backdrop-filter: blur(10px);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 2rem;
+        text-align: center;
+        box-shadow: 0 10px 40px var(--shadow);
+    }
+
+    .comment-login-text {
+        color: var(--text-dim);
+        margin-bottom: 1.5rem;
+    }
+
+    .comment-login-actions {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.85rem;
+    }
+
+    .comment-login-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        max-width: 320px;
+    }
+
+    .comment-register-link {
+        color: var(--primary);
+        text-decoration: underline;
+        font-size: 0.95rem;
+    }
+
+    .comment-register-link:hover {
+        color: var(--primary-hover);
+    }
+
+    /* Honeypot: visually and programmatically hidden, never focusable */
+    .comment-honeypot-wrap {
+        position: absolute;
+        left: -9999px;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+    }
+
+    .comment-form-note {
+        margin: 1rem 0 0;
+        font-size: 0.85rem;
+        color: var(--text-dim);
+        text-align: center;
+    }
+
+    /* Breadcrumbs + post meta */
+    .post-breadcrumbs {
+        font-size: 0.88rem;
+        color: var(--text-dim);
+        margin-bottom: 0.5rem;
+    }
+
+    .post-breadcrumbs ol {
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.4rem;
+        margin: 0;
+        padding: 0;
+    }
+
+    .post-breadcrumbs li+li::before {
+        content: '›';
+        margin-right: 0.4rem;
+        color: var(--text-dim);
+    }
+
+    .post-breadcrumbs a {
+        color: var(--text-muted);
+        text-decoration: none;
+    }
+
+    .post-breadcrumbs a:hover {
+        color: var(--primary);
+        text-decoration: underline;
+    }
+
+    .post-meta {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.95rem;
+    }
+
+    .post-meta a {
+        color: var(--text-muted);
+        text-decoration: none;
+    }
+
+    .post-meta a:hover {
+        color: var(--primary);
+    }
+
+    .post-meta-sep {
+        color: var(--text-dim);
     }
 
     .comment-date {
@@ -608,6 +933,8 @@
     .comment-text {
         color: var(--text);
         line-height: 1.6;
+        overflow-wrap: anywhere;
+        word-break: break-word;
     }
 
     .no-comments {
@@ -627,6 +954,7 @@
         border-radius: 16px;
         padding: 2rem;
         box-shadow: 0 10px 40px var(--shadow);
+        position: relative;
     }
 
     .form-title {
@@ -648,6 +976,8 @@
         border: 2px solid var(--border-color);
         border-radius: 8px;
         color: var(--text);
+        font-family: inherit;
+        font-size: 1rem;
         transition: all 0.3s ease;
     }
 

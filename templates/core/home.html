@@ -1,5 +1,7 @@
 {% extends 'core/base.html' %}
 
+{% block title %}Watch & Download Movies, Series and Sports{% endblock %}
+
 {% block content %}
 {% for section in sections %}
 
@@ -63,16 +65,18 @@
 </div>
 {% endif %}
 
-{% if page_obj %}
+{# `is not None` (not `if page_obj`): an empty Page is falsy, but the page still
+   needs its heading, so use an explicit presence check. #}
+{% if page_obj is not None %}
 <div class="section">
     <div class="category-header">
-        <h2>
+        <h1 class="h2">
             {% if query %}
             Search Results for "{{ query }}"
             {% else %}
             Latest Updates
             {% endif %}
-        </h2>
+        </h1>
         {% if page_obj.paginator.count > 0 %}
         <div class="results-info">
             <span class="text-muted">

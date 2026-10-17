@@ -74,3 +74,46 @@ def trending_posts_processor(request):
         'trending_posts': trending_posts,
         'selected_time_frame': time_frame,
     }    
+
+
+# Views whose ?page= parameter paginates *different content* (post lists), so
+# each page keeps a self-referencing canonical. Post detail pages use
+# ?comments_page= instead, so a stray ?page= there cannot change the canonical.
+LIST_PAGINATED_URL_NAMES = {'home', 'category', 'tag_detail', 'search'}
+
+
+def site_meta(request):
+    """
+    Canonical URL + site-wide SEO defaults, available to every template.
+
+    Canonicals are built from settings.SITE_URL (never from the request host)
+    and never contain the query string, except for list pagination where each
+    page is a distinct set of posts.
+    """
+    from .seo import (
+        DEFAULT_DESCRIPTION,
+        absolute_url,
+        build_site_json_ld,
+        default_social_image,
+        json_ld_text,
+        site_root,
+    )
+
+    canonical_url = absolute_url(request.path) or request.path
+
+    resolver_match = getattr(request, 'resolver_match', None)
+    url_name = getattr(resolver_match, 'url_name', None)
+    page = (request.GET.get('page') or '').strip()
+    if url_name in LIST_PAGINATED_URL_NAMES and page.isdigit() and page != '1':
+        canonical_url = f'{canonical_url}?page={page}'
+
+    is_search = url_name == 'search' or bool((request.GET.get('q') or '').strip())
+
+    return {
+        'site_url': site_root(),
+        'canonical_url': canonical_url,
+        'default_meta_description': DEFAULT_DESCRIPTION,
+        'default_social_image': default_social_image(),
+        'site_json_ld': json_ld_text(build_site_json_ld()),
+        'is_search_page': is_search,
+    }

@@ -2,9 +2,19 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.views.generic import ListView, DetailView
 from .models import Post, Category, Comment, HomepageSection, DownloadQuality, Subtitle, Media, Page
 from .forms import CommentForm, PasswordForm
+from .comments import can_post_comment, comments_per_page, create_comment, visible_comments
+from .seo import (
+    absolute_url,
+    build_article_json_ld,
+    build_breadcrumb_json_ld,
+    default_social_image,
+    json_ld_text,
+    post_meta_description,
+)
 from django.db.models import Q
 from django.core.paginator import Paginator
-from django.http import HttpResponseRedirect
+from django.http import Http404, HttpResponseBase, HttpResponseRedirect
+from django.contrib.auth.views import redirect_to_login
 from django.views.decorators.cache import never_cache
 
 from taggit.models import Tag 
@@ -231,6 +241,10 @@ class PostDetailView(DetailView):
     def dispatch(self, request, *args, **kwargs):
         self.object = self.get_object()
 
+        # get_object() may return a redirect (wrong category slug) or raise 404.
+        if isinstance(self.object, HttpResponseBase):
+            return self.object
+
         if self.object.is_password_protected:
             session_key = f'post_{self.object.id}_access'  # ✅ safer than slug
 
@@ -274,90 +288,112 @@ class PostDetailView(DetailView):
         return super().dispatch(request, *args, **kwargs)
 
     def get_object(self, queryset=None):
-        if 'category' in self.kwargs:
-            post = get_object_or_404(Post, slug=self.kwargs['slug'])
+        # Unpublished posts must not be reachable (404, not indexable content).
+        post = get_object_or_404(Post, slug=self.kwargs['slug'], is_published=True)
 
-            if post.category.slug != self.kwargs['category']:
-                return redirect(
-                    'post_detail',
-                    category=post.category.slug,
-                    slug=post.slug,
-                    permanent=True
-                )
-            return post
+        # A post without a category has no valid {category}/{slug} URL shape.
+        if not post.category:
+            raise Http404('This post has no category assigned.')
 
-        return get_object_or_404(Post, slug=self.kwargs['slug'])
+        if 'category' in self.kwargs and post.category.slug != self.kwargs['category']:
+            # Wrong (or stale) category slug: 301 to the canonical URL.
+            return redirect(
+                'post_detail',
+                category=post.category.slug,
+                slug=post.slug,
+                permanent=True
+            )
+        return post
+
+    def _comment_form(self):
+        return getattr(self, 'comment_form', None) or CommentForm()
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         post = self.object
 
-        post_absolute_url = self.request.build_absolute_uri(post.get_absolute_url())
-        context['post_absolute_url'] = post_absolute_url
+        canonical_url = absolute_url(post.get_absolute_url())
+        image_url = (
+            absolute_url(post.thumbnail.url) if post.thumbnail else default_social_image()
+        )
+        breadcrumbs = [('Home', '/')]
+        if post.category:
+            breadcrumbs.append((post.category.name, post.category.get_absolute_url()))
+        breadcrumbs.append((post.title, None))
 
-        if post.thumbnail:
-            context['thumbnail_absolute_url'] = self.request.build_absolute_uri(post.thumbnail.url)
-        else:
-            default_image_relative_url = settings.STATIC_URL + 'images/default_poster.jpg'
-            context['thumbnail_absolute_url'] = self.request.build_absolute_uri(default_image_relative_url)
+        context['post_absolute_url'] = canonical_url
+        context['canonical_url'] = canonical_url
+        context['thumbnail_absolute_url'] = image_url
+        context['og_type'] = 'article'
+        context['meta_description'] = post_meta_description(post)
+        context['breadcrumbs'] = breadcrumbs
+        context['post_json_ld'] = json_ld_text(build_article_json_ld(post, canonical_url, image_url))
+        context['breadcrumb_json_ld'] = json_ld_text(build_breadcrumb_json_ld(breadcrumbs))
 
-        download_data = {
-            'related_posts': Post.objects.filter(
-                category=post.category,
-                is_published=True
-            ).exclude(id=post.id)[:4],
+        # Downloads (fetched once, reused by the template)
+        qualities = list(post.qualities.all()) if post.enable_downloads else []
+        subtitles = list(post.subtitles.all()) if post.enable_downloads else []
+        related_posts = (
+            Post.objects.filter(category=post.category, is_published=True)
+            .exclude(id=post.id)
+            .select_related('category')[:4]
+            if post.category else []
+        )
+
+        # Comments: approved only, newest first, paginated, badge-ready.
+        comments_queryset = visible_comments(post)
+        paginator = Paginator(comments_queryset, comments_per_page())
+        comments_page = paginator.get_page(self.request.GET.get('comments_page') or 1)
+
+        context.update({
+            'related_posts': related_posts,
             'has_downloads': post.enable_downloads,
             'download_section_title': post.download_section_title,
-            'qualities': post.qualities.all() if post.enable_downloads else [],
-            'subtitles': post.subtitles.all() if post.enable_downloads else [],
-            'show_download_section': post.enable_downloads and (
-                post.qualities.exists() or post.subtitles.exists()
-            ),
-            'current_category': post.category
-        }
-
-        comment_data = {
-            'comments': post.comments.filter(is_approved=True).order_by('-created_at'),
-            'comment_form': CommentForm(),
-            'comments_count': post.comments.filter(is_approved=True).count()
-        }
-
-        context.update({**download_data, **comment_data})
+            'qualities': qualities,
+            'subtitles': subtitles,
+            'show_download_section': bool(qualities or subtitles),
+            'current_category': post.category,
+            'comments': comments_page.object_list,
+            'comments_page_obj': comments_page,
+            'comments_count': paginator.count,
+            'comment_form': self._comment_form(),
+            'can_moderate_comments': self.request.user.has_perm('core.change_comment'),
+        })
         return context
 
     def post(self, request, *args, **kwargs):
         """
         Handle comment submissions.
-        Note: For protected posts, dispatch() will block comments until unlocked.
+
+        Reading comments never requires an account; posting does. Protected
+        posts are gated by dispatch() before this runs.
         """
         self.object = self.get_object()
+        if isinstance(self.object, HttpResponseBase):
+            return self.object
 
-        # If protected and not unlocked, send them to password form
-        if self.object.is_password_protected:
-            session_key = f'post_{self.object.id}_access'
-            if not request.session.get(session_key):
-                form = PasswordForm()
-                return render(request, 'core/password_form.html', {
-                    'form': form,
-                    'post': self.object
-                })
+        if not request.user.is_authenticated:
+            messages.info(request, 'Please log in to join the discussion.')
+            # Safe `next`: the post URL the visitor actually posted to.
+            return redirect_to_login(request.path)
 
         form = CommentForm(request.POST)
 
         if form.is_valid():
-            comment = form.save(commit=False)
-            comment.post = self.object
-            comment.save()
+            text = form.cleaned_data['comment']
+            allowed, reason = can_post_comment(request.user, self.object, text)
+            if allowed:
+                create_comment(request.user, self.object, text)
+                messages.success(
+                    request,
+                    'Thanks! Your comment was submitted and will appear once a moderator approves it.'
+                )
+                return redirect(f'{self.object.get_absolute_url()}#comments')
+            form.add_error(None, reason)
 
-            if 'category' in self.kwargs:
-                return redirect('post_detail',
-                                category=self.object.category.slug,
-                                slug=self.object.slug)
-            return redirect('post_detail', slug=self.object.slug)
+        self.comment_form = form
+        return self.render_to_response(self.get_context_data())
 
-        context = self.get_context_data()
-        context['comment_form'] = form
-        return self.render_to_response(context)
 
 
 def search(request):  # Renamed to 'search' to match your original function name

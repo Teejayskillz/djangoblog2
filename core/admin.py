@@ -269,15 +269,38 @@ class CategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Comment)
 class CommentAdmin(admin.ModelAdmin):
-    list_display = ('name', 'post', 'created_at', 'is_approved')
+    list_display = ('display_name', 'author_account', 'post', 'created_at', 'is_approved')
     list_filter = ('is_approved', 'created_at')
     list_editable = ('is_approved',)
-    search_fields = ('name', 'email', 'comment')
-    actions = ['approve_comments']
+    search_fields = ('name', 'email', 'comment', 'user__username', 'user__email', 'post__title')
+    raw_id_fields = ('user', 'post')
+    readonly_fields = ('created_at', 'display_name')
+    list_select_related = ('user', 'post')
+    date_hierarchy = 'created_at'
+    actions = ['approve_comments', 'hide_comments']
+    fieldsets = (
+        (None, {
+            'fields': ('post', 'user', 'display_name', 'comment', 'is_approved', 'created_at')
+        }),
+        ('Legacy contact details (not shown publicly)', {
+            'classes': ('collapse',),
+            'fields': ('name', 'email'),
+        }),
+    )
 
+    @admin.display(description='Author', ordering='user__username')
+    def author_account(self, obj):
+        return obj.user.username if obj.user_id else '—'
+
+    @admin.action(description="Approve selected comments")
     def approve_comments(self, request, queryset):
-        queryset.update(is_approved=True)
-    approve_comments.short_description = "Approve selected comments"
+        updated = queryset.update(is_approved=True)
+        self.message_user(request, f"{updated} comment(s) approved and publicly visible.")
+
+    @admin.action(description="Hide selected comments")
+    def hide_comments(self, request, queryset):
+        updated = queryset.update(is_approved=False)
+        self.message_user(request, f"{updated} comment(s) hidden from the website.")
 
 @admin.register(HomepageSection)
 class HomepageSectionAdmin(admin.ModelAdmin):

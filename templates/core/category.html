@@ -1,7 +1,7 @@
 {% extends 'core/base.html' %} {# This must be first! #}
 {% load static %} {# This comes second #}
 
-{% block title %}Category: {{ category.name }} - {{ block.super }}{% endblock %}
+{% block title %}{{ category.name }} - Watch & Download{% endblock %}
 
 {% block content %}
 <div class="container my-4">
@@ -25,9 +25,9 @@
                 </nav>
 
                 <div class="category-header mb-4">
-                    <h2 class="category-title mb-2">
+                    <h1 class="category-title mb-2">
                         <i class="bi bi-collection-fill me-2"></i>{{ category.name }}
-                    </h2>
+                    </h1>
                     {% if category.description %}
                     <p class="category-description">{{ category.description }}</p>
                     {% endif %}

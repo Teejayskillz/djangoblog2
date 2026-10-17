@@ -173,8 +173,18 @@ class Post(models.Model):
     
 class Comment(models.Model):
     post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='comments')
+    # Logged-in author. Nullable so comments imported/created before the
+    # account-based comment system keep working (they fall back to `name`).
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='comments',
+        help_text="The logged-in account that wrote this comment (blank for legacy comments).",
+    )
     name = models.CharField(max_length=100)
-    email = models.EmailField()
+    email = models.EmailField(blank=True)
     comment = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     is_approved = models.BooleanField(default=False)
@@ -183,9 +193,52 @@ class Comment(models.Model):
         ordering = ['-created_at']
         verbose_name = "Comment"
         verbose_name_plural = "Comments"
+        indexes = [
+            # Public comment list for one post: filter by post + approval, ordered by date.
+            models.Index(
+                fields=['post', 'is_approved', '-created_at'],
+                name='core_comment_post_appr_idx',
+            ),
+            # Moderation queue: newest comments by approval status.
+            models.Index(
+                fields=['is_approved', '-created_at'],
+                name='core_comment_appr_idx',
+            ),
+        ]
 
     def __str__(self):
-        return f"Comment by {self.name} on {self.post.title}"
+        return f"Comment by {self.display_name} on {self.post.title}"
+
+    @property
+    def display_name(self):
+        """Public name shown next to the comment (never the email address)."""
+        if self.user_id and self.user:
+            return self.user.get_full_name() or self.user.username
+        return self.name or "Guest"
+
+    @property
+    def avatar_initial(self):
+        """First character of the display name, used for the placeholder avatar."""
+        for character in self.display_name:
+            if character.strip():
+                return character.upper()
+        return "?"
+
+    @property
+    def is_premium(self):
+        """
+        Whether the commenter currently qualifies as a Premium/VIP member.
+
+        Uses the site's existing entitlement rule (subscriptions.utils.
+        user_has_active_subscription) so an expired or revoked subscription
+        automatically loses the badge. Never derived from user-editable input.
+        Read the queryset with select_related('user__subscription') to keep
+        this from issuing a query per comment.
+        """
+        from subscriptions.utils import user_has_active_subscription
+
+        return bool(self.user_id and user_has_active_subscription(self.user))
+
     
 # from django.db import models # Already imported above
 

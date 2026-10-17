@@ -212,6 +212,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'core.context_processors.global_sidebar_context',
                 'core.context_processors.trending_posts_processor',
+                'core.context_processors.site_meta',
                 'ads.context_processors.ads_context',
                 'subscriptions.context_processors.subscription_context',
             ],
@@ -387,3 +388,18 @@ LOGIN_URL = 'login'  # Where to redirect if user needs to login
 LOGIN_REDIRECT_URL = 'home'  # Where to redirect after login
 LOGOUT_REDIRECT_URL = 'home'  # Where to redirect after logout
 LOGOUT_URL = 'logout'
+
+# ---------------------------------------------------------------------------
+# Canonical site origin used for <link rel="canonical">, Open Graph URLs and
+# JSON-LD. Keeping it in one place means www/non-www and http/https variations
+# always resolve to the same canonical host. Override with the SITE_URL env var.
+# ---------------------------------------------------------------------------
+SITE_URL = os.getenv('SITE_URL', 'https://nzdworld.com').rstrip('/')
+
+# ---------------------------------------------------------------------------
+# Comments
+# ---------------------------------------------------------------------------
+COMMENTS_PER_PAGE = int(os.getenv('COMMENTS_PER_PAGE', '20'))
+COMMENT_MIN_INTERVAL_SECONDS = int(os.getenv('COMMENT_MIN_INTERVAL_SECONDS', '20'))
+COMMENT_MAX_PER_HOUR = int(os.getenv('COMMENT_MAX_PER_HOUR', '30'))
+COMMENT_DUPLICATE_WINDOW_MINUTES = int(os.getenv('COMMENT_DUPLICATE_WINDOW_MINUTES', '10'))

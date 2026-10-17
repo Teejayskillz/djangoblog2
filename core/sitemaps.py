@@ -10,6 +10,9 @@ from core.models import Post, Category, MyCustomTag
 class PostSitemap(Sitemap):
     changefreq = "daily"
     priority = 0.9
+    # Always advertise https, even when the request reaches Django over http
+    # behind the CloudLinux/Passenger proxy.
+    protocol = "https"
 
     def items(self):
         return Post.objects.filter(is_published=True, category__isnull=False).order_by('-published_date')
@@ -24,6 +27,7 @@ class PostSitemap(Sitemap):
 class CategorySitemap(Sitemap):
     changefreq = "weekly"
     priority = 0.8
+    protocol = "https"
 
     def items(self):
         return Category.objects.annotate(
@@ -41,6 +45,7 @@ class CategorySitemap(Sitemap):
 class TagSitemap(Sitemap):
     changefreq = "weekly"
     priority = 0.7
+    protocol = "https"
 
     def items(self):
         # Only include tags used on at least one published post
@@ -59,9 +64,12 @@ class TagSitemap(Sitemap):
 class StaticViewSitemap(Sitemap):
     priority = 0.8
     changefreq = "monthly"
+    protocol = "https"
 
     def items(self):
-        return ['home', 'search'] 
+        # Only real landing pages: internal search results are noindex and must
+        # not be advertised in the sitemap.
+        return ['home']
 
     def location(self, item):
         return reverse(item)

@@ -7,16 +7,73 @@ from django.core.exceptions import ValidationError
 import re
 
 
+COMMENT_MAX_LENGTH = 2000
+COMMENT_MIN_LENGTH = 3
+
+
 class CommentForm(forms.ModelForm):
+    """
+    Comment form for logged-in users.
+
+    Only the comment body is user-editable: the author (name/email) comes from
+    the authenticated account, never from the browser. The `website` field is a
+    honeypot - it is hidden with CSS and real users never fill it in.
+    """
+
+    MAX_LENGTH = COMMENT_MAX_LENGTH
+    MIN_LENGTH = COMMENT_MIN_LENGTH
+
+    website = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'comment-honeypot',
+            'tabindex': '-1',
+            'autocomplete': 'off',
+            'aria-hidden': 'true',
+        }),
+        label='',
+    )
+
     class Meta:
         model = Comment
-        fields = ['name', 'email', 'comment']
+        fields = ['comment']
+        error_messages = {
+            'comment': {'required': 'Please write a comment before submitting.'},
+        }
         widgets = {
             'comment': forms.Textarea(attrs={
                 'rows': 4,
-                'placeholder': 'Write your comment here...'
+                'maxlength': COMMENT_MAX_LENGTH,
+                'placeholder': 'Share your thoughts...',
+                'class': 'form-control',
+                'required': 'required',
             }),
         }
+
+    def clean_comment(self):
+        # Normalise whitespace before validating, so "   " is an empty comment
+        # and pasted blocks of blank lines are collapsed.
+        raw = self.cleaned_data.get('comment') or ''
+        raw = raw.replace('\r\n', '\n').replace('\r', '\n')
+        lines = [line.rstrip() for line in raw.split('\n')]
+        text = '\n'.join(lines)
+        text = re.sub(r'\n{3,}', '\n\n', text).strip()
+
+        if len(text) < self.MIN_LENGTH:
+            raise ValidationError('Please write a comment before submitting.')
+
+        if len(text) > self.MAX_LENGTH:
+            raise ValidationError(
+                f'Comments cannot be longer than {self.MAX_LENGTH} characters.'
+            )
+
+        return text
+
+    def clean_website(self):
+        # Honeypot: a value here means a bot filled the hidden field.
+        if self.cleaned_data.get('website'):
+            raise ValidationError('Your comment could not be submitted.')
+        return ''
 
 
 class PasswordForm(forms.Form):

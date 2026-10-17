@@ -11,9 +11,10 @@ from .models import Category, HomepageSection, Post
 
 
 # Compatibility patch for Python 3.14 test client template context copying
-# (same patch as controlcenter/tests.py; needed so this module can run alone).
+# (same patch as core/testing.py; needed so this module can run alone).
 def _basecontext_copy(self):
     duplicate = self.__class__.__new__(self.__class__)
+    duplicate.__dict__ = self.__dict__.copy()
     duplicate.dicts = self.dicts[:]
     return duplicate
 

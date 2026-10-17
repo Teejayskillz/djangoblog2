@@ -14,6 +14,7 @@ from subscriptions.models import SubscriptionPlan
 # Compatibility patch for Python 3.14 test client template context copying
 def _basecontext_copy(self):
     duplicate = self.__class__.__new__(self.__class__)
+    duplicate.__dict__ = self.__dict__.copy()
     duplicate.dicts = self.dicts[:]
     return duplicate
 BaseContext.__copy__ = _basecontext_copy

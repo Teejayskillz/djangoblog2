@@ -7,9 +7,12 @@ from sports.models import SportsMatch
 from subscriptions.models import SubscriptionPlan, UserSubscription
 from django.template.context import BaseContext
 
-# Compatibility patch for Python 3.14 test client template context copying
+# Compatibility patch for Python 3.14 test client template context copying.
+# The instance __dict__ must be preserved (Context.template, render_context, ...)
+# or template inheritance inside the admin breaks.
 def _basecontext_copy(self):
     duplicate = self.__class__.__new__(self.__class__)
+    duplicate.__dict__ = self.__dict__.copy()
     duplicate.dicts = self.dicts[:]
     return duplicate
 BaseContext.__copy__ = _basecontext_copy

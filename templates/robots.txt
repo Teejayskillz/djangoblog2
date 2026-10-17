@@ -1,8 +1,15 @@
-# START YOAST BLOCK
-# ---------------------------
-User-agent: *
-Disallow:
+# robots.txt for NZDWorld
+# Keep public posts, categories, tags, images and comments crawlable; keep
+# account, admin and internal-search URLs out of the index.
 
-Sitemap: https://hypeblog9jatv.com.ng/sitemap.xml
-# ---------------------------
-# END YOAST BLOCK
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /control-center/
+Disallow: /django-admin-backend-internal/
+Disallow: /accounts/
+Disallow: /import-sub/
+Disallow: /search
+Disallow: /subscriptions/checkout/
+
+Sitemap: {{ site_url }}/sitemap.xml
