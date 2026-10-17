@@ -3,6 +3,9 @@ Comment system tests: public reading, authenticated posting, validation, XSS,
 premium badges, moderation and anti-spam.
 """
 
+from unittest import mock
+
+from django.core.cache import cache
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
@@ -12,7 +15,22 @@ from core.testing import give_subscription, make_comment, make_post, make_user
 
 
 class CommentTestBase(TestCase):
+    """
+    Base for comment behaviour tests.
+
+    The signed timing token and the per-user rate limiter are covered directly
+    in controlcenter/test_security.py; here they are stubbed out so each test
+    exercises the comment logic itself instead of waiting `FORM_MIN_SUBMIT_SECONDS`.
+    """
+
     def setUp(self):
+        cache.clear()
+        self._token_patcher = mock.patch(
+            'core.views.validate_form_token', return_value=(True, '')
+        )
+        self._token_patcher.start()
+        self.addCleanup(self._token_patcher.stop)
+
         self.author = make_user('author')
         self.post = make_post()
         self.url = self.post.get_absolute_url()

@@ -11,9 +11,20 @@ from django.contrib import messages
 from django.http import HttpResponseForbidden, HttpResponse, Http404
 from django.utils.text import capfirst
 from django.utils import timezone
-from django.db.models import Count, Q
+from django.db.models import Avg, Count, Max, Q, Sum
 import datetime
 from urllib.parse import urlencode
+
+from django.conf import settings
+
+from .models import (
+    AnalyticsIssue,
+    PageVisit,
+    RawRequestStat,
+    SlowRequestLog,
+    ThrottleEvent,
+    TRAFFIC_CLASSES,
+)
 
 from .models import PageVisit
 from .slug_utils import apply_slug_defaults, get_slug_sources
@@ -198,9 +209,17 @@ class DashboardView(StaffRequiredMixin, View):
         now = timezone.now()
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
-        # Traffic quick numbers (today)
-        today_views = PageVisit.objects.filter(timestamp__gte=today_start).count()
-        today_visitors = PageVisit.objects.filter(timestamp__gte=today_start).values('visitor_id').distinct().count()
+        # Human page views only: bots/crawlers are counted separately so the
+        # headline "traffic" number is not inflated by crawlers or assets.
+        today_page_views = PageVisit.objects.filter(
+            timestamp__gte=today_start, traffic_class='human'
+        ).count()
+        today_visitors = PageVisit.objects.filter(
+            timestamp__gte=today_start, traffic_class='human'
+        ).values('visitor_id').distinct().count()
+        today_bots = PageVisit.objects.filter(timestamp__gte=today_start).exclude(
+            traffic_class='human'
+        ).count()
 
         stats = {
             'posts': Post.objects.count() if Post else 0,
@@ -208,16 +227,38 @@ class DashboardView(StaffRequiredMixin, View):
             'comments': Comment.objects.count() if Comment else 0,
             'sports_matches': SportsMatch.objects.count() if SportsMatch else 0,
             'active_vip': UserSubscription.objects.filter(is_active=True, end_date__gt=now).count() if UserSubscription else 0,
-            'today_views': today_views,
+            'today_views': today_page_views,
             'today_visitors': today_visitors,
+            'today_bots': today_bots,
+        }
+
+        # Operational signals (24h) for the dashboard security card.
+        last_24h = now - timezone.timedelta(hours=24)
+        security = {
+            'throttled_24h': ThrottleEvent.objects.filter(created_at__gte=last_24h).count(),
+            'spam_7d': AnalyticsIssue.objects.filter(
+                day__gte=(now - timezone.timedelta(days=7)).date(),
+                kind__in=('comment_spam', 'comment_rejected'),
+            ).aggregate(total=Sum('count'))['total'] or 0,
+            'slow_24h': SlowRequestLog.objects.filter(created_at__gte=last_24h).count(),
+            'tracking_errors_24h': AnalyticsIssue.objects.filter(
+                day=now.date(), kind__in=('error', 'verify_failed', 'dedupe_store')
+            ).aggregate(total=Sum('count'))['total'] or 0,
+            'duplicates_24h': AnalyticsIssue.objects.filter(
+                day=now.date(), kind='duplicate'
+            ).aggregate(total=Sum('count'))['total'] or 0,
+            'raw_24h': RawRequestStat.objects.filter(
+                bucket_start__gte=last_24h
+            ).aggregate(total=Sum('requests'))['total'] or 0,
         }
 
         recent_posts = Post.objects.order_by('-published_date')[:6] if Post else []
         recent_matches = SportsMatch.objects.order_by('-created_at')[:5] if SportsMatch else []
-        recent_visits = PageVisit.objects.order_by('-timestamp')[:8]
+        recent_visits = PageVisit.objects.filter(traffic_class='human').order_by('-timestamp')[:8]
 
         context = {
             'stats': stats,
+            'security': security,
             'recent_posts': recent_posts,
             'recent_matches': recent_matches,
             'recent_visits': recent_visits,
@@ -293,8 +334,86 @@ class AnalyticsView(StaffRequiredMixin, View):
                 'visitors': day_visitors,
             })
 
-        # Recent 25 raw visits
-        recent_visits = visits_qs.order_by('-timestamp')[:25]
+        # Recent 25 raw visits (human only: the raw table below is for everyone)
+        recent_visits = visits_qs.filter(traffic_class='human').order_by('-timestamp')[:25]
+
+        # --- Traffic quality -------------------------------------------------
+        class_rows = visits_qs.values('traffic_class').annotate(count=Count('id'))
+        traffic_by_class = {row['traffic_class']: row['count'] for row in class_rows}
+        for key, _label in TRAFFIC_CLASSES:
+            traffic_by_class.setdefault(key, 0)
+
+        traffic_class_rows = [
+            {
+                'key': key,
+                'label': label,
+                'count': traffic_by_class.get(key, 0),
+                'share': round(traffic_by_class.get(key, 0) * 100 / total_views, 1) if total_views else 0,
+            }
+            for key, label in TRAFFIC_CLASSES
+        ]
+
+        human_qs = visits_qs.filter(traffic_class='human')
+        human_views = human_qs.count()
+        estimated_unique_visitors = human_qs.values('visitor_id').distinct().count()
+        estimated_sessions = (
+            human_qs.exclude(session_key__isnull=True)
+            .exclude(session_key='')
+            .values('session_key')
+            .distinct()
+            .count()
+        )
+        top_human_paths = (
+            human_qs.values('path').annotate(hits=Count('id')).order_by('-hits')[:10]
+        )
+
+        # --- Raw server requests (from access-log import) ---------------------
+        raw_in_range = RawRequestStat.objects.filter(bucket_start__gte=start_date)
+        raw_requests = raw_in_range.aggregate(total=Sum('requests'))['total'] or 0
+        raw_by_status = {
+            row['status_class']: row['total']
+            for row in raw_in_range.values('status_class').annotate(total=Sum('requests'))
+        }
+        top_raw_paths = (
+            raw_in_range.values('path').annotate(total=Sum('requests')).order_by('-total')[:10]
+        )
+
+        # --- Operational signals ---------------------------------------------
+        throttle_in_range = ThrottleEvent.objects.filter(created_at__gte=start_date)
+        throttle_count = throttle_in_range.count()
+        throttle_by_scope = {
+            row['scope']: row['count']
+            for row in throttle_in_range.values('scope').annotate(count=Count('id'))
+        }
+        recent_throttles = throttle_in_range.order_by('-created_at')[:10]
+
+        issue_rows = AnalyticsIssue.objects.filter(day__gte=start_date.date())
+        analytics_issues = list(issue_rows.order_by('-day', 'kind')[:12])
+        issue_totals = {
+            row['kind']: row['total']
+            for row in issue_rows.values('kind').annotate(total=Sum('count'))
+        }
+
+        slow_qs = SlowRequestLog.objects.filter(created_at__gte=start_date)
+        slow_summary = slow_qs.aggregate(
+            count=Count('id'), avg_ms=Avg('duration_ms'), max_ms=Max('duration_ms')
+        )
+        slowest_views = slow_qs.order_by('-duration_ms')[:10]
+
+        Comment = apps.get_model('core', 'Comment')
+        comments_in_range = Comment.objects.filter(created_at__gte=start_date)
+        comment_metrics = {
+            'submitted': comments_in_range.count(),
+            'approved': comments_in_range.filter(is_approved=True).count(),
+            'pending': comments_in_range.filter(is_approved=False).count(),
+            'rejected': issue_totals.get('comment_rejected', 0),
+            'spam': issue_totals.get('comment_spam', 0),
+        }
+
+        PaymentTransaction = apps.get_model('subscriptions', 'PaymentTransaction')
+        conversions = PaymentTransaction.objects.filter(
+            created_at__gte=start_date, status='completed'
+        ).count()
 
         context = {
             'range_param': range_param,
@@ -306,6 +425,29 @@ class AnalyticsView(StaffRequiredMixin, View):
             'device_breakdown': device_breakdown,
             'daily_stats': daily_stats,
             'recent_visits': recent_visits,
+            # traffic quality
+            'traffic_classes': TRAFFIC_CLASSES,
+            'traffic_by_class': traffic_by_class,
+            'traffic_class_rows': traffic_class_rows,
+            'human_views': human_views,
+            'estimated_unique_visitors': estimated_unique_visitors,
+            'estimated_sessions': estimated_sessions,
+            'top_human_paths': top_human_paths,
+            # raw server-side truth
+            'raw_requests': raw_requests,
+            'raw_by_status': raw_by_status,
+            'top_raw_paths': top_raw_paths,
+            'raw_configured': bool(getattr(settings, 'ACCESS_LOG_PATH', '')),
+            # operations
+            'throttle_count': throttle_count,
+            'throttle_by_scope': throttle_by_scope,
+            'recent_throttles': recent_throttles,
+            'analytics_issues': analytics_issues,
+            'issue_totals': issue_totals,
+            'slow_summary': slow_summary,
+            'slowest_views': slowest_views,
+            'comment_metrics': comment_metrics,
+            'conversions': conversions,
             'active_menu': 'analytics',
         }
         context.update(get_app_list_context(request))

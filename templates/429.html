@@ -1,0 +1,26 @@
+{% extends 'core/base.html' %}
+{% block title %}Too many requests{% endblock %}
+{% block robots %}<meta name="robots" content="noindex, nofollow">{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-7">
+      <div class="card shadow border-0" style="background: rgba(39, 52, 77, 0.6);">
+        <div class="card-body p-4 p-md-5 text-center">
+          <div style="font-size: 2.6rem; line-height: 1;">🛑</div>
+          <h1 class="h3 mt-3 mb-3" style="color: var(--primary);">Too many requests</h1>
+          <p class="mb-2">
+            You have made too many requests in a short time, so this action is paused
+            for a moment to keep the site available for everyone.
+          </p>
+          <p class="text-muted mb-4">
+            Please try again in about {{ retry_minutes }} minute{{ retry_minutes|pluralize }}.
+          </p>
+          <a href="/" class="btn btn-primary rounded-pill px-4">Back to the homepage</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

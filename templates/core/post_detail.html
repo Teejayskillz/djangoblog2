@@ -255,6 +255,8 @@
 
                 {# Honeypot: hidden from people, tempting to bots. #}
                 <div class="comment-honeypot-wrap" aria-hidden="true">{{ comment_form.website }}</div>
+                {# Signed timestamp: rejects too-fast/replayed submissions #}
+                {{ comment_form.form_token }}
 
                 {% if comment_form.non_field_errors %}
                 <div class="alert alert-danger" role="alert">
@@ -269,6 +271,11 @@
                     <small class="text-danger d-block mt-1">{{ comment_form.comment.errors.0 }}</small>
                     {% endif %}
                 </div>
+
+                {% if turnstile.configured %}
+                <div class="cf-turnstile" data-sitekey="{{ turnstile.site_key }}" style="margin: 0 0 1rem;"></div>
+                <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+                {% endif %}
 
                 <button type="submit" class="submit-btn">
                     🚀 Post Comment

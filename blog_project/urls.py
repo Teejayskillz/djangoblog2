@@ -24,6 +24,7 @@ from django.contrib.sitemaps.views import sitemap
 from core.views import robots_txt ,  import_subscribers_view
 from subscriptions.views import plan_list as pricing_view
 from controlcenter.views import AdminRetiredRedirectView
+from core.auth_views import ThrottledLoginView, ThrottledPasswordResetView
 
 
 sitemaps = {
@@ -69,6 +70,9 @@ urlpatterns = [
     path('ckeditor5/', include('django_ckeditor_5.urls')),
     path('robots.txt', robots_txt),
     path('sitemap.xml', sitemap, {'sitemaps': sitemaps}, name='django.contrib.sitemaps.views.sitemap'),
+    # Throttled overrides must come before the auth include so they win.
+    path('accounts/login/', ThrottledLoginView.as_view(), name='login'),
+    path('accounts/password_reset/', ThrottledPasswordResetView.as_view(), name='password_reset'),
     path('accounts/', include('django.contrib.auth.urls')), 
     path('subscriptions/', include('subscriptions.urls')),
     path('pricing/', pricing_view, name='pricing'),

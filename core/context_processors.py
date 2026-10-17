@@ -4,11 +4,27 @@ from taggit.models import Tag, TaggedItem # Import TaggedItem
 from django.db.models import Count, Q # Ensure Q is imported for filtering
 from django.utils import timezone
 from datetime import timedelta
+from django.conf import settings
+from django.core.cache import cache
+
+
+def _cache_seconds(name, default):
+    return int(getattr(settings, name, default))
+
 
 def global_sidebar_context(request):
     """
     Context processor to add trending, recent, and popular tags to all templates.
+
+    Runs on every public page, so the computed lists are cached briefly: the
+    popular-tag aggregation is the most expensive query on the site and does not
+    need to be recomputed per request.
     """
+    cache_key = 'cc:sidebar:v1'
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     trending_posts = []
     recent_posts = []
     popular_tags = []
@@ -16,17 +32,19 @@ def global_sidebar_context(request):
     # Fetch Trending Posts
     try:
         trending_category = Category.objects.get(name='Trending')
-        trending_posts = Post.objects.filter(
+        trending_posts = list(Post.objects.filter(
             is_published=True,
             category=trending_category
-        ).order_by('-published_date')[:3]
+        ).only('id', 'title', 'slug', 'thumbnail', 'category_id')
+          .select_related('category').order_by('-published_date')[:3])
     except Category.DoesNotExist:
         pass
 
     # Fetch Recent Posts
-    recent_posts = Post.objects.filter(
+    recent_posts = list(Post.objects.filter(
         is_published=True
-    ).order_by('-published_date')[:10]
+    ).only('id', 'title', 'slug', 'thumbnail', 'category_id')
+        .select_related('category').order_by('-published_date')[:10])
 
     # Corrected way to Fetch Popular Tags
     # 1. Get the IDs of published posts.
@@ -37,43 +55,60 @@ def global_sidebar_context(request):
     from django.contrib.contenttypes.models import ContentType
     post_content_type = ContentType.objects.get_for_model(Post)
 
-    popular_tags = Tag.objects.filter(
+    popular_tags = list(Tag.objects.filter(
         taggit_taggeditem_items__object_id__in=published_post_ids, # TaggedItem's object_id is in published post IDs
         taggit_taggeditem_items__content_type=post_content_type # And the content type matches Post
     ).annotate(
         num_times=Count('taggit_taggeditem_items')
     ).order_by(
         '-num_times'
-    )[:10]
+    )[:10])
 
-    return {
+    data = {
         'trending_posts': trending_posts,
         'recent_posts': recent_posts,
         'popular_tags': popular_tags,
     }
+    cache.set(cache_key, data, _cache_seconds('SIDEBAR_CACHE_SECONDS', 120))
+    return data
+
     
    
 
 def trending_posts_processor(request):
     """
     Context processor to add trending posts to the context of every request.
+
+    Cached per time frame: this runs on every page and the ordering by `views`
+    is not worth two queries per request.
     """
     time_frame = request.GET.get('time', '7days') # Get 'time' parameter from URL
-    
+    if time_frame not in ('24hrs', '7days'):
+        time_frame = '7days'
+
+    cache_key = f'cc:trending:{time_frame}:v1'
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     if time_frame == '24hrs':
         time_threshold = timezone.now() - timedelta(hours=24)
     else: # Default or '7days'
         time_threshold = timezone.now() - timedelta(days=7)
 
-    trending_posts = Post.objects.filter(
+    trending_posts = list(Post.objects.filter(
         is_published=True,
         published_date__gte=time_threshold # Posts published within the timeframe
-    ).order_by('-views')[:10] # Order by views, limit to 5 (adjust as needed)
+    ).only('id', 'title', 'slug', 'thumbnail', 'views', 'category_id')
+        .select_related('category').order_by('-views')[:10])
 
-    return {
+    data = {
         'trending_posts': trending_posts,
         'selected_time_frame': time_frame,
-    }    
+    }
+    cache.set(cache_key, data, _cache_seconds('TRENDING_CACHE_SECONDS', 120))
+    return data
+
 
 
 # Views whose ?page= parameter paginates *different content* (post lists), so

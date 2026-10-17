@@ -4,6 +4,7 @@ from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
 from django.core.exceptions import ValidationError
+from .antispam import make_form_token
 import re
 
 
@@ -33,6 +34,15 @@ class CommentForm(forms.ModelForm):
         }),
         label='',
     )
+
+    # Signed timestamp: rejects submissions that are too fast to be human and
+    # replayed/expired tokens. Rendered as a hidden input.
+    form_token = forms.CharField(required=False, widget=forms.HiddenInput)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not self.is_bound:
+            self.fields['form_token'].initial = make_form_token()
 
     class Meta:
         model = Comment

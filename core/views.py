@@ -16,6 +16,26 @@ from django.core.paginator import Paginator
 from django.http import Http404, HttpResponseBase, HttpResponseRedirect
 from django.contrib.auth.views import redirect_to_login
 from django.views.decorators.cache import never_cache
+from django.db.models import F
+
+from controlcenter.throttle import check_rate_limit
+from controlcenter.traffic import get_client_ip
+from controlcenter.middleware import record_issue
+from core.antispam import (
+    looks_like_link_spam,
+    turnstile_widget,
+    validate_form_token,
+    verify_turnstile,
+)
+from core.auth_views import rate_limited_response
+
+
+def _client_key(request):
+    """Rate-limit key: prefer the account, fall back to the client IP."""
+    user = getattr(request, 'user', None)
+    if user is not None and user.is_authenticated:
+        return f'u{user.pk}'
+    return get_client_ip(request)
 
 from taggit.models import Tag 
 from django.utils.http import urlsafe_base64_decode
@@ -50,6 +70,18 @@ def register(request):
         return redirect('home')
     
     if request.method == 'POST':
+        # Abuse protection: registration sends email, so cap it per IP.
+        limit = check_rate_limit('register', get_client_ip(request), request)
+        if not limit.allowed:
+            return rate_limited_response(request, limit, 'register')
+
+        human_ok, _reason = verify_turnstile(request)
+        if not human_ok:
+            messages.error(request, 'Human verification failed. Please try again.')
+            return render(request, 'registration/register.html', {
+                'form': CustomUserCreationForm(request.POST),
+            })
+
         form = CustomUserCreationForm(request.POST)
         if form.is_valid():
             user = form.save(commit=False)
@@ -135,16 +167,22 @@ def wordpress_redirect_view(request, year, month, day, slug):
 
     
 def home(request):
-    # Get all active homepage sections
-    sections = HomepageSection.objects.filter(enabled=True)
+    # Get all active homepage sections (prefetch categories: previously this was
+    # 2 extra queries per section, i.e. an N+1 on the busiest page of the site).
+    sections = list(HomepageSection.objects.filter(enabled=True).prefetch_related('categories'))
     
     # Prepare section data
     section_data = []
+    all_section_category_ids = []
     for section in sections:
+        category_ids = [category.pk for category in section.categories.all()]
+        all_section_category_ids.extend(category_ids)
         posts = Post.objects.filter(
             is_published=True,
-            category__in=section.categories.all()
-        ).order_by('-published_date')[:6]  # 6 posts per section
+            category_id__in=category_ids
+        ).only(
+            'id', 'title', 'slug', 'thumbnail', 'category_id'
+        ).select_related('category').order_by('-published_date')[:6]  # 6 posts per section
         
         section_data.append({
             'title': section.title,
@@ -153,7 +191,7 @@ def home(request):
         })
     
     # Get all other recent posts not in sections for pagination
-    section_categories = [cat for section in sections for cat in section.categories.all()]
+    section_categories = all_section_category_ids
     other_posts_queryset = Post.objects.filter(
         is_published=True
     ).exclude(
@@ -357,6 +395,7 @@ class PostDetailView(DetailView):
             'comments_page_obj': comments_page,
             'comments_count': paginator.count,
             'comment_form': self._comment_form(),
+            'turnstile': turnstile_widget(),
             'can_moderate_comments': self.request.user.has_perm('core.change_comment'),
         })
         return context
@@ -366,7 +405,9 @@ class PostDetailView(DetailView):
         Handle comment submissions.
 
         Reading comments never requires an account; posting does. Protected
-        posts are gated by dispatch() before this runs.
+        posts are gated by dispatch() before this runs. All anti-spam checks run
+        here (server side), so posting straight to the endpoint cannot bypass
+        them.
         """
         self.object = self.get_object()
         if isinstance(self.object, HttpResponseBase):
@@ -377,10 +418,37 @@ class PostDetailView(DetailView):
             # Safe `next`: the post URL the visitor actually posted to.
             return redirect_to_login(request.path)
 
+        limit = check_rate_limit('comment', f'u{request.user.pk}', request)
+        if not limit.allowed:
+            return rate_limited_response(request, limit, 'comment')
+
         form = CommentForm(request.POST)
+
+        token_ok, token_reason = validate_form_token(request.POST.get('form_token'))
+        if not token_ok:
+            record_issue('comment_rejected', token_reason)
+            form.add_error(
+                None,
+                'Your comment could not be submitted. Please reload the page and try again.',
+            )
+
+        human_ok, human_reason = verify_turnstile(request)
+        if not human_ok:
+            record_issue('comment_rejected', f'turnstile_{human_reason}')
+            form.add_error(None, 'Human verification failed. Please try again.')
 
         if form.is_valid():
             text = form.cleaned_data['comment']
+
+            if looks_like_link_spam(text):
+                record_issue('comment_spam', 'too_many_links')
+                form.add_error(
+                    None,
+                    'Your comment contains too many links and was not submitted.',
+                )
+                self.comment_form = form
+                return self.render_to_response(self.get_context_data())
+
             allowed, reason = can_post_comment(request.user, self.object, text)
             if allowed:
                 create_comment(request.user, self.object, text)
@@ -389,6 +457,7 @@ class PostDetailView(DetailView):
                     'Thanks! Your comment was submitted and will appear once a moderator approves it.'
                 )
                 return redirect(f'{self.object.get_absolute_url()}#comments')
+            record_issue('comment_rejected', 'rate_limited')
             form.add_error(None, reason)
 
         self.comment_form = form
@@ -397,11 +466,21 @@ class PostDetailView(DetailView):
 
 
 def search(request):  # Renamed to 'search' to match your original function name
-    query = request.GET.get('q', '') # Changed 'query' to 'q' to match your original 'request.GET.get('q', '')'
+    # Bound the query: very long queries make the icontains scan needlessly
+    # expensive and are never legitimate.
+    query = (request.GET.get('q') or '').strip()[:100]
+
     results = []
     page_obj = None
     is_paginated = False
-    
+
+    if query:
+        limit = check_rate_limit('search', _client_key(request), request)
+        if not limit.allowed:
+            return rate_limited_response(request, limit, 'search')
+        if len(query) < 2:
+            query = ''
+
     if query:
         # Search in title, content, and excerpt fields
         results = Post.objects.filter(
@@ -436,6 +515,11 @@ def search(request):  # Renamed to 'search' to match your original function name
     return render(request, 'core/search.html', context) # Kept your original template name 'core/search.html'
 @never_cache
 def download_quality(request, pk):
+    # Download links are the most scraped resource on the site.
+    limit = check_rate_limit('download', _client_key(request), request)
+    if not limit.allowed:
+        return rate_limited_response(request, limit, 'download')
+
     quality = get_object_or_404(DownloadQuality, pk=pk)
     from subscriptions.utils import (
         user_has_active_subscription,
@@ -452,8 +536,10 @@ def download_quality(request, pk):
         )
         return redirect('subscriptions:plan_list')
 
-    quality.download_count += 1
-    quality.save()
+    # Atomic counter update: no read-modify-write race, no full row rewrite.
+    DownloadQuality.objects.filter(pk=quality.pk).update(
+        download_count=F('download_count') + 1
+    )
 
     download_url = quality.download_url
     # If user is authenticated and has active VIP status, generate signed token for CDN ad-free access
@@ -469,6 +555,10 @@ def download_quality(request, pk):
 
 @never_cache
 def download_subtitle(request, pk):
+    limit = check_rate_limit('download', _client_key(request), request)
+    if not limit.allowed:
+        return rate_limited_response(request, limit, 'download')
+
     subtitle = get_object_or_404(Subtitle, pk=pk)
     from subscriptions.utils import (
         user_has_active_subscription,
@@ -476,8 +566,9 @@ def download_subtitle(request, pk):
         append_vip_token_to_url
     )
 
-    subtitle.download_count += 1
-    subtitle.save()
+    Subtitle.objects.filter(pk=subtitle.pk).update(
+        download_count=F('download_count') + 1
+    )
 
     download_url = subtitle.download_url
     if request.user.is_authenticated and user_has_active_subscription(request.user):

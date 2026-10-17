@@ -403,3 +403,79 @@ COMMENTS_PER_PAGE = int(os.getenv('COMMENTS_PER_PAGE', '20'))
 COMMENT_MIN_INTERVAL_SECONDS = int(os.getenv('COMMENT_MIN_INTERVAL_SECONDS', '20'))
 COMMENT_MAX_PER_HOUR = int(os.getenv('COMMENT_MAX_PER_HOUR', '30'))
 COMMENT_DUPLICATE_WINDOW_MINUTES = int(os.getenv('COMMENT_DUPLICATE_WINDOW_MINUTES', '10'))
+
+
+def _env_bool(name, default='false'):
+    return os.getenv(name, default).strip().lower() in ('1', 'true', 'yes', 'on')
+
+
+# ---------------------------------------------------------------------------
+# Bot / abuse protection (application level, no Cloudflare dependency)
+# ---------------------------------------------------------------------------
+# Only trust X-Forwarded-For when the direct peer is one of these addresses.
+# On cPanel/CloudLinux Passenger REMOTE_ADDR is already the visitor IP, so the
+# default (empty) is correct and prevents IP spoofing to bypass rate limits.
+TRUSTED_PROXY_IPS = tuple(
+    ip.strip() for ip in os.getenv('TRUSTED_PROXY_IPS', '').split(',') if ip.strip()
+)
+
+# Verify claimed crawlers (Googlebot, Bingbot, ...) by forward-confirmed reverse
+# DNS before treating them as verified bots.
+BOT_VERIFY_CRAWLERS = _env_bool('BOT_VERIFY_CRAWLERS', 'true')
+
+# Fixed-window rate limits: hits per window (seconds) and cooldown (seconds).
+RATE_LIMITS = {
+    'login': {'hits': int(os.getenv('RL_LOGIN_HITS', '20')), 'window': 300, 'cooldown': 300},
+    'login_username': {'hits': int(os.getenv('RL_LOGIN_USER_HITS', '10')), 'window': 900, 'cooldown': 900},
+    'register': {'hits': int(os.getenv('RL_REGISTER_HITS', '5')), 'window': 3600, 'cooldown': 3600},
+    'password_reset': {'hits': int(os.getenv('RL_RESET_HITS', '5')), 'window': 3600, 'cooldown': 3600},
+    'activation': {'hits': int(os.getenv('RL_ACTIVATION_HITS', '10')), 'window': 3600, 'cooldown': 3600},
+    'comment': {'hits': int(os.getenv('RL_COMMENT_HITS', '10')), 'window': 3600, 'cooldown': 1800},
+    'search': {'hits': int(os.getenv('RL_SEARCH_HITS', '60')), 'window': 300, 'cooldown': 120},
+    'download': {'hits': int(os.getenv('RL_DOWNLOAD_HITS', '30')), 'window': 300, 'cooldown': 300},
+}
+
+# Anti-spam
+FORM_MIN_SUBMIT_SECONDS = float(os.getenv('FORM_MIN_SUBMIT_SECONDS', '3'))
+SPAM_MAX_LINKS = int(os.getenv('SPAM_MAX_LINKS', '2'))
+TURNSTILE_SITE_KEY = os.getenv('TURNSTILE_SITE_KEY', '')
+TURNSTILE_SECRET_KEY = os.getenv('TURNSTILE_SECRET_KEY', '')
+TURNSTILE_FAIL_OPEN = _env_bool('TURNSTILE_FAIL_OPEN', 'true')
+
+# ---------------------------------------------------------------------------
+# Traffic analytics / monitoring
+# ---------------------------------------------------------------------------
+ANALYTICS_STATIC_PREFIXES = ('/static/', '/media/')
+ANALYTICS_EXCLUDED_PREFIXES = (
+    '/control-center/',
+    '/django-admin-backend-internal/',
+    '/admin',
+    '/accounts/',
+    '/ckeditor5/',
+    '/import-sub/',
+    '/health',
+    '/healthz',
+    '/favicon.ico',
+    '/robots.txt',
+    '/sitemap.xml',
+    '/.well-known/',
+)
+ANALYTICS_DEDUPE_SECONDS = int(os.getenv('ANALYTICS_DEDUPE_SECONDS', '60'))
+ANALYTICS_SLOW_REQUEST_MS = int(os.getenv('ANALYTICS_SLOW_REQUEST_MS', '800'))
+ANALYTICS_RETENTION_DAYS = int(os.getenv('ANALYTICS_RETENTION_DAYS', '180'))
+ANALYTICS_RAW_RETENTION_DAYS = int(os.getenv('ANALYTICS_RAW_RETENTION_DAYS', '90'))
+ANALYTICS_OPERATIONAL_RETENTION_DAYS = int(os.getenv('ANALYTICS_OPERATIONAL_RETENTION_DAYS', '30'))
+# cPanel access log to import for raw request totals (empty = not configured).
+ACCESS_LOG_PATH = os.getenv('ACCESS_LOG_PATH', '')
+
+# ---------------------------------------------------------------------------
+# Caching. LocMem is per-process, which is enough for short-lived caches and
+# rate-limit blocks (durable counters live in the database).
+# ---------------------------------------------------------------------------
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'nzdworld-cache',
+        'TIMEOUT': 300,
+    }
+}

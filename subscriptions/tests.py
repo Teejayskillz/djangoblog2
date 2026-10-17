@@ -109,6 +109,10 @@ class SubscriptionTests(TestCase):
 
     def test_ad_suppression_for_subscribers(self):
         # Without subscription, ads_context should return active ads
+        from django.core.cache import cache
+
+        cache.clear()  # the ads payload is cached site-wide
+
         class MockRequest:
             def __init__(self, user):
                 self.user = user

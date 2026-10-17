@@ -35,13 +35,56 @@
   <div class="wp-stat-card" style="border-top-color: #008a20;">
     <div class="stat-label">Today's Traffic</div>
     <div class="stat-val">{{ stats.today_views }} <small style="font-size: 14px; font-weight: normal; color: #646970;">views</small></div>
-    <div class="stat-sub">{{ stats.today_visitors }} unique visitors &bull; <a href="{% url 'controlcenter:analytics' %}">Analytics &rarr;</a></div>
+    <div class="stat-sub">{{ stats.today_visitors }} estimated visitors &bull; {{ stats.today_bots }} bot views &bull; <a href="{% url 'controlcenter:analytics' %}">Analytics &rarr;</a></div>
+  </div>
+</div>
+
+<!-- Traffic quality & abuse protection (real, collected data only) -->
+<div class="postbox" style="margin-top: 20px;">
+  <div class="postbox-header">
+    <h2>Traffic &amp; security (last 24 hours)</h2>
+    <a href="{% url 'controlcenter:analytics' %}?range=today" class="page-title-action">Open analytics</a>
+  </div>
+  <div class="inside">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px;">
+      <div class="wp-stat-card">
+        <div class="stat-label">Human page views</div>
+        <div class="stat-val">{{ stats.today_views }}</div>
+        <div class="stat-sub">Estimated, excludes bots</div>
+      </div>
+      <div class="wp-stat-card">
+        <div class="stat-label">Bot / crawler views</div>
+        <div class="stat-val">{{ stats.today_bots }}</div>
+        <div class="stat-sub">Classified separately</div>
+      </div>
+      <div class="wp-stat-card">
+        <div class="stat-label">Raw requests</div>
+        <div class="stat-val">{{ security.raw_24h }}</div>
+        <div class="stat-sub">From the access-log import</div>
+      </div>
+      <div class="wp-stat-card" style="border-top-color: #d63638;">
+        <div class="stat-label">Throttled requests</div>
+        <div class="stat-val">{{ security.throttled_24h }}</div>
+        <div class="stat-sub">Rate limits triggered</div>
+      </div>
+      <div class="wp-stat-card" style="border-top-color: #d63638;">
+        <div class="stat-label">Spam / rejected comments</div>
+        <div class="stat-val">{{ security.spam_7d }}</div>
+        <div class="stat-sub">Last 7 days</div>
+      </div>
+      <div class="wp-stat-card">
+        <div class="stat-label">Slow requests</div>
+        <div class="stat-val">{{ security.slow_24h }}</div>
+        <div class="stat-sub">
+          Tracking errors: {{ security.tracking_errors_24h }} &bull; duplicates dropped: {{ security.duplicates_24h }}
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-  <!-- At a Glance / Recent Posts -->
-  <div class="postbox">
+  <!-- At a Glance / Recent Posts -->  <div class="postbox">
     <div class="postbox-header">
       <h2>Recent Posts & Content</h2>
       <a href="{% url 'controlcenter:model_add' app_label='core' model_name='post' %}" class="page-title-action">+ Add Post</a>
