@@ -65,9 +65,7 @@
 </div>
 {% endif %}
 
-{# `is not None` (not `if page_obj`): an empty Page is falsy, but the page still
-   needs its heading, so use an explicit presence check. #}
-{% if page_obj is not None %}
+{% if page_obj is not None %}{# `is not None`: an empty Page is falsy but still needs its heading #}
 <div class="section">
     <div class="category-header">
         <h1 class="h2">

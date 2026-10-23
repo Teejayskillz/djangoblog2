@@ -27,8 +27,12 @@ PAGINATION_BLOCK_RE = re.compile(r'<ul class="pagination-list">(.*?)</ul>', re.D
 # re.DOTALL, so a tag whose opening delimiter has no closing delimiter on the
 # same line is emitted as literal text in the browser.
 TAG_PAIRS = (('{{', '}}'), ('{%', '%}'), ('{#', '#}'))
+# Only {% verbatim %} and {% comment %} blocks may legitimately span lines.
+# {# ... #} comments MUST stay on one line too (same no-DOTALL lexer rule), so
+# they are deliberately NOT skipped here -- a wrapped {# ... #} is a real bug
+# that renders as visible text.
 SKIPPED_BLOCKS_RE = re.compile(
-    r'{%\s*(?:verbatim|comment)\s*%}.*?{%\s*end(?:verbatim|comment)\s*%}|{#.*?#}',
+    r'{%\s*(?:verbatim|comment)\s*%}.*?{%\s*end(?:verbatim|comment)\s*%}',
     re.DOTALL,
 )
 
@@ -97,6 +101,14 @@ class HomepagePaginationTests(TestCase):
             )
             for index in range(60)
         ])
+
+    def test_homepage_renders_no_literal_template_syntax(self):
+        """Output-level guard: no un-rendered {{ }}, {% %} or {# #} reaches users."""
+        html = self.client.get('/').content.decode('utf-8')
+
+        for opener in ('{{', '{%', '{#'):
+            with self.subTest(opener=opener):
+                self.assertNotIn(opener, html)
 
     def _pagination_markup(self, url='/'):
         response = self.client.get(url)
