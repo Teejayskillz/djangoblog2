@@ -1,0 +1,251 @@
+<div class="postbox" id="nzd-video-import" style="margin-top: 24px;">
+  <div class="postbox-header"><h2>Import video from URL</h2></div>
+  <div class="inside">
+    <p class="description" style="margin-top:0">
+      The storage server downloads the file, brands the filename, embeds metadata and
+      makes a poster frame. Paste a <strong>direct</strong> video URL (mp4 / mkv / webm).
+    </p>
+
+    <table class="form-table" role="presentation">
+      <tbody>
+        <tr>
+          <th scope="row"><label for="nzd-source-url">Video URL</label></th>
+          <td><input type="url" id="nzd-source-url" class="regular-text" style="width:100%"
+                     placeholder="https://host.example/movie.mkv"></td>
+        </tr>
+        <tr>
+          <th scope="row"><label for="nzd-title">Title for filename</label></th>
+          <td><input type="text" id="nzd-title" class="regular-text" style="width:100%"
+                     placeholder="Extraction 3">
+              <p class="description">Defaults to the post title if you leave it empty.</p></td>
+        </tr>
+        <tr>
+          <th scope="row">Filename</th>
+          <td>
+            <label><input type="radio" name="nzd-mode" value="auto" checked> Automatic</label>
+            &nbsp;
+            <label><input type="radio" name="nzd-mode" value="manual"> Manual</label>
+            <div id="nzd-manual-wrap" style="display:none; margin-top:8px;">
+              <input type="text" id="nzd-manual-name" class="regular-text" style="width:100%"
+                     placeholder="Extraction 3 2026.mkv">
+            </div>
+            <p class="description" id="nzd-preview">Preview appears here.</p>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>
+      <button type="button" class="button" id="nzd-preview-btn">Preview filename</button>
+      <button type="button" class="button button-primary" id="nzd-import-btn">Import video</button>
+      <button type="button" class="button" id="nzd-cancel-btn" style="display:none;">Cancel import</button>
+    </p>
+
+    <div id="nzd-status" class="notice" style="display:none; padding:8px 12px;"></div>
+
+    <div id="nzd-result" style="display:none; border-top:1px solid #eee; margin-top:12px; padding-top:12px;">
+      <p><strong>Imported:</strong> <span id="nzd-filename"></span></p>
+      <p><strong>Download page:</strong>
+        <a id="nzd-url" href="#" target="_blank" rel="noopener"></a></p>
+      <p>
+        <label>Quality
+          <select id="nzd-quality">
+            <option value="360p">360p</option>
+            <option value="480p">480p</option>
+            <option value="720p">720p</option>
+            <option value="1080p" selected>1080p</option>
+            <option value="4K">4K</option>
+          </select>
+        </label>
+        &nbsp;
+        <label><input type="checkbox" id="nzd-premium"> Premium only</label>
+      </p>
+      <p>
+        <button type="button" class="button button-primary" id="nzd-attach-btn"
+                data-post-id="{{ object.pk|default:0 }}">
+          Add download row to this post
+        </button>
+        <span class="description" id="nzd-attach-note">
+          {% if object %}Saved as an inline Download Quality row.{% else %}Save the post first, then reopen it to attach.{% endif %}
+        </span>
+      </p>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var root = document.getElementById('nzd-video-import');
+  if (!root) return;
+
+  var csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+  var csrf = csrfInput ? csrfInput.value : '';
+  var postTitleInput = document.querySelector('input[name="title"]');
+
+  var sourceUrl = document.getElementById('nzd-source-url');
+  var titleInput = document.getElementById('nzd-title');
+  var manualWrap = document.getElementById('nzd-manual-wrap');
+  var manualName = document.getElementById('nzd-manual-name');
+  var preview = document.getElementById('nzd-preview');
+  var statusBox = document.getElementById('nzd-status');
+  var result = document.getElementById('nzd-result');
+  var importBtn = document.getElementById('nzd-import-btn');
+  var previewBtn = document.getElementById('nzd-preview-btn');
+  var cancelBtn = document.getElementById('nzd-cancel-btn');
+  var attachBtn = document.getElementById('nzd-attach-btn');
+
+  var base = '/control-center/video-import/';
+  var currentJob = null;
+  var timer = null;
+
+  function show(message, kind) {
+    statusBox.textContent = message;
+    statusBox.style.display = 'block';
+    statusBox.style.background = kind === 'error' ? '#fef2f2' : '#f8fafc';
+    statusBox.style.border = '1px solid ' + (kind === 'error' ? '#fecaca' : '#e5e7eb');
+    statusBox.style.color = kind === 'error' ? '#991b1b' : '#111827';
+  }
+
+  function post(path, payload) {
+    return fetch(base + path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+      credentials: 'same-origin',
+      body: JSON.stringify(payload || {})
+    }).then(function (r) {
+      return r.json().then(function (data) { return { ok: r.ok, status: r.status, data: data }; });
+    });
+  }
+
+  function currentMode() {
+    var checked = root.querySelector('input[name="nzd-mode"]:checked');
+    return checked ? checked.value : 'auto';
+  }
+
+  Array.prototype.forEach.call(root.querySelectorAll('input[name="nzd-mode"]'), function (radio) {
+    radio.addEventListener('change', function () {
+      manualWrap.style.display = currentMode() === 'manual' ? 'block' : 'none';
+    });
+  });
+
+  function filenameFromUrl() {
+    var value = (sourceUrl.value || '').trim();
+    if (!value) return '';
+    try {
+      var path = new URL(value).pathname;
+      return decodeURIComponent(path.split('/').pop() || '');
+    } catch (e) { return ''; }
+  }
+
+  previewBtn.addEventListener('click', function () {
+    var original = filenameFromUrl();
+    if (!original) { show('Paste a URL first so the filename can be read.', 'error'); return; }
+    var title = (titleInput.value || (postTitleInput && postTitleInput.value) || '').trim();
+    post('preview/', {
+      original_filename: original,
+      title: title,
+      manual_name: currentMode() === 'manual' ? manualName.value : ''
+    }).then(function (res) {
+      if (!res.ok) { show(res.data.message || res.data.error || 'Preview failed.', 'error'); return; }
+      var parts = [];
+      if (res.data.auto) parts.push('Auto: ' + res.data.auto);
+      if (res.data.manual) parts.push('Manual: ' + res.data.manual);
+      if (res.data.errors) parts.push(res.data.errors);
+      preview.textContent = parts.join(' / ') || 'No preview available.';
+    });
+  });
+
+  function poll() {
+    if (!currentJob) return;
+    fetch(base + 'status/' + currentJob + '/', { credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var job = data.job || {};
+        var percent = job.progress_percent || 0;
+        show('Status: ' + (job.status || '?') + ' - ' + percent + '%');
+        if (job.status === 'completed') {
+          stopPolling();
+          cancelBtn.style.display = 'none';
+          result.style.display = 'block';
+          document.getElementById('nzd-filename').textContent = job.filename || '(stored)';
+          var url = (job.video && job.video.download_page_url) || '';
+          var link = document.getElementById('nzd-url');
+          link.textContent = url;
+          link.href = url;
+          attachBtn.setAttribute('data-public-id', job.id);
+          show('Import complete.', 'ok');
+        } else if (job.status === 'failed' || job.status === 'cancelled') {
+          stopPolling();
+          cancelBtn.style.display = 'none';
+          var err = job.error ? (job.error.code + ': ' + job.error.message) : job.status;
+          show('Import ' + job.status + ' - ' + err, 'error');
+        }
+      })
+      .catch(function () { /* transient; keep polling */ });
+  }
+
+  function startPolling() {
+    stopPolling();
+    timer = setInterval(poll, 3000);
+    poll();
+  }
+
+  function stopPolling() {
+    if (timer) { clearInterval(timer); timer = null; }
+  }
+
+  importBtn.addEventListener('click', function () {
+    var value = (sourceUrl.value || '').trim();
+    if (!value) { show('Paste a direct video URL first.', 'error'); return; }
+    var title = (titleInput.value || (postTitleInput && postTitleInput.value) || '').trim();
+    importBtn.disabled = true;
+    post('create/', {
+      source_url: value,
+      title: title,
+      filename_mode: currentMode(),
+      requested_filename: currentMode() === 'manual' ? manualName.value : ''
+    }).then(function (res) {
+      importBtn.disabled = false;
+      if (!res.ok) {
+        if (res.status === 409 && res.data.job) {
+          currentJob = res.data.job.id;
+          show('That URL is already importing; watching it.', 'ok');
+          cancelBtn.style.display = 'inline-block';
+          startPolling();
+          return;
+        }
+        show(res.data.message || res.data.error || 'Import could not start.', 'error');
+        return;
+      }
+      currentJob = (res.data.job || {}).id;
+      show('Queued. Waiting for the worker...');
+      cancelBtn.style.display = 'inline-block';
+      result.style.display = 'none';
+      startPolling();
+    });
+  });
+
+  cancelBtn.addEventListener('click', function () {
+    if (!currentJob) return;
+    post('cancel/' + currentJob + '/', {}).then(function (res) {
+      if (res.ok) { show('Cancellation requested.'); } else { show('Could not cancel.', 'error'); }
+    });
+  });
+
+  attachBtn.addEventListener('click', function () {
+    var publicId = attachBtn.getAttribute('data-public-id');
+    var postId = attachBtn.getAttribute('data-post-id');
+    if (!postId || postId === '0') { show('Save the post first, then reopen it.', 'error'); return; }
+    if (!publicId) { show('Import a video first.', 'error'); return; }
+    post('attach/', {
+      public_id: publicId,
+      post_id: postId,
+      quality: document.getElementById('nzd-quality').value,
+      premium: document.getElementById('nzd-premium').checked
+    }).then(function (res) {
+      if (!res.ok) { show(res.data.message || res.data.error || 'Attach failed.', 'error'); return; }
+      show('Added a ' + res.data.quality + ' download row. Reload the post to see it in the list.', 'ok');
+    });
+  });
+})();
+</script>

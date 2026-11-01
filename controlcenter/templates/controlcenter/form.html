@@ -169,6 +169,11 @@
     </div>
   </div>
 </form>
+
+{% if opts.app_label == 'core' and opts.model_name == 'post' %}
+  {% include "videoimport/import_panel.html" %}
+{% endif %}
+
 {% endblock %}
 
 {% block extra_js %}

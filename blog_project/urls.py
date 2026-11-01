@@ -64,6 +64,8 @@ urlpatterns = [
     ),
     # Built-in Django admin site code preserved (private, not linked publicly)
     path('django-admin-backend-internal/', admin.site.urls),
+    # Video import panel endpoints must win over the generic control-center routes.
+    path('control-center/video-import/', include('videoimport.urls')),
     path('control-center/', include('controlcenter.urls')),
     path('import-sub/', import_subscribers_view, name='import_subscribers'),
     path('media/<path:path>', serve, {'document_root': settings.MEDIA_ROOT}),

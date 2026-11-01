@@ -1,0 +1,234 @@
+{% extends 'controlcenter/base.html' %}
+{% load custom_tags %}
+{% block title %}{{ action }} {{ opts.verbose_name }}{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+  <div>
+    <h1 class="wp-heading-inline">{{ action }} {{ opts.verbose_name|capfirst }}</h1>
+    <a href="{% url 'controlcenter:model_list' app_label=opts.app_label model_name=opts.model_name %}" class="page-title-action">&larr; Back to {{ opts.verbose_name_plural|title }}</a>
+  </div>
+</div>
+<hr class="wp-header-end">
+
+<form method="post" enctype="multipart/form-data" id="post">
+  {% csrf_token %}
+  {{ form.media }}
+
+  <div class="wp-editor-wrap">
+    <!-- Main Form Fields Column -->
+    <div class="postbox">
+      <div class="postbox-header">
+        <h2>Details</h2>
+      </div>
+      <div class="inside">
+        {% if form.non_field_errors %}
+        <div class="notice notice-error" style="margin-bottom: 16px;">
+          {{ form.non_field_errors }}
+        </div>
+        {% endif %}
+
+        <table class="form-table" role="presentation">
+          <tbody>
+            {% for field in form.visible_fields %}
+            <tr>
+              <th scope="row">
+                <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="text-danger">*</span>{% endif %}</label>
+              </th>
+              <td>
+                {{ field.errors }}
+                {{ field }}
+                {% if field.help_text %}
+                <p class="description">{{ field.help_text|safe }}</p>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+        {% for hidden in form.hidden_fields %}
+          {{ hidden }}
+        {% endfor %}
+
+        <!-- Inline Formsets (Tabular inlines with column headers and Add Another support) -->
+        {% if inline_formsets %}
+        <div class="inline-group-wrapper" style="margin-top: 30px;">
+          {% for inline in inline_formsets %}
+          <div class="postbox inline-group" id="{{ inline.prefix }}-group" data-prefix="{{ inline.prefix }}">
+            <div class="postbox-header">
+              <h2>{{ inline.title }}</h2>
+            </div>
+            <div class="inside" style="padding: 0; overflow-x: auto;">
+              {{ inline.formset.management_form }}
+              <table class="wp-list-table widefat striped inline-table">
+                <thead>
+                  <tr>
+                    {% for form in inline.formset.forms|slice:":1" %}
+                      {% for field in form.visible_fields %}
+                        <th scope="col">{{ field.label }}</th>
+                      {% endfor %}
+                    {% endfor %}
+                    {% if inline.formset.can_delete %}
+                      <th scope="col" style="width: 70px;">Delete?</th>
+                    {% endif %}
+                  </tr>
+                </thead>
+                <tbody class="inline-tbody">
+                  {% for form in inline.formset.forms %}
+                  <tr class="inline-row">
+                    {% for hidden in form.hidden_fields %}
+                      {{ hidden }}
+                    {% endfor %}
+                    {% for field in form.visible_fields %}
+                      {% if field.name == 'DELETE' %}
+                        <!-- handled in delete column -->
+                      {% else %}
+                        <td>
+                          {{ field.errors }}
+                          {{ field }}
+                          {% if field.help_text %}
+                            <p class="description">{{ field.help_text }}</p>
+                          {% endif %}
+                        </td>
+                      {% endif %}
+                    {% endfor %}
+                    {% if inline.formset.can_delete %}
+                      <td style="text-align: center;">
+                        {{ form.DELETE }}
+                      </td>
+                    {% endif %}
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+
+              <!-- Empty form template for dynamic adding -->
+              <div class="empty-form-template" style="display:none;">
+                <table>
+                  <tr class="inline-row">
+                    {% for hidden in inline.formset.empty_form.hidden_fields %}
+                      {{ hidden }}
+                    {% endfor %}
+                    {% for field in inline.formset.empty_form.visible_fields %}
+                      {% if field.name == 'DELETE' %}
+                        <!-- delete column -->
+                      {% else %}
+                        <td>
+                          {{ field }}
+                        </td>
+                      {% endif %}
+                    {% endfor %}
+                    {% if inline.formset.can_delete %}
+                      <td style="text-align: center;">
+                        {{ inline.formset.empty_form.DELETE }}
+                      </td>
+                    {% endif %}
+                  </tr>
+                </table>
+              </div>
+
+              <div style="padding: 10px 14px; background: #fbfbfc; border-top: 1px solid #dcdcde;">
+                <button type="button" class="button button-secondary add-inline-row-btn" data-prefix="{{ inline.prefix }}">
+                  + Add another {{ inline.verbose_name }}
+                </button>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Right Sidebar / Publish Actions Box (WordPress Style) -->
+    <div>
+      <div class="postbox">
+        <div class="postbox-header">
+          <h2>Publish / Save</h2>
+        </div>
+        <div class="inside">
+          <p class="text-muted" style="margin-top: 0; font-size: 12px;">
+            {% if object %}
+              Editing existing {{ opts.verbose_name }} (ID #{{ object.pk }}).
+            {% else %}
+              Creating a new {{ opts.verbose_name }}.
+            {% endif %}
+          </p>
+          <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 10px; border-top: 1px solid #f0f0f1;">
+            <a href="{% url 'controlcenter:model_list' app_label=opts.app_label model_name=opts.model_name %}" class="button button-secondary">Cancel</a>
+            <button type="submit" class="button button-primary">Save {{ opts.verbose_name|title }}</button>
+          </div>
+          {% if object %}
+          <div style="margin-top: 15px; text-align: right; border-top: 1px solid #f0f0f1; padding-top: 10px;">
+            <a href="{% url 'controlcenter:model_delete' app_label=opts.app_label model_name=opts.model_name pk=object.pk %}" class="button-link-delete">Delete Permanently</a>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+{{ slug_sources|json_script:"cc-slug-sources" }}
+<script>
+  // Live slug prefill, mirroring the Django admin's prepopulate_fields behaviour
+  // (the admin JS that normally does this is only loaded by the admin's own
+  // change-form template, so the Control Center had to do it itself).
+  // The server regenerates the value on save, so this is convenience only.
+  (function () {
+    var dataEl = document.getElementById('cc-slug-sources');
+    var form = document.getElementById('post');
+    if (!dataEl || !form) return;
+
+    var sources;
+    try {
+      sources = JSON.parse(dataEl.textContent);
+    } catch (e) {
+      return;
+    }
+
+    // Mirrors django.utils.text.slugify() closely enough for live feedback.
+    function slugify(value) {
+      value = (value || '').toString();
+      if (value.normalize) {
+        value = value.normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
+      }
+      return value.toLowerCase()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/[-\s]+/g, '-')
+        .replace(/^[-_]+|[-_]+$/g, '');
+    }
+
+    function inputFor(name) {
+      return form.querySelector('[name="' + name + '"]');
+    }
+
+    Object.keys(sources).forEach(function (targetName) {
+      var target = inputFor(targetName);
+      var source = inputFor(sources[targetName]);
+      if (!target || !source || target === source) return;
+      if (typeof target.value !== 'string') return;
+
+      // Stop auto-filling once the slug has been typed/pasted by hand.
+      var manuallyEdited = target.value.trim() !== '';
+
+      target.addEventListener('input', function () {
+        manuallyEdited = true;
+      });
+
+      source.addEventListener('input', function () {
+        if (manuallyEdited) return;
+        target.value = slugify(source.value);
+      });
+
+      // Prefill when a re-displayed form has a source value but an empty slug.
+      if (!manuallyEdited && !target.value.trim() && source.value.trim()) {
+        target.value = slugify(source.value);
+      }
+    });
+  })();
+</script>
+{% endblock %}
