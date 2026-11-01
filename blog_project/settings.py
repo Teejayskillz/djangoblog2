@@ -30,6 +30,21 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-k3y-blog-project-local-dev
 # Shared Secret Key for CDN / URL Shortener VIP Token Authentication
 CDN_SHARED_SECRET = os.getenv('CDN_SHARED_SECRET', SECRET_KEY)
 
+# ---------------------------------------------------------------------------
+# Video storage service (my.nzdworld.com) — server-to-server only.
+#
+# The blog never uploads or stores video bytes itself: it asks the uploader for
+# an import and links to the resulting download page. The shared secret is used
+# to sign requests (HMAC-SHA256) and must never reach a browser or a template.
+# ---------------------------------------------------------------------------
+UPLOADER_API_URL = os.getenv('UPLOADER_API_URL', 'https://my.nzdworld.com').rstrip('/')
+UPLOADER_API_KEY_ID = os.getenv('UPLOADER_API_KEY_ID', '')
+UPLOADER_API_SECRET = os.getenv('UPLOADER_API_SECRET', '')
+UPLOADER_TIMEOUT_SECONDS = int(os.getenv('UPLOADER_TIMEOUT_SECONDS', '15'))
+UPLOADER_ENABLED = os.getenv('UPLOADER_ENABLED', 'true').strip().lower() in (
+    '1', 'true', 'yes', 'on'
+)
+
 
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true' 
 
@@ -83,6 +98,7 @@ INSTALLED_APPS = [
     'subscriptions',
     'sports',
     'controlcenter',
+    'videoimport',
 ]
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
