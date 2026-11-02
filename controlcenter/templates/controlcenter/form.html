@@ -132,9 +132,6 @@
                 <button type="button" class="button button-secondary add-inline-row-btn" data-prefix="{{ inline.prefix }}">
                   + Add another {{ inline.verbose_name }}
                 </button>
-              </div>              {% if opts.app_label == 'core' and opts.model_name == 'post' and 'downloadquality' in inline.prefix %}
-                {% include "videoimport/import_panel.html" with inline_prefix=inline.prefix %}
-              {% endif %}
             </div>
           </div>
           {% endfor %}
@@ -161,6 +158,18 @@
             <a href="{% url 'controlcenter:model_list' app_label=opts.app_label model_name=opts.model_name %}" class="button button-secondary">Cancel</a>
             <button type="submit" class="button button-primary">Save {{ opts.verbose_name|title }}</button>
           </div>
+          {% if opts.app_label == 'core' and opts.model_name == 'post' %}
+          <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
+            <button type="submit" class="button" id="nzd-save-draft">Save draft</button>
+            <button type="button" class="button button-primary" id="nzd-publish">Publish &amp; queue uploads</button>
+          </div>
+          <input type="hidden" name="_nzd_publish" id="nzd-publish-flag" value="0">
+          <p class="description" id="nzd-publish-note" style="margin:8px 0 0;">
+            <strong>Save draft</strong> only saves. <strong>Publish &amp; queue uploads</strong> saves as a draft,
+            sends every row with a URL to the existing uploader, and publishes only after all of them succeed.
+          </p>
+          {% endif %}
+          </div>
           {% if object %}
           <div style="margin-top: 15px; text-align: right; border-top: 1px solid #f0f0f1; padding-top: 10px;">
             <a href="{% url 'controlcenter:model_delete' app_label=opts.app_label model_name=opts.model_name pk=object.pk %}" class="button-link-delete">Delete Permanently</a>
@@ -172,6 +181,10 @@
   </div>
 </form>
 
+
+{% if opts.app_label == 'core' and opts.model_name == 'post' %}
+  {% include "videoimport/rows_ui.html" with post_id=object.pk|default:0 %}
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}

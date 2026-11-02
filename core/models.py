@@ -312,6 +312,71 @@ class DownloadQuality(models.Model):
     download_count = models.PositiveIntegerField(default=0)
     is_premium = models.BooleanField(default=False)
 
+    # --- per-row upload configuration (additive; existing rows keep defaults) ---
+    class FilenameMode(models.TextChoices):
+        AUTO = "auto", "Automatic"
+        MANUAL = "manual", "Manual"
+
+    class ProcessingStatus(models.TextChoices):
+        PENDING = "pending", "Pending"
+        QUEUED = "queued", "Queued"
+        DOWNLOADING = "downloading", "Downloading"
+        UPLOADING = "uploading", "Uploading"
+        COMPLETED = "completed", "Completed"
+        FAILED = "failed", "Failed"
+
+    source_url = models.CharField(
+        max_length=1000,
+        blank=True,
+        default="",
+        help_text="The direct URL that was queued. Kept so a retry does not need re-pasting.",
+    )
+    filename_mode = models.CharField(
+        max_length=10, choices=FilenameMode.choices, default=FilenameMode.AUTO
+    )
+    requested_filename = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="Used when filename_mode is Manual. The extension is corrected automatically.",
+    )
+    processing_status = models.CharField(
+        max_length=20,
+        choices=ProcessingStatus.choices,
+        default=ProcessingStatus.PENDING,
+        db_index=True,
+    )
+    progress_percent = models.PositiveSmallIntegerField(default=0)
+    processing_error = models.TextField(blank=True, default="")
+    job_public_id = models.CharField(max_length=40, blank=True, default="", db_index=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+
+    QUALITY_SHORT_LABELS = {
+        "360p": "360p",
+        "480p": "480p",
+        "720p": "720p HD",
+        "1080p": "1080p FHD",
+        "4K": "4K UHD",
+        "mp3": "MP3",
+        "ZIP": "ZIP",
+    }
+
+    @property
+    def quality_short_label(self) -> str:
+        """Compact label used in filenames and the status list."""
+        if self.quality in self.QUALITY_SHORT_LABELS:
+            return self.QUALITY_SHORT_LABELS[self.quality]
+        if self.quality.startswith("EP"):
+            return f"Episode {self.quality[2:]}"
+        return self.quality
+
+    @property
+    def is_processed(self) -> bool:
+        return self.processing_status == self.ProcessingStatus.COMPLETED
+
+    def __str__(self):
+        return f"{self.get_quality_display()} — {self.download_url[:60]}"
+
 class Subtitle(models.Model):
     post = models.ForeignKey('Post', on_delete=models.CASCADE, related_name='subtitles')
     language = models.CharField(max_length=50)

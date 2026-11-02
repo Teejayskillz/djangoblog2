@@ -36,7 +36,7 @@ class PostAdminForm(forms.ModelForm):
 class QualityInline(admin.TabularInline):
     model = DownloadQuality
     extra = 1
-    fields = ('quality', 'download_url', 'is_premium')
+    fields = ('quality', 'download_url', 'filename_mode', 'requested_filename', 'is_premium')
 
 class SubtitleInline(admin.TabularInline):
     model = Subtitle

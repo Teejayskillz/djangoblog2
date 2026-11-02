@@ -166,3 +166,150 @@ def api_attach(request):
         },
         status=201,
     )
+
+
+@staff_member_required
+@require_POST
+def api_verify(request):
+    """Proxy the storage service's lightweight URL check."""
+    payload = _body(request)
+    url = str(payload.get("url") or "").strip()
+    if not url:
+        return _error("missing_url", "Paste a URL first.")
+    try:
+        return JsonResponse(client.verify_url(url))
+    except client.UploaderError as exc:
+        return _guard(exc)
+
+
+def _title_for_row(post_title: str, quality: str) -> str:
+    from core.models import DownloadQuality
+
+    short = DownloadQuality.QUALITY_SHORT_LABELS.get(quality)
+    if short is None and quality.startswith("EP"):
+        short = f"Episode {quality[2:]}"
+    base = (post_title or "").strip()
+    if short and short.lower() not in base.lower():
+        return f"{base} {short}".strip()
+    return base or (short or "video")
+
+
+@staff_member_required
+@require_POST
+def api_row_preview(request):
+    """Authoritative filename preview from the storage service (no side effects)."""
+    from urllib.parse import unquote, urlsplit
+
+    payload = _body(request)
+    url = str(payload.get("url") or "").strip()
+    quality = str(payload.get("quality") or "")
+    mode = str(payload.get("filename_mode") or "auto")
+    manual = str(payload.get("requested_filename") or "")
+    title = str(payload.get("title") or "")
+    if not title:
+        return _error("missing_title", "Save the post title first.")
+
+    original = "video.mp4"
+    if url:
+        name = unquote((urlsplit(url).path or "").rsplit("/", 1)[-1])
+        if name:
+            original = name
+
+    try:
+        data = client.preview_filename(
+            original_filename=original,
+            title=_title_for_row(title, quality),
+            manual_name=manual if mode == "manual" else "",
+        )
+    except client.UploaderError as exc:
+        return _guard(exc)
+    data["title_used"] = _title_for_row(title, quality)
+    return JsonResponse(data)
+
+
+@staff_member_required
+@require_GET
+def api_batch_status(request, post_id: int):
+    """Latest batch + per-row state, for the live status column."""
+    from core.models import Post
+    from videoimport import publishing
+    from videoimport.models import UploadBatch
+
+    post = Post.objects.filter(pk=post_id).first()
+    if post is None:
+        return _error("not_found", "No such post.", status=404)
+
+    batch = publishing.latest_batch(post)
+    rows = [
+        {
+            "id": row.pk,
+            "quality": row.quality,
+            "label": row.quality_short_label,
+            "status": row.processing_status,
+            "progress": row.progress_percent,
+            "error": row.processing_error,
+            "filename": row.requested_filename,
+            "is_processed": row.is_processed,
+        }
+        for row in post.qualities.all()
+    ]
+    return JsonResponse(
+        {
+            "batch": (
+                None
+                if batch is None
+                else {
+                    "id": batch.pk,
+                    "version": batch.version,
+                    "status": batch.status,
+                    "error": batch.error,
+                    "published_at": batch.published_at.isoformat() if batch.published_at else None,
+                }
+            ),
+            "statuses": [choice[0] for choice in UploadBatch.Status.choices],
+            "rows": rows,
+            "post_published": post.is_published,
+        }
+    )
+
+
+@staff_member_required
+@require_POST
+def api_retry_row(request):
+    from core.models import DownloadQuality
+    from videoimport import publishing
+
+    payload = _body(request)
+    try:
+        row_id = int(payload.get("row_id") or 0)
+    except (TypeError, ValueError):
+        return _error("bad_row", "Invalid row id.")
+    row = DownloadQuality.objects.filter(pk=row_id).first()
+    if row is None:
+        return _error("not_found", "No such download row.", status=404)
+    try:
+        publishing.retry_row(row)
+    except client.UploaderError as exc:
+        return _guard(exc)
+    return JsonResponse({"ok": True, "status": row.processing_status, "error": row.processing_error})
+
+
+@staff_member_required
+@require_POST
+def api_publish(request):
+    """Queue uploads for a saved post (the form hook uses the same service)."""
+    from core.models import Post
+    from videoimport import publishing
+
+    payload = _body(request)
+    try:
+        post_id = int(payload.get("post_id") or 0)
+    except (TypeError, ValueError):
+        return _error("bad_post", "Invalid post id.")
+    post = Post.objects.filter(pk=post_id).first()
+    if post is None:
+        return _error("not_found", "Save the post first.", status=404)
+    batch = publishing.queue_publish(post)
+    return JsonResponse(
+        {"ok": batch.status != "failed", "batch": batch.pk, "status": batch.status, "error": batch.error}
+    )

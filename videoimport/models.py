@@ -58,3 +58,38 @@ class VideoRef(models.Model):
     @property
     def is_ready(self) -> bool:
         return self.status == self.Status.COMPLETED and bool(self.download_page_url)
+
+
+class UploadBatch(models.Model):
+    """
+    One "Publish & queue uploads" run for a post.
+
+    The post stays a draft until every row in the newest batch reports success
+    from the storage service. ``version`` makes an older run unable to publish a
+    newer edit: only the highest version for a post may flip ``is_published``.
+    """
+
+    class Status(models.TextChoices):
+        QUEUED = "queued", "Queued"
+        PROCESSING = "processing", "Processing"
+        COMPLETED = "completed", "Completed"
+        FAILED = "failed", "Failed"
+
+    post = models.ForeignKey(
+        "core.Post", on_delete=models.CASCADE, related_name="upload_batches"
+    )
+    version = models.PositiveIntegerField()
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.QUEUED, db_index=True)
+    error = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    published_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-version"]
+        unique_together = [("post", "version")]
+        verbose_name = "Upload batch"
+        verbose_name_plural = "Upload batches"
+
+    def __str__(self) -> str:
+        return f"post {self.post_id} v{self.version} ({self.status})"

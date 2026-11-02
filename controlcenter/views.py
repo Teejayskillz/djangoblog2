@@ -110,6 +110,27 @@ class StaffRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
         return self.request.user.is_active and self.request.user.is_staff
 
 
+def _maybe_queue_uploads(request, obj, app_label, model_name):
+    """
+    Publish workflow hook.
+
+    Runs **only** when the form was submitted with ``_nzd_publish=1``, so an
+    ordinary Save/Draft never starts a download. Delegates to
+    ``videoimport.publishing`` so the uploader API integration stays untouched.
+    """
+    if request.POST.get("_nzd_publish") != "1":
+        return
+    if (app_label, model_name) != ("core", "post"):
+        return
+    try:
+        from videoimport import publishing
+
+        publishing.queue_publish(obj)
+    except Exception as exc:  # noqa: BLE001 - never break the post save
+        import logging
+
+        logging.getLogger("core").exception("Publish queue failed: %s", exc)
+
 def get_model_from_url(app_label, model_name):
     try:
         model = apps.get_model(app_label, model_name)
@@ -880,6 +901,7 @@ class ModelCreateView(StaffRequiredMixin, View):
                 except Exception:
                     pass
 
+            _maybe_queue_uploads(request, obj, app_label, model_name)
             messages.success(request, f"{model._meta.verbose_name.title()} was created successfully.")
             return redirect(reverse('controlcenter:model_list', args=[app_label, model_name]))
 
@@ -1005,6 +1027,7 @@ class ModelUpdateView(StaffRequiredMixin, View):
                 except Exception:
                     pass
 
+            _maybe_queue_uploads(request, form.instance, app_label, model_name)
             messages.success(request, f"{model._meta.verbose_name.title()} was updated successfully.")
             return redirect(reverse('controlcenter:model_list', args=[app_label, model_name]))
 

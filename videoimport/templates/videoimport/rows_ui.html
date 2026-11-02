@@ -1,0 +1,245 @@
+<style>
+  #downloadquality_set-group .nzd-cell { white-space: nowrap; }
+  #downloadquality_set-group .nzd-badge { display:inline-block; padding:2px 7px; border-radius:99px;
+    font-size:11px; background:#eef2ff; color:#3730a3; }
+  #downloadquality_set-group .nzd-badge.valid { background:#ecfdf5; color:#065f46; }
+  #downloadquality_set-group .nzd-badge.invalid { background:#fef2f2; color:#991b1b; }
+  #downloadquality_set-group .nzd-badge.inconclusive { background:#fffbeb; color:#92400e; }
+  #downloadquality_set-group .nzd-badge.completed { background:#ecfdf5; color:#065f46; }
+  #downloadquality_set-group .nzd-badge.failed { background:#fef2f2; color:#991b1b; }
+  #downloadquality_set-group .nzd-badge.downloading,
+  #downloadquality_set-group .nzd-badge.uploading,
+  #downloadquality_set-group .nzd-badge.queued { background:#eff6ff; color:#1d4ed8; }
+  #downloadquality_set-group .nzd-hint { font-size:11px; color:#6b7280; display:block; margin-top:2px; }
+  #downloadquality_set-group .nzd-manual { display:none; }
+  #downloadquality_set-group tr.nzd-mode-manual .nzd-manual { display:block; }
+</style>
+
+<script>
+(function () {
+  var group = document.getElementById('downloadquality_set-group');
+  if (!group) return;
+
+  var postId = "{{ post_id|default:0 }}";
+  var titleInput = document.querySelector('input[name="title"]');
+  var csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+  var csrf = csrfInput ? csrfInput.value : '';
+  var base = '/control-center/video-import/';
+
+  function post(path, payload) {
+    return fetch(base + path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+      credentials: 'same-origin',
+      body: JSON.stringify(payload || {})
+    }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); });
+  }
+
+  function rows() {
+    return Array.prototype.slice.call(group.querySelectorAll('tr.inline-row'));
+  }
+
+  function field(row, suffix) {
+    return row.querySelector('[name$="-' + suffix + '"]');
+  }
+
+  function ensureCell(row, cls) {
+    var cell = row.querySelector('td.' + cls);
+    if (!cell) {
+      cell = document.createElement('td');
+      cell.className = 'nzd-cell ' + cls;
+      row.appendChild(cell);
+    }
+    return cell;
+  }
+
+  function enhance(row) {
+    if (row.getAttribute('data-nzd-ready') === '1') return;
+    row.setAttribute('data-nzd-ready', '1');
+
+    var urlInput = field(row, 'download_url');
+    var modeSelect = field(row, 'filename_mode');
+    var manualInput = field(row, 'requested_filename');
+    if (!urlInput || !modeSelect) return;
+
+    /* Verify button + result badge next to the URL */
+    var urlCell = urlInput.closest('td');
+    if (urlCell && !urlCell.querySelector('.nzd-verify')) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'button nzd-verify';
+      btn.textContent = 'Verify';
+      btn.style.marginTop = '4px';
+      var badge = document.createElement('span');
+      badge.className = 'nzd-badge';
+      badge.style.marginLeft = '6px';
+      badge.textContent = '';
+      btn.addEventListener('click', function () {
+        var url = urlInput.value.trim();
+        if (!url) { badge.className = 'nzd-badge invalid'; badge.textContent = 'No URL'; return; }
+        badge.className = 'nzd-badge';
+        badge.textContent = 'Checking…';
+        btn.disabled = true;
+        post('verify/', { url: url }).then(function (res) {
+          btn.disabled = false;
+          if (!res.ok) {
+            badge.className = 'nzd-badge invalid';
+            badge.textContent = (res.data && res.data.error) || 'Check failed';
+            return;
+          }
+          var status = res.data.status || 'inconclusive';
+          badge.className = 'nzd-badge ' + status;
+          var extra = [];
+          if (res.data.http_status) extra.push('HTTP ' + res.data.http_status);
+          if (res.data.content_type) extra.push(res.data.content_type);
+          badge.textContent = status + (extra.length ? ' (' + extra.join(', ') + ')' : '');
+          badge.title = res.data.reason || '';
+        });
+      });
+      urlCell.appendChild(btn);
+      urlCell.appendChild(badge);
+    }
+
+    /* Manual filename field visibility + generated preview */
+    if (manualInput) manualInput.classList.add('nzd-manual');
+    var hint = document.createElement('span');
+    hint.className = 'nzd-hint';
+    hint.textContent = '';
+    if (manualInput && manualInput.parentNode) manualInput.parentNode.appendChild(hint);
+
+    function applyMode() {
+      var manual = modeSelect.value === 'manual';
+      row.classList.toggle('nzd-mode-manual', manual);
+      if (manualInput) manualInput.required = manual;
+      refreshPreview();
+    }
+
+    var timer = null;
+    function refreshPreview() {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(function () {
+        var title = (titleInput && titleInput.value || '').trim();
+        if (!title) { hint.textContent = 'Save the post title to see the generated filename.'; return; }
+        post('row-preview/', {
+          url: urlInput.value.trim(),
+          quality: (field(row, 'quality') || {}).value || '',
+          filename_mode: modeSelect.value,
+          requested_filename: manualInput ? manualInput.value : '',
+          title: title
+        }).then(function (res) {
+          if (!res.ok) { hint.textContent = (res.data && (res.data.message || res.data.error)) || 'Preview unavailable'; return; }
+          var name = modeSelect.value === 'manual' ? res.data.manual : res.data.auto;
+          hint.textContent = name ? ('Will be saved as: ' + name) : (res.data.errors || 'Preview unavailable');
+        });
+      }, 500);
+    }
+
+    modeSelect.addEventListener('change', applyMode);
+    if (manualInput) manualInput.addEventListener('input', refreshPreview);
+    if (titleInput) titleInput.addEventListener('input', refreshPreview);
+    applyMode();
+
+    /* Status + retry cell */
+    var statusCell = ensureCell(row, 'nzd-status');
+    statusCell.innerHTML = '<span class="nzd-badge">pending</span>';
+    var retry = document.createElement('button');
+    retry.type = 'button';
+    retry.className = 'button';
+    retry.textContent = 'Retry';
+    retry.style.display = 'none';
+    retry.style.marginTop = '4px';
+    retry.addEventListener('click', function () {
+      var hiddenId = row.getAttribute('data-row-id');
+      post('retry-row/', { row_id: hiddenId }).then(function (res) {
+        if (!res.ok) { statusCell.textContent = (res.data && res.data.error) || 'Retry failed'; return; }
+        retry.style.display = 'none';
+        renderStatus(row, { status: res.data.status, progress: 0, error: res.data.error });
+      });
+    });
+    statusCell.appendChild(retry);
+    row._nzdStatus = statusCell;
+    row._nzdRetry = retry;
+  }
+
+  function renderStatus(row, info) {
+    var cell = row._nzdStatus;
+    if (!cell) return;
+    var badge = cell.querySelector('.nzd-badge');
+    var status = info.status || 'pending';
+    var label = status;
+    if ((status === 'downloading' || status === 'uploading') && info.progress) {
+      label += ' — ' + info.progress + '%';
+    }
+    badge.className = 'nzd-badge ' + status;
+    badge.textContent = label;
+    if (info.error) badge.title = info.error;
+    if (row._nzdRetry) row._nzdRetry.style.display = (status === 'failed') ? 'inline-block' : 'none';
+  }
+
+  function enhanceAll() {
+    rows().forEach(function (row) {
+      var idInput = row.querySelector('input[name$="-id"]');
+      if (idInput && idInput.value) row.setAttribute('data-row-id', idInput.value);
+      enhance(row);
+    });
+  }
+
+  enhanceAll();
+  var addBtn = group.querySelector('.add-inline-row-btn');
+  if (addBtn) addBtn.addEventListener('click', function () { setTimeout(enhanceAll, 50); });
+
+  /* Live batch status (only meaningful once the post is saved) */
+  if (postId && postId !== '0') {
+    var poll = function () {
+      fetch(base + 'batch-status/' + postId + '/', { credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          var byQuality = {};
+          (data.rows || []).forEach(function (r) { byQuality[r.id] = r; });
+          rows().forEach(function (row) {
+            var id = row.getAttribute('data-row-id');
+            if (id && byQuality[id]) renderStatus(row, byQuality[id]);
+          });
+          var note = document.getElementById('nzd-publish-note');
+          if (note && data.batch) {
+            var extra = 'Batch v' + data.batch.version + ': ' + data.batch.status +
+              (data.batch.error ? ' — ' + data.batch.error : '') +
+              (data.post_published ? ' · post is published' : ' · post is a draft');
+            note.setAttribute('data-batch', extra);
+          }
+        })
+        .catch(function () {});
+    };
+    poll();
+    setInterval(poll, 6000);
+  }
+
+  /* Buttons: draft saves, publish queues. Neither may publish immediately. */
+  function publishedCheckbox() {
+    var box = document.querySelector('input[name="is_published"]');
+    return box;
+  }
+
+  var draftBtn = document.getElementById('nzd-save-draft');
+  if (draftBtn) {
+    draftBtn.addEventListener('click', function () {
+      var flag = document.getElementById('nzd-publish-flag');
+      if (flag) flag.value = '0';
+      var box = publishedCheckbox();
+      if (box && box.type === 'checkbox') box.checked = false;
+    });
+  }
+
+  var publishBtn = document.getElementById('nzd-publish');
+  if (publishBtn) {
+    publishBtn.addEventListener('click', function () {
+      var flag = document.getElementById('nzd-publish-flag');
+      if (flag) flag.value = '1';
+      var box = publishedCheckbox();
+      if (box && box.type === 'checkbox') box.checked = false;
+      var form = document.getElementById('post');
+      if (form) form.submit();
+    });
+  }
+})();
+</script>

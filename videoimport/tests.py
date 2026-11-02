@@ -488,7 +488,7 @@ class PanelViewTests(TestCase):
 
 @override_settings(**SETTINGS)
 class PanelPlacementTests(TestCase):
-    """The import UI must live inside the Download Quality inline, on add and change."""
+    """The per-row upload controls replace the old separate import panel."""
 
     def setUp(self):
         from django.contrib.auth.models import User
@@ -496,16 +496,16 @@ class PanelPlacementTests(TestCase):
         self.staff = User.objects.create_user("staff2", "s2@example.com", "pw", is_staff=True, is_superuser=True)
         self.client.force_login(self.staff)
 
-    def test_panel_appears_on_the_add_post_page(self):
+    def test_rows_ui_appears_on_the_add_post_page(self):
         response = self.client.get("/control-center/core/post/add/")
         self.assertEqual(response.status_code, 200)
         body = response.content.decode()
-        self.assertIn("nzd-video-import", body)
-        self.assertIn("Import &amp; fill row", body)
-        # It must be injected with the real formset prefix so the JS can fill it.
         self.assertIn("downloadquality_set", body)
+        self.assertIn("nzd-save-draft", body)
+        self.assertIn("nzd-publish", body)
+        self.assertNotIn("nzd-video-import", body)
 
-    def test_panel_appears_on_the_change_post_page(self):
+    def test_rows_ui_appears_on_the_change_post_page(self):
         from core.models import Category, Post
 
         post = Post.objects.create(
@@ -514,11 +514,15 @@ class PanelPlacementTests(TestCase):
         )
         response = self.client.get(f"/control-center/core/post/{post.pk}/change/")
         self.assertEqual(response.status_code, 200)
-        self.assertIn("nzd-video-import", response.content.decode())
+        body = response.content.decode()
+        self.assertIn("nzd-publish", body)
+        self.assertNotIn("nzd-video-import", body)
 
-    def test_panel_is_not_added_to_other_models(self):
+    def test_upload_controls_are_not_added_to_other_models(self):
         from core.models import Category
 
         response = self.client.get("/control-center/core/category/add/")
         self.assertEqual(response.status_code, 200)
-        self.assertNotIn("nzd-video-import", response.content.decode())
+        body = response.content.decode()
+        self.assertNotIn("nzd-publish", body)
+        self.assertNotIn("nzd-save-draft", body)

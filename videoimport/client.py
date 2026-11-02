@@ -219,3 +219,7 @@ def health() -> dict:
         return response.json()
     except (requests.RequestException, ValueError) as exc:
         raise UploaderError("connection_failed", f"Health check failed: {exc}") from exc
+
+def verify_url(url: str) -> dict:
+    """Lightweight HEAD/ranged-GET check performed by the storage service."""
+    return _call("POST", "/api/v1/urls/verify/", {"url": url})
