@@ -132,7 +132,9 @@
                 <button type="button" class="button button-secondary add-inline-row-btn" data-prefix="{{ inline.prefix }}">
                   + Add another {{ inline.verbose_name }}
                 </button>
-              </div>
+              </div>              {% if opts.app_label == 'core' and opts.model_name == 'post' and 'downloadquality' in inline.prefix %}
+                {% include "videoimport/import_panel.html" with inline_prefix=inline.prefix %}
+              {% endif %}
             </div>
           </div>
           {% endfor %}
@@ -169,10 +171,6 @@
     </div>
   </div>
 </form>
-
-{% if opts.app_label == 'core' and opts.model_name == 'post' %}
-  {% include "videoimport/import_panel.html" %}
-{% endif %}
 
 {% endblock %}
 

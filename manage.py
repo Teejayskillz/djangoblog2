@@ -7,6 +7,16 @@ import sys
 def main():
     """Run administrative tasks."""
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'blog_project.settings')
+
+    # Test-only compatibility shim (Python 3.14 + Django 5.0 test client).
+    # Imported before any test module so collection order cannot matter; never
+    # used by runserver/migrate, and a no-op on Python 3.11.
+    if 'test' in sys.argv:
+        try:
+            import nzd_test_compat  # noqa: F401
+        except ImportError:
+            pass
+
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:
