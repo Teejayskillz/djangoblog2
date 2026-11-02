@@ -28,11 +28,34 @@ class ImportForm(forms.Form):
 
 class PostAdminForm(forms.ModelForm):
     content = forms.CharField(widget=CKEditor5Widget())
-    
+
+    # taggit stores names in a VARCHAR(100); going over that raises a database
+    # error *after* the post is saved, which surfaces as a bare 500. Validate
+    # first so the author gets a normal form error and the post is not half-saved.
+    TAG_MAX_LENGTH = 100
+
     class Meta:
         model = Post
         fields = '__all__'
-        
+
+    def clean(self):
+        cleaned = super().clean()
+        raw = self.data.get("tags")
+        if isinstance(raw, str) and raw.strip():
+            too_long = [
+                name.strip()
+                for name in raw.replace("\n", ",").split(",")
+                if len(name.strip()) > self.TAG_MAX_LENGTH
+            ]
+            if too_long:
+                preview = ", ".join(f"“{name[:40]}…”" for name in too_long[:3])
+                raise forms.ValidationError(
+                    f"{len(too_long)} tag(s) are longer than {self.TAG_MAX_LENGTH} characters "
+                    f"({preview}). Shorten or remove them, then save again."
+                )
+        return cleaned
+
+
 class QualityInline(admin.TabularInline):
     model = DownloadQuality
     extra = 1
@@ -91,6 +114,7 @@ class PostAdmin(admin.ModelAdmin):
         'is_published',
         'enable_downloads',
         'get_has_downloads',
+        'upload_status',
         'get_thumbnail_preview',
         'get_total_downloads',
         'is_password_protected',
@@ -201,6 +225,47 @@ class PostAdmin(admin.ModelAdmin):
         return "No thumbnail"
     get_thumbnail_preview.short_description = 'Thumbnail Preview'
 
+    def get_queryset(self, request):
+        # The Upload column reads every row's download qualities; prefetch them
+        # so the post list stays one query instead of one per post.
+        return super().get_queryset(request).prefetch_related('qualities')
+
+    @admin.display(description='Upload')
+    def upload_status(self, obj):
+        rows = list(obj.qualities.all())
+        if not rows:
+            return format_html('<span style="color:#9ca3af">—</span>')
+
+        total = len(rows)
+        completed = sum(1 for row in rows if row.processing_status == 'completed')
+        failed = sum(1 for row in rows if row.processing_status == 'failed')
+        active = sum(
+            1 for row in rows
+            if row.processing_status in ('queued', 'downloading', 'uploading')
+        )
+
+        if failed:
+            label = f"✗ {failed} failed · {completed}/{total}"
+            colour = '#b91c1c'
+        elif active:
+            label = f"↑ uploading {completed}/{total}"
+            colour = '#1d4ed8'
+        elif completed == total:
+            label = f"✓ {completed}/{total}"
+            colour = '#047857'
+        else:
+            label = f"· {completed}/{total} pending"
+            colour = '#6b7280'
+
+        detail = "; ".join(
+            f"{row.quality_short_label}: {row.processing_status}"
+            + (f" ({row.processing_error[:60]})" if row.processing_error else "")
+            for row in rows
+        )
+        return format_html(
+            '<span style="color:{}; white-space:nowrap" title="{}">{}</span>',
+            colour, detail[:500], label,
+        )
     def get_total_downloads(self, obj):
         qualities = sum(q.download_count for q in obj.qualities.all())
         subtitles = sum(s.download_count for s in obj.subtitles.all())
