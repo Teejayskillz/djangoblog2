@@ -239,6 +239,13 @@ def api_batch_status(request, post_id: int):
     if post is None:
         return _error("not_found", "No such post.", status=404)
 
+    # Poll the uploader here so the edit page shows live progress even when the
+    # cron command has not been installed yet.
+    try:
+        publishing.sync_for_post(post, throttle_seconds=4)
+    except Exception:
+        pass
+
     batch = publishing.latest_batch(post)
     rows = [
         {

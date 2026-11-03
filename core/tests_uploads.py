@@ -119,3 +119,12 @@ class UploadStatusColumnTests(TestCase):
     def test_queryset_prefetches_qualities(self):
         queryset = self.modeladmin.get_queryset(self.request)
         self.assertIn("qualities", queryset._prefetch_related_lookups)
+
+    def test_progress_percentage_is_shown_while_active(self):
+        post = self.post()
+        row = self.row(post, "720p", DownloadQuality.ProcessingStatus.DOWNLOADING)
+        row.progress_percent = 45
+        row.save(update_fields=["progress_percent"])
+        html = str(self.modeladmin.upload_status(post))
+        self.assertIn("45%", html)
+        self.assertIn("uploading", html)

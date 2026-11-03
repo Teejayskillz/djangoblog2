@@ -304,3 +304,92 @@ class PanelEndpointTests(TestCase):
         response = self.client.get(f"/control-center/video-import/batch-status/{post.pk}/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.json()["rows"]), 1)
+
+
+@override_settings(**API_SETTINGS)
+class UiDrivenSyncTests(PublishBase):
+    """The UI must move progress forward even when the cron command is absent."""
+
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.user)
+
+    def _queued(self, job_id="j1"):
+        self.row()
+        with mock.patch.object(client, "create_import", return_value=self.job(job_id)):
+            return publishing.queue_publish(self.post)
+
+    def test_batch_status_endpoint_polls_and_publishes(self):
+        self._queued()
+        completed = {
+            "job": {
+                "id": "j1",
+                "status": "completed",
+                "progress_percent": 100,
+                "video": {"download_page_url": "https://my.nzdworld.com/d/abc/"},
+            }
+        }
+        with mock.patch.object(client, "import_status", return_value=completed) as status:
+            response = self.client.get(
+                f"/control-center/video-import/batch-status/{self.post.pk}/"
+            )
+        self.assertEqual(response.status_code, 200)
+        status.assert_called()
+        payload = response.json()
+        self.assertEqual(payload["rows"][0]["status"], "completed")
+
+        self.post.refresh_from_db()
+        self.assertTrue(self.post.is_published)
+        row = self.post.qualities.first()
+        self.assertEqual(row.download_url, "https://my.nzdworld.com/d/abc/")
+
+    def test_batch_status_reports_progress_while_downloading(self):
+        self._queued()
+        running = {"job": {"id": "j1", "status": "downloading", "progress_percent": 42}}
+        with mock.patch.object(client, "import_status", return_value=running):
+            payload = self.client.get(
+                f"/control-center/video-import/batch-status/{self.post.pk}/"
+            ).json()
+        self.assertEqual(payload["rows"][0]["status"], "downloading")
+        self.assertEqual(payload["rows"][0]["progress"], 42)
+        self.post.refresh_from_db()
+        self.assertFalse(self.post.is_published)
+
+    def test_sync_for_post_is_throttled(self):
+        from django.core.cache import cache
+
+        cache.clear()
+        self._queued()
+        running = {"job": {"id": "j1", "status": "downloading", "progress_percent": 10}}
+        with mock.patch.object(client, "import_status", return_value=running) as status:
+            publishing.sync_for_post(self.post, throttle_seconds=60)
+            publishing.sync_for_post(self.post, throttle_seconds=60)
+        self.assertEqual(status.call_count, 1)
+
+    def test_sync_page_touches_only_posts_with_active_batches(self):
+        from django.core.cache import cache
+        from videoimport.models import UploadBatch
+
+        cache.clear()
+        self._queued()
+        other = Post.objects.create(
+            title="No uploads", slug="no-uploads", content="x",
+            author=self.user, category=self.category, is_published=False,
+        )
+        running = {"job": {"id": "j1", "status": "downloading", "progress_percent": 5}}
+        with mock.patch.object(client, "import_status", return_value=running) as status:
+            synced = publishing.sync_page([self.post, other], throttle_seconds=0)
+        self.assertEqual(synced, 1)
+        self.assertEqual(status.call_count, 1)
+        self.assertFalse(UploadBatch.objects.filter(post=other).exists())
+
+    def test_row_queued_without_a_job_id_is_failed_not_left_hanging(self):
+        batch = UploadBatch.objects.create(post=self.post, version=1)
+        row = self.row(processing_status=DownloadQuality.ProcessingStatus.QUEUED)
+        row.job_public_id = ""
+        row.save(update_fields=["job_public_id"])
+        batch = publishing.sync_batch(batch)
+        row.refresh_from_db()
+        self.assertEqual(row.processing_status, DownloadQuality.ProcessingStatus.FAILED)
+        self.assertIn("Not queued", row.processing_error)
+        self.assertEqual(batch.status, UploadBatch.Status.FAILED)

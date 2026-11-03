@@ -248,7 +248,15 @@ class PostAdmin(admin.ModelAdmin):
             label = f"✗ {failed} failed · {completed}/{total}"
             colour = '#b91c1c'
         elif active:
-            label = f"↑ uploading {completed}/{total}"
+            active_rows = [
+                row for row in rows
+                if row.processing_status in ('queued', 'downloading', 'uploading')
+            ]
+            known = [row.progress_percent for row in active_rows if row.progress_percent]
+            if known:
+                label = f"↑ uploading {int(sum(known) / len(known))}% · {completed}/{total}"
+            else:
+                label = f"↑ uploading {completed}/{total}"
             colour = '#1d4ed8'
         elif completed == total:
             label = f"✓ {completed}/{total}"

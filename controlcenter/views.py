@@ -729,6 +729,17 @@ class ModelListView(StaffRequiredMixin, View):
         page = request.GET.get('page')
         page_obj = paginator.get_page(page)
 
+        # Keep the "Upload" column live: refresh the page's active batches
+        # (bounded + throttled) so progress and completed URLs show up without
+        # depending on cron being installed.
+        if model._meta.label_lower == 'core.post':
+            try:
+                from videoimport import publishing
+
+                publishing.sync_page(page_obj.object_list)
+            except Exception:
+                pass
+
         # Build list_display columns
         display_columns = []
         if modeladmin and getattr(modeladmin, 'list_display', None):

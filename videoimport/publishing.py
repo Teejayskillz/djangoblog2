@@ -165,12 +165,19 @@ def sync_batch(batch: UploadBatch) -> UploadBatch:
     if batch.status in (UploadBatch.Status.COMPLETED, UploadBatch.Status.FAILED):
         return batch
 
-    rows = list(batch.post.qualities.exclude(job_public_id=""))
+    rows = list(batch.post.qualities.all())
     pending = False
     failed = False
 
     for row in rows:
         if row.is_processed:
+            continue
+        if not row.job_public_id:
+            # Queued locally but never accepted by the uploader: surface it.
+            row.processing_status = DownloadQuality.ProcessingStatus.FAILED
+            row.processing_error = "Not queued with the uploader. Use Retry."
+            row.save(update_fields=["processing_status", "processing_error"])
+            failed = True
             continue
         try:
             payload = client.import_status(row.job_public_id)
@@ -294,3 +301,58 @@ def retry_row(row: DownloadQuality) -> DownloadQuality:
     row.progress_percent = 0
     row.save(update_fields=["job_public_id", "processing_status", "processing_error", "progress_percent"])
     return row
+
+
+def sync_for_post(post, *, throttle_seconds: int = 5):
+    """
+    Refresh a post's active batch on demand.
+
+    Called from the admin UI (status endpoint and post list) so progress moves
+    even when the cron command is not installed. Throttled per post so a page
+    refresh cannot hammer the uploader API.
+    """
+    from django.core.cache import cache
+
+    batch = latest_batch(post)
+    if batch is None or batch.status in (UploadBatch.Status.COMPLETED, UploadBatch.Status.FAILED):
+        return batch
+
+    key = f"nzd:batch-sync:{post.pk}"
+    if throttle_seconds and cache.get(key):
+        return batch
+    cache.set(key, 1, throttle_seconds)
+    return sync_batch(batch)
+
+
+def sync_page(objects, *, limit: int = 5, throttle_seconds: int = 30) -> int:
+    """
+    Refresh the newest active batch for each post on a list page.
+
+    Bounded (``limit``) and throttled, because this runs while rendering the
+    post list; the cron command remains the reliable background path.
+    """
+    post_ids = [getattr(obj, "pk", None) for obj in objects]
+    post_ids = [pk for pk in post_ids if pk]
+    if not post_ids:
+        return 0
+
+    active = (
+        UploadBatch.objects.filter(
+            post_id__in=post_ids,
+            status__in=[UploadBatch.Status.QUEUED, UploadBatch.Status.PROCESSING],
+        )
+        .select_related("post")
+        .order_by("-version")
+    )
+
+    seen: set[int] = set()
+    synced = 0
+    for batch in active:
+        if batch.post_id in seen:
+            continue
+        seen.add(batch.post_id)
+        sync_for_post(batch.post, throttle_seconds=throttle_seconds)
+        synced += 1
+        if synced >= limit:
+            break
+    return synced
