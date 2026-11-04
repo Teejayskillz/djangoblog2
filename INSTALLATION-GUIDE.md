@@ -287,3 +287,5 @@ before.
   requires a nonce and a session bound to the visitor's cookie/network.
 * The handoff redirect sends `Referrer-Policy: no-referrer` so the token cannot
   leak through referrer headers.
+
+ok
