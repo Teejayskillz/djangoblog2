@@ -80,6 +80,9 @@ urlpatterns = [
     path('pricing/', pricing_view, name='pricing'),
     path('sports/', include('sports.urls')),
     path('sports-streaming/', include('sports.urls')),
+    # External Link Generator API (server-to-server, WordPress -> NZDWorld).
+    # Must be registered before core.urls, whose patterns match generic slugs.
+    path('api/external-link/', include('core.external_link_urls')),
     path('', include('core.urls')), 
     path('ads/', include('ads.urls')),
 ] 

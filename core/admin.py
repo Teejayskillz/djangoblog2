@@ -451,3 +451,10 @@ class SubscriberAdmin(admin.ModelAdmin):
     search_fields = ['email']
 
     # Your custom methods (get_urls, import_view, etc.) go here
+
+
+# ---------------------------------------------------------------------------
+# Optional External Link Generator integration (WordPress download handoff).
+# Imported last so the registrations above are unaffected.
+# ---------------------------------------------------------------------------
+from . import external_link_admin  # noqa: E402,F401  (registers its own ModelAdmins)

@@ -536,6 +536,21 @@ def download_quality(request, pk):
         )
         return redirect('subscriptions:plan_list')
 
+    # ------------------------------------------------------------------
+    # Optional External Link Generator handoff (WordPress).
+    #
+    # Returns None unless the feature is enabled *and* fully configured, so a
+    # disabled integration leaves this view exactly as it was. The actual
+    # download destination is not revealed here: the visitor is redirected to
+    # the WordPress generator with an opaque single-use token, and the URL is
+    # only released by the redemption endpoint.
+    # ------------------------------------------------------------------
+    from .external_link_service import start_handoff
+
+    handoff_response = start_handoff(request, quality, is_vip=is_vip)
+    if handoff_response is not None:
+        return handoff_response
+
     # Atomic counter update: no read-modify-write race, no full row rewrite.
     DownloadQuality.objects.filter(pk=quality.pk).update(
         download_count=F('download_count') + 1

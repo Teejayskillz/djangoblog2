@@ -1,0 +1,302 @@
+{% extends 'controlcenter/base.html' %}
+{% load custom_tags %}
+{% block title %}External Link Generator{% endblock %}
+
+{% block extra_head %}
+<style>
+  .nzd-el-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+  @media (max-width: 1100px) { .nzd-el-grid { grid-template-columns: 1fr; } }
+  .nzd-el-card { background: #fff; border: 1px solid var(--wp-border-light, #dcdcde); border-radius: 4px; margin-bottom: 20px; }
+  .nzd-el-card > h2 { margin: 0; padding: 12px 16px; border-bottom: 1px solid #f0f0f1; font-size: 14px; }
+  .nzd-el-card > .inside { padding: 14px 16px; }
+  .nzd-el-kv { width: 100%; border-collapse: collapse; }
+  .nzd-el-kv th { text-align: left; font-weight: 600; padding: 5px 14px 5px 0; width: 42%; vertical-align: top; }
+  .nzd-el-kv td { padding: 5px 0; word-break: break-word; }
+  .nzd-el-pill { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 11px; font-weight: 700; }
+  .nzd-el-pill.ok { background: #d1fae5; color: #065f46; }
+  .nzd-el-pill.off { background: #f3f4f6; color: #4b5563; }
+  .nzd-el-pill.warn { background: #fef3c7; color: #92400e; }
+  .nzd-el-pill.bad { background: #fee2e2; color: #991b1b; }
+  .nzd-el-key { display: block; padding: 12px; background: #0f172a; color: #e2e8f0; border-radius: 4px;
+                font-family: Consolas, monospace; font-size: 13px; word-break: break-all; margin: 8px 0; }
+  .nzd-el-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+  .nzd-el-actions form { margin: 0; }
+  .nzd-el-muted { color: #646970; font-size: 12px; }
+  .nzd-el-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .nzd-el-table th, .nzd-el-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #f0f0f1; vertical-align: top; }
+  .nzd-el-table th { background: #f6f7f7; font-weight: 600; }
+  .nzd-el-code { background: #f6f7f7; padding: 2px 6px; border-radius: 3px; font-family: Consolas, monospace; font-size: 12px; word-break: break-all; }
+  .nzd-el-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+  .nzd-el-stat { background: #f6f7f7; border-radius: 4px; padding: 12px; text-align: center; }
+  .nzd-el-stat b { display: block; font-size: 22px; line-height: 1.1; }
+  .nzd-el-stat span { font-size: 11px; color: #646970; text-transform: uppercase; letter-spacing: .03em; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:8px;">
+  <div>
+    <h1 class="wp-heading-inline">External Link Generator</h1>
+    <span class="nzd-el-muted" style="margin-left:8px;">WordPress download handoff</span>
+  </div>
+  <div>
+    {% if config.enabled %}
+      <span class="nzd-el-pill ok">Enabled</span>
+    {% else %}
+      <span class="nzd-el-pill off">Disabled</span>
+    {% endif %}
+    {% if config.api_key_hash %}
+      {% if config.key_state == 'active' %}
+        <span class="nzd-el-pill ok">API key active</span>
+      {% else %}
+        <span class="nzd-el-pill bad">API key revoked</span>
+      {% endif %}
+    {% else %}
+      <span class="nzd-el-pill warn">No API key</span>
+    {% endif %}
+  </div>
+</div>
+<hr class="wp-header-end">
+
+{% if new_api_key %}
+<div class="notice notice-warning" style="border-left-color:#dba617;">
+  <p><strong>Copy this API key now — it will not be shown again.</strong></p>
+  <code class="nzd-el-key" id="nzd-new-key">{{ new_api_key }}</code>
+  <p class="nzd-el-muted">
+    Paste it into WordPress &rarr; NZDWorld Link Generator &rarr; API key, then click
+    &ldquo;Save &amp; Test Connection&rdquo;. Only a hash is stored on this server.
+  </p>
+  <p><button type="button" class="button" id="nzd-copy-key">Copy key</button></p>
+</div>
+{% endif %}
+
+{% if config.blocked_reason %}
+<div class="notice notice-warning">
+  <p><strong>Handoff is not active:</strong> {{ config.blocked_reason }}</p>
+</div>
+{% endif %}
+
+{% if config.last_handoff_error %}
+<div class="notice notice-error">
+  <p><strong>Last handoff problem:</strong> {{ config.last_handoff_error }}
+    <span class="nzd-el-muted">(fallback: normal download link was used)</span></p>
+</div>
+{% endif %}
+
+<div class="nzd-el-grid">
+  <div>
+    <div class="nzd-el-card">
+      <h2>1. Generator settings</h2>
+      <div class="inside">
+        <form method="post" action="">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="save">
+          {% if form.non_field_errors %}
+            <div class="notice notice-error"><p>{{ form.non_field_errors }}</p></div>
+          {% endif %}
+          <table class="form-table" role="presentation">
+            <tbody>
+              {% for field in form %}
+              <tr>
+                <th scope="row"><label for="{{ field.id_for_label }}">{{ field.label }}</label></th>
+                <td>
+                  {{ field.errors }}
+                  {{ field }}
+                  {% if field.help_text %}<p class="description">{{ field.help_text|safe }}</p>{% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          <p><button type="submit" class="button button-primary">Save settings</button></p>
+        </form>
+      </div>
+    </div>
+
+    <div class="nzd-el-card">
+      <h2>2. API key &amp; connection</h2>
+      <div class="inside">
+        <table class="nzd-el-kv">
+          <tr><th>Key fingerprint</th>
+              <td>{% if config.api_key_prefix %}<span class="nzd-el-code">{{ config.api_key_prefix }}…</span>{% else %}Not generated yet{% endif %}</td></tr>
+          <tr><th>Issued</th><td>{{ config.api_key_created_at|default:"—" }}</td></tr>
+          <tr><th>Last used by WordPress</th><td>{{ config.api_key_last_used_at|default:"—" }}</td></tr>
+          <tr><th>Registered WordPress site</th>
+              <td>{% if config.wordpress_site_url %}<span class="nzd-el-code">{{ config.wordpress_site_url }}</span>{% else %}Not registered{% endif %}</td></tr>
+          <tr><th>Entry URL template</th>
+              <td>{% if config.wordpress_entry_template %}<span class="nzd-el-code">{{ config.wordpress_entry_template }}</span>{% else %}—{% endif %}</td></tr>
+          <tr><th>Last connection test</th>
+              <td>{{ config.last_connection_at|default:"never" }}
+                {% if config.last_connection_ok %}<span class="nzd-el-pill ok">success</span>
+                {% elif config.last_connection_ok is False %}<span class="nzd-el-pill bad">failed</span>{% endif %}</td></tr>
+          <tr><th>Plugin version</th><td>{{ config.last_connection_plugin_version|default:"—" }}</td></tr>
+          <tr><th>Last connection error</th><td>{{ config.last_connection_error|default:"—" }}</td></tr>
+        </table>
+        <div class="nzd-el-actions">
+          <form method="post" action="">{% csrf_token %}
+            <input type="hidden" name="action" value="generate_key">
+            <button type="submit" class="button button-primary">
+              {% if config.api_key_hash %}Rotate API key{% else %}Generate API key{% endif %}
+            </button>
+          </form>
+          {% if config.api_key_hash %}
+          <form method="post" action="">{% csrf_token %}
+            <input type="hidden" name="action" value="revoke_key">
+            <button type="submit" class="button">Revoke key</button>
+          </form>
+          {% endif %}
+          {% if config.wordpress_site_url %}
+          <form method="post" action="">{% csrf_token %}
+            <input type="hidden" name="action" value="reset_domain">
+            <button type="submit" class="button">Forget connected site</button>
+          </form>
+          {% endif %}
+          {% if config.enabled %}
+          <form method="post" action="">{% csrf_token %}
+            <input type="hidden" name="action" value="disable">
+            <button type="submit" class="button">Disable generator</button>
+          </form>
+          {% else %}
+          <form method="post" action="">{% csrf_token %}
+            <input type="hidden" name="action" value="enable">
+            <button type="submit" class="button button-primary">Enable generator</button>
+          </form>
+          {% endif %}
+        </div>
+        <p class="nzd-el-muted" style="margin-top:10px;">
+          Connection tests are initiated from the WordPress plugin (&ldquo;Save &amp; Test Connection&rdquo;);
+          the result and the plugin-reported entry URL appear here automatically.
+        </p>
+      </div>
+    </div>
+
+    <div class="nzd-el-card">
+      <h2>3. Recent generation sessions</h2>
+      <div class="inside">
+        <table class="nzd-el-table">
+          <thead>
+            <tr><th>Token</th><th>Download</th><th>Status</th><th>Created</th><th>Expires</th><th>Redeemed</th></tr>
+          </thead>
+          <tbody>
+            {% for session in recent_sessions %}
+            <tr>
+              <td><span class="nzd-el-code">{{ session.token_prefix }}…</span></td>
+              <td>{{ session.quality_label|default:"(deleted)" }}</td>
+              <td>{{ session.get_status_display }}</td>
+              <td>{{ session.created_at|date:"Y-m-d H:i" }}</td>
+              <td>{{ session.expires_at|date:"Y-m-d H:i" }}</td>
+              <td>{{ session.redeemed_at|date:"Y-m-d H:i"|default:"—" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="nzd-el-muted">No sessions yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <form method="post" action="" style="margin-top:12px;">{% csrf_token %}
+          <input type="hidden" name="action" value="prune_sessions">
+          <button type="submit" class="button">Mark abandoned sessions as expired</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="nzd-el-card">
+      <h2>Statistics</h2>
+      <div class="inside">
+        <div class="nzd-el-stats">
+          <div class="nzd-el-stat"><b>{{ stats.sessions_total }}</b><span>Sessions</span></div>
+          <div class="nzd-el-stat"><b>{{ stats.sessions_redeemed }}</b><span>Downloads released</span></div>
+          <div class="nzd-el-stat"><b>{{ stats.sessions_expired }}</b><span>Expired</span></div>
+          <div class="nzd-el-stat"><b>{{ stats.sessions_pending }}</b><span>Pending</span></div>
+        </div>
+        <p class="nzd-el-muted" style="margin-top:12px;">
+          Last {{ stats.window_days }} days: {{ stats.sessions_recent }} created,
+          {{ stats.sessions_recent_redeemed }} redeemed. Download counters increase at
+          redemption, i.e. when the visitor actually continues to the file.
+        </p>
+        <table class="nzd-el-table">
+          <thead><tr><th>Event</th><th>Count</th></tr></thead>
+          <tbody>
+            {% for row in stats.events %}
+            <tr><td>{{ row.event }}</td><td>{{ row.total }}</td></tr>
+            {% empty %}
+            <tr><td colspan="2" class="nzd-el-muted">No events in this window.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="nzd-el-card">
+      <h2>Integration URLs</h2>
+      <div class="inside">
+        <table class="nzd-el-kv">
+          <tr><th>API base</th><td><span class="nzd-el-code">https://nzdworld.com{{ api_base }}/</span></td></tr>
+          <tr><th>Handoff (browser)</th>
+              <td>{% if handoff_preview %}<span class="nzd-el-code">{{ handoff_preview }}</span>{% else %}Set by the plugin&rsquo;s Test Connection{% endif %}</td></tr>
+          <tr><th>Entry URL format</th><td><span class="nzd-el-code">{{ entry_example }}</span></td></tr>
+        </table>
+        <p class="nzd-el-muted">
+          The visitor only ever sees an opaque token. The download destination is released
+          server-to-server after the countdown and is never placed in HTML, JavaScript or
+          the browser URL before redemption.
+        </p>
+      </div>
+    </div>
+
+    <div class="nzd-el-card">
+      <h2>Recent events</h2>
+      <div class="inside">
+        <table class="nzd-el-table">
+          <thead><tr><th>When</th><th>Event</th><th>Detail</th></tr></thead>
+          <tbody>
+            {% for event in recent_events %}
+            <tr>
+              <td>{{ event.created_at|date:"m-d H:i" }}</td>
+              <td>{{ event.event }}</td>
+              <td>{{ event.message|truncatechars:90 }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3" class="nzd-el-muted">No events yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="nzd-el-muted">
+  API documentation lives in <span class="nzd-el-code">API-DOCUMENTATION.md</span> in the integration
+  delivery. Downloads fall back to the original direct link whenever the handoff cannot be
+  started, so existing download buttons never break.
+</p>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function () {
+    var button = document.getElementById('nzd-copy-key');
+    var code = document.getElementById('nzd-new-key');
+    if (!button || !code) return;
+    button.addEventListener('click', function () {
+      var text = code.textContent || '';
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () {
+          button.textContent = 'Copied';
+        }, function () {
+          button.textContent = 'Select the key manually';
+        });
+      } else {
+        var range = document.createRange();
+        range.selectNodeContents(code);
+        var selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+        button.textContent = 'Select the key manually';
+      }
+    });
+  })();
+</script>
+{% endblock %}

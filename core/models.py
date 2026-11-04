@@ -525,3 +525,18 @@ class Subscriber(models.Model):
 
     def __str__(self):
         return self.email 
+
+
+# ---------------------------------------------------------------------------
+# Optional External Link Generator integration (WordPress handoff).
+#
+# The models live in their own module to keep this file readable, but they are
+# imported here so they belong to the existing `core` app (no INSTALLED_APPS or
+# migration-graph changes beyond the new migration).
+# ---------------------------------------------------------------------------
+from .external_link_models import (  # noqa: E402,F401  (imported for Django model discovery)
+    ExternalLinkConfig,
+    ExternalLinkEvent,
+    ExternalLinkNonce,
+    ExternalLinkSession,
+)

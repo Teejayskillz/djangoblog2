@@ -1,0 +1,3619 @@
+diff --git a/blog_project/settings.py b/blog_project/settings.py
+index f0d7b28..11cd50d 100644
+--- a/blog_project/settings.py
++++ b/blog_project/settings.py
+@@ -495,3 +495,33 @@ CACHES = {
+         'TIMEOUT': 300,
+     }
+ }
++
++# ---------------------------------------------------------------------------
++# External Link Generator (optional WordPress download handoff)
++#
++# The feature is disabled unless an administrator enables it in the Control
++# Center (external_link_generator) / Django admin. When disabled, the existing
++# /download/quality/<id>/ behaviour is untouched.
++#
++# The API is server-to-server only and therefore HTTPS-only. Set
++# EXTERNAL_LINK_REQUIRE_HTTPS=false only for local development without TLS.
++# ---------------------------------------------------------------------------
++EXTERNAL_LINK_REQUIRE_HTTPS = _env_bool('EXTERNAL_LINK_REQUIRE_HTTPS', 'true')
++
++# Public API base path, shown in the admin screen and documentation.
++EXTERNAL_LINK_API_BASE = '/api/external-link'
++
++# Abuse protection for the two new surfaces: the browser handoff redirect and
++# the signed WordPress -> NZDWorld API.
++RATE_LIMITS.update({
++    'external_handoff': {
++        'hits': int(os.getenv('RL_HANDOFF_HITS', '30')),
++        'window': 300,
++        'cooldown': 300,
++    },
++    'external_api': {
++        'hits': int(os.getenv('RL_EXTERNAL_API_HITS', '240')),
++        'window': 300,
++        'cooldown': 120,
++    },
++})
+diff --git a/blog_project/urls.py b/blog_project/urls.py
+index fcf9d73..f915d9b 100644
+--- a/blog_project/urls.py
++++ b/blog_project/urls.py
+@@ -80,6 +80,9 @@ urlpatterns = [
+     path('pricing/', pricing_view, name='pricing'),
+     path('sports/', include('sports.urls')),
+     path('sports-streaming/', include('sports.urls')),
++    # External Link Generator API (server-to-server, WordPress -> NZDWorld).
++    # Must be registered before core.urls, whose patterns match generic slugs.
++    path('api/external-link/', include('core.external_link_urls')),
+     path('', include('core.urls')), 
+     path('ads/', include('ads.urls')),
+ ] 
+diff --git a/controlcenter/external_link_views.py b/controlcenter/external_link_views.py
+new file mode 100644
+index 0000000..699d6d9
+--- /dev/null
++++ b/controlcenter/external_link_views.py
+@@ -0,0 +1,164 @@
++"""
++Control Center screen for the optional External Link Generator integration.
++
++One page to run the whole feature without touching code:
++
++* enable / disable the generator,
++* generate, rotate and revoke the API key (plaintext shown exactly once),
++* register / forget the connected WordPress installation,
++* see connection status, the handoff URL template and basic statistics,
++* inspect recent generation sessions and audit events.
++
++The same data is available through the private Django admin; this screen is the
++operator-facing one that matches the rest of the site's admin experience.
++"""
++
++from django.contrib import messages
++from django.http import HttpResponseForbidden
++from django.shortcuts import redirect, render
++from django.utils import timezone
++from django.views.generic import View
++
++from core import external_link_service as service
++from core.external_link_forms import ExternalLinkConfigForm
++from core.external_link_models import ExternalLinkConfig
++
++from .views import StaffRequiredMixin, get_app_list_context
++
++CHANGE_PERMISSION = "core.change_externallinkconfig"
++
++
++class ExternalLinkGeneratorView(StaffRequiredMixin, View):
++    template_name = "controlcenter/external_link_generator.html"
++    active_menu = "external_link_generator"
++
++    # -- helpers -----------------------------------------------------------
++    def _allowed(self, request):
++        return bool(
++            request.user.is_superuser or request.user.has_perm(CHANGE_PERMISSION)
++        )
++
++    def _redirect(self):
++        return redirect("controlcenter:external_link_generator")
++
++    def _context(self, request, config, form, status=200):
++        context = {
++            "config": config,
++            "form": form,
++            "stats": service.statistics(),
++            "recent_sessions": service.recent_sessions(15),
++            "recent_events": service.recent_events(15),
++            "api_base": "/api/external-link",
++            "active_menu": self.active_menu,
++            "entry_example": "https://your-blog.example/nzdworld-link/{token}/",
++            "handoff_preview": (config.wordpress_entry_template or "").replace(
++                "{token}", "‹one-time-token›"
++            ),
++            "now": timezone.now(),
++        }
++        context.update(get_app_list_context(request))
++        return context
++
++    # -- HTTP --------------------------------------------------------------
++    def get(self, request, *args, **kwargs):
++        if not self._allowed(request):
++            return HttpResponseForbidden("Insufficient permissions")
++
++        config = ExternalLinkConfig.load()
++        # One-shot plaintext key: displayed after a PRG redirect, then removed.
++        new_api_key = request.session.pop("external_link_new_key", "")
++        context = self._context(request, config, ExternalLinkConfigForm(instance=config))
++        context["new_api_key"] = new_api_key
++        response = render(request, self.template_name, context)
++        response["Cache-Control"] = "no-store, no-cache, must-revalidate, private"
++        response["Referrer-Policy"] = "no-referrer"
++        return response
++
++    def post(self, request, *args, **kwargs):
++        if not self._allowed(request):
++            return HttpResponseForbidden("Insufficient permissions")
++
++        action = (request.POST.get("action") or "").strip()
++        config = ExternalLinkConfig.load()
++
++        if action == "save":
++            form = ExternalLinkConfigForm(request.POST, instance=config)
++            if form.is_valid():
++                form.save()
++                service.log_event(
++                    "settings_updated",
++                    message="Generator settings updated in the Control Center.",
++                )
++                messages.success(request, "Settings saved.")
++                return self._redirect()
++            messages.error(request, "Please correct the errors below.")
++            return render(request, self.template_name, self._context(request, config, form))
++
++        if action == "generate_key":
++            raw_key = service.issue_api_key(config)
++            request.session["external_link_new_key"] = raw_key
++            request.session.modified = True
++            messages.warning(
++                request,
++                "A new API key was generated. Paste it into the WordPress plugin now: "
++                "it is shown only once.",
++            )
++            return self._redirect()
++
++        if action == "revoke_key":
++            if service.revoke_api_key(config):
++                messages.warning(
++                    request,
++                    "API key revoked. WordPress requests will be rejected until you issue a new key.",
++                )
++            else:
++                messages.info(request, "There is no API key to revoke.")
++            return self._redirect()
++
++        if action == "reset_domain":
++            service.reset_registered_domain(config, keep_key=True)
++            messages.warning(
++                request,
++                "The registered WordPress site was cleared. Run Test Connection in the plugin "
++                "to register it again.",
++            )
++            return self._redirect()
++
++        if action == "enable":
++            config.enabled = True
++            config.save(update_fields=["enabled", "updated_at"])
++            service.log_event("integration_enabled", message="Generator enabled from the Control Center.")
++            if config.is_operational:
++                messages.success(
++                    request, "Generator enabled. Download buttons now use the WordPress handoff."
++                )
++            else:
++                messages.warning(
++                    request,
++                    f"Generator enabled, but the handoff is not active yet: {config.blocked_reason}",
++                )
++            return self._redirect()
++
++        if action == "disable":
++            config.enabled = False
++            config.save(update_fields=["enabled", "updated_at"])
++            service.log_event("integration_disabled", message="Generator disabled from the Control Center.")
++            messages.success(
++                request,
++                "Generator disabled. /download/quality/<id>/ behaves exactly as before.",
++            )
++            return self._redirect()
++
++        if action == "prune_sessions":
++            from core.external_link_models import ExternalLinkSession
++
++            now = timezone.now()
++            expired = ExternalLinkSession.objects.filter(
++                redeemed_at__isnull=True, expires_at__lte=now
++            )
++            count = expired.update(status=ExternalLinkSession.Status.EXPIRED)
++            messages.success(request, f"{count} abandoned session(s) marked as expired.")
++            return self._redirect()
++
++        messages.error(request, "Unknown action.")
++        return self._redirect()
+diff --git a/controlcenter/templates/controlcenter/base.html b/controlcenter/templates/controlcenter/base.html
+index 43a86d1..8516fb9 100644
+--- a/controlcenter/templates/controlcenter/base.html
++++ b/controlcenter/templates/controlcenter/base.html
+@@ -204,6 +204,13 @@
+           </a>
+         </li>
+ 
++        <li class="{% if active_menu == 'external_link_generator' %}current{% endif %}">
++          <a href="{% url 'controlcenter:external_link_generator' %}" class="{% if active_menu == 'external_link_generator' %}active{% endif %}">
++            <span class="wp-menu-icon">🔗</span>
++            <span class="wp-menu-name">Link Generator</span>
++          </a>
++        </li>
++
+         {% for app in app_list %}
+         <li class="menu-section-header">{{ app.name }}</li>
+           {% for model in app.models %}
+diff --git a/controlcenter/templates/controlcenter/external_link_generator.html b/controlcenter/templates/controlcenter/external_link_generator.html
+new file mode 100644
+index 0000000..1a6809e
+--- /dev/null
++++ b/controlcenter/templates/controlcenter/external_link_generator.html
+@@ -0,0 +1,302 @@
++{% extends 'controlcenter/base.html' %}
++{% load custom_tags %}
++{% block title %}External Link Generator{% endblock %}
++
++{% block extra_head %}
++<style>
++  .nzd-el-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 20px; align-items: start; }
++  @media (max-width: 1100px) { .nzd-el-grid { grid-template-columns: 1fr; } }
++  .nzd-el-card { background: #fff; border: 1px solid var(--wp-border-light, #dcdcde); border-radius: 4px; margin-bottom: 20px; }
++  .nzd-el-card > h2 { margin: 0; padding: 12px 16px; border-bottom: 1px solid #f0f0f1; font-size: 14px; }
++  .nzd-el-card > .inside { padding: 14px 16px; }
++  .nzd-el-kv { width: 100%; border-collapse: collapse; }
++  .nzd-el-kv th { text-align: left; font-weight: 600; padding: 5px 14px 5px 0; width: 42%; vertical-align: top; }
++  .nzd-el-kv td { padding: 5px 0; word-break: break-word; }
++  .nzd-el-pill { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 11px; font-weight: 700; }
++  .nzd-el-pill.ok { background: #d1fae5; color: #065f46; }
++  .nzd-el-pill.off { background: #f3f4f6; color: #4b5563; }
++  .nzd-el-pill.warn { background: #fef3c7; color: #92400e; }
++  .nzd-el-pill.bad { background: #fee2e2; color: #991b1b; }
++  .nzd-el-key { display: block; padding: 12px; background: #0f172a; color: #e2e8f0; border-radius: 4px;
++                font-family: Consolas, monospace; font-size: 13px; word-break: break-all; margin: 8px 0; }
++  .nzd-el-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
++  .nzd-el-actions form { margin: 0; }
++  .nzd-el-muted { color: #646970; font-size: 12px; }
++  .nzd-el-table { width: 100%; border-collapse: collapse; font-size: 12px; }
++  .nzd-el-table th, .nzd-el-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #f0f0f1; vertical-align: top; }
++  .nzd-el-table th { background: #f6f7f7; font-weight: 600; }
++  .nzd-el-code { background: #f6f7f7; padding: 2px 6px; border-radius: 3px; font-family: Consolas, monospace; font-size: 12px; word-break: break-all; }
++  .nzd-el-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
++  .nzd-el-stat { background: #f6f7f7; border-radius: 4px; padding: 12px; text-align: center; }
++  .nzd-el-stat b { display: block; font-size: 22px; line-height: 1.1; }
++  .nzd-el-stat span { font-size: 11px; color: #646970; text-transform: uppercase; letter-spacing: .03em; }
++</style>
++{% endblock %}
++
++{% block content %}
++<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:8px;">
++  <div>
++    <h1 class="wp-heading-inline">External Link Generator</h1>
++    <span class="nzd-el-muted" style="margin-left:8px;">WordPress download handoff</span>
++  </div>
++  <div>
++    {% if config.enabled %}
++      <span class="nzd-el-pill ok">Enabled</span>
++    {% else %}
++      <span class="nzd-el-pill off">Disabled</span>
++    {% endif %}
++    {% if config.api_key_hash %}
++      {% if config.key_state == 'active' %}
++        <span class="nzd-el-pill ok">API key active</span>
++      {% else %}
++        <span class="nzd-el-pill bad">API key revoked</span>
++      {% endif %}
++    {% else %}
++      <span class="nzd-el-pill warn">No API key</span>
++    {% endif %}
++  </div>
++</div>
++<hr class="wp-header-end">
++
++{% if new_api_key %}
++<div class="notice notice-warning" style="border-left-color:#dba617;">
++  <p><strong>Copy this API key now — it will not be shown again.</strong></p>
++  <code class="nzd-el-key" id="nzd-new-key">{{ new_api_key }}</code>
++  <p class="nzd-el-muted">
++    Paste it into WordPress &rarr; NZDWorld Link Generator &rarr; API key, then click
++    &ldquo;Save &amp; Test Connection&rdquo;. Only a hash is stored on this server.
++  </p>
++  <p><button type="button" class="button" id="nzd-copy-key">Copy key</button></p>
++</div>
++{% endif %}
++
++{% if config.blocked_reason %}
++<div class="notice notice-warning">
++  <p><strong>Handoff is not active:</strong> {{ config.blocked_reason }}</p>
++</div>
++{% endif %}
++
++{% if config.last_handoff_error %}
++<div class="notice notice-error">
++  <p><strong>Last handoff problem:</strong> {{ config.last_handoff_error }}
++    <span class="nzd-el-muted">(fallback: normal download link was used)</span></p>
++</div>
++{% endif %}
++
++<div class="nzd-el-grid">
++  <div>
++    <div class="nzd-el-card">
++      <h2>1. Generator settings</h2>
++      <div class="inside">
++        <form method="post" action="">
++          {% csrf_token %}
++          <input type="hidden" name="action" value="save">
++          {% if form.non_field_errors %}
++            <div class="notice notice-error"><p>{{ form.non_field_errors }}</p></div>
++          {% endif %}
++          <table class="form-table" role="presentation">
++            <tbody>
++              {% for field in form %}
++              <tr>
++                <th scope="row"><label for="{{ field.id_for_label }}">{{ field.label }}</label></th>
++                <td>
++                  {{ field.errors }}
++                  {{ field }}
++                  {% if field.help_text %}<p class="description">{{ field.help_text|safe }}</p>{% endif %}
++                </td>
++              </tr>
++              {% endfor %}
++            </tbody>
++          </table>
++          <p><button type="submit" class="button button-primary">Save settings</button></p>
++        </form>
++      </div>
++    </div>
++
++    <div class="nzd-el-card">
++      <h2>2. API key &amp; connection</h2>
++      <div class="inside">
++        <table class="nzd-el-kv">
++          <tr><th>Key fingerprint</th>
++              <td>{% if config.api_key_prefix %}<span class="nzd-el-code">{{ config.api_key_prefix }}…</span>{% else %}Not generated yet{% endif %}</td></tr>
++          <tr><th>Issued</th><td>{{ config.api_key_created_at|default:"—" }}</td></tr>
++          <tr><th>Last used by WordPress</th><td>{{ config.api_key_last_used_at|default:"—" }}</td></tr>
++          <tr><th>Registered WordPress site</th>
++              <td>{% if config.wordpress_site_url %}<span class="nzd-el-code">{{ config.wordpress_site_url }}</span>{% else %}Not registered{% endif %}</td></tr>
++          <tr><th>Entry URL template</th>
++              <td>{% if config.wordpress_entry_template %}<span class="nzd-el-code">{{ config.wordpress_entry_template }}</span>{% else %}—{% endif %}</td></tr>
++          <tr><th>Last connection test</th>
++              <td>{{ config.last_connection_at|default:"never" }}
++                {% if config.last_connection_ok %}<span class="nzd-el-pill ok">success</span>
++                {% elif config.last_connection_ok is False %}<span class="nzd-el-pill bad">failed</span>{% endif %}</td></tr>
++          <tr><th>Plugin version</th><td>{{ config.last_connection_plugin_version|default:"—" }}</td></tr>
++          <tr><th>Last connection error</th><td>{{ config.last_connection_error|default:"—" }}</td></tr>
++        </table>
++        <div class="nzd-el-actions">
++          <form method="post" action="">{% csrf_token %}
++            <input type="hidden" name="action" value="generate_key">
++            <button type="submit" class="button button-primary">
++              {% if config.api_key_hash %}Rotate API key{% else %}Generate API key{% endif %}
++            </button>
++          </form>
++          {% if config.api_key_hash %}
++          <form method="post" action="">{% csrf_token %}
++            <input type="hidden" name="action" value="revoke_key">
++            <button type="submit" class="button">Revoke key</button>
++          </form>
++          {% endif %}
++          {% if config.wordpress_site_url %}
++          <form method="post" action="">{% csrf_token %}
++            <input type="hidden" name="action" value="reset_domain">
++            <button type="submit" class="button">Forget connected site</button>
++          </form>
++          {% endif %}
++          {% if config.enabled %}
++          <form method="post" action="">{% csrf_token %}
++            <input type="hidden" name="action" value="disable">
++            <button type="submit" class="button">Disable generator</button>
++          </form>
++          {% else %}
++          <form method="post" action="">{% csrf_token %}
++            <input type="hidden" name="action" value="enable">
++            <button type="submit" class="button button-primary">Enable generator</button>
++          </form>
++          {% endif %}
++        </div>
++        <p class="nzd-el-muted" style="margin-top:10px;">
++          Connection tests are initiated from the WordPress plugin (&ldquo;Save &amp; Test Connection&rdquo;);
++          the result and the plugin-reported entry URL appear here automatically.
++        </p>
++      </div>
++    </div>
++
++    <div class="nzd-el-card">
++      <h2>3. Recent generation sessions</h2>
++      <div class="inside">
++        <table class="nzd-el-table">
++          <thead>
++            <tr><th>Token</th><th>Download</th><th>Status</th><th>Created</th><th>Expires</th><th>Redeemed</th></tr>
++          </thead>
++          <tbody>
++            {% for session in recent_sessions %}
++            <tr>
++              <td><span class="nzd-el-code">{{ session.token_prefix }}…</span></td>
++              <td>{{ session.quality_label|default:"(deleted)" }}</td>
++              <td>{{ session.get_status_display }}</td>
++              <td>{{ session.created_at|date:"Y-m-d H:i" }}</td>
++              <td>{{ session.expires_at|date:"Y-m-d H:i" }}</td>
++              <td>{{ session.redeemed_at|date:"Y-m-d H:i"|default:"—" }}</td>
++            </tr>
++            {% empty %}
++            <tr><td colspan="6" class="nzd-el-muted">No sessions yet.</td></tr>
++            {% endfor %}
++          </tbody>
++        </table>
++        <form method="post" action="" style="margin-top:12px;">{% csrf_token %}
++          <input type="hidden" name="action" value="prune_sessions">
++          <button type="submit" class="button">Mark abandoned sessions as expired</button>
++        </form>
++      </div>
++    </div>
++  </div>
++
++  <div>
++    <div class="nzd-el-card">
++      <h2>Statistics</h2>
++      <div class="inside">
++        <div class="nzd-el-stats">
++          <div class="nzd-el-stat"><b>{{ stats.sessions_total }}</b><span>Sessions</span></div>
++          <div class="nzd-el-stat"><b>{{ stats.sessions_redeemed }}</b><span>Downloads released</span></div>
++          <div class="nzd-el-stat"><b>{{ stats.sessions_expired }}</b><span>Expired</span></div>
++          <div class="nzd-el-stat"><b>{{ stats.sessions_pending }}</b><span>Pending</span></div>
++        </div>
++        <p class="nzd-el-muted" style="margin-top:12px;">
++          Last {{ stats.window_days }} days: {{ stats.sessions_recent }} created,
++          {{ stats.sessions_recent_redeemed }} redeemed. Download counters increase at
++          redemption, i.e. when the visitor actually continues to the file.
++        </p>
++        <table class="nzd-el-table">
++          <thead><tr><th>Event</th><th>Count</th></tr></thead>
++          <tbody>
++            {% for row in stats.events %}
++            <tr><td>{{ row.event }}</td><td>{{ row.total }}</td></tr>
++            {% empty %}
++            <tr><td colspan="2" class="nzd-el-muted">No events in this window.</td></tr>
++            {% endfor %}
++          </tbody>
++        </table>
++      </div>
++    </div>
++
++    <div class="nzd-el-card">
++      <h2>Integration URLs</h2>
++      <div class="inside">
++        <table class="nzd-el-kv">
++          <tr><th>API base</th><td><span class="nzd-el-code">https://nzdworld.com{{ api_base }}/</span></td></tr>
++          <tr><th>Handoff (browser)</th>
++              <td>{% if handoff_preview %}<span class="nzd-el-code">{{ handoff_preview }}</span>{% else %}Set by the plugin&rsquo;s Test Connection{% endif %}</td></tr>
++          <tr><th>Entry URL format</th><td><span class="nzd-el-code">{{ entry_example }}</span></td></tr>
++        </table>
++        <p class="nzd-el-muted">
++          The visitor only ever sees an opaque token. The download destination is released
++          server-to-server after the countdown and is never placed in HTML, JavaScript or
++          the browser URL before redemption.
++        </p>
++      </div>
++    </div>
++
++    <div class="nzd-el-card">
++      <h2>Recent events</h2>
++      <div class="inside">
++        <table class="nzd-el-table">
++          <thead><tr><th>When</th><th>Event</th><th>Detail</th></tr></thead>
++          <tbody>
++            {% for event in recent_events %}
++            <tr>
++              <td>{{ event.created_at|date:"m-d H:i" }}</td>
++              <td>{{ event.event }}</td>
++              <td>{{ event.message|truncatechars:90 }}</td>
++            </tr>
++            {% empty %}
++            <tr><td colspan="3" class="nzd-el-muted">No events yet.</td></tr>
++            {% endfor %}
++          </tbody>
++        </table>
++      </div>
++    </div>
++  </div>
++</div>
++
++<p class="nzd-el-muted">
++  API documentation lives in <span class="nzd-el-code">API-DOCUMENTATION.md</span> in the integration
++  delivery. Downloads fall back to the original direct link whenever the handoff cannot be
++  started, so existing download buttons never break.
++</p>
++{% endblock %}
++
++{% block extra_js %}
++<script>
++  (function () {
++    var button = document.getElementById('nzd-copy-key');
++    var code = document.getElementById('nzd-new-key');
++    if (!button || !code) return;
++    button.addEventListener('click', function () {
++      var text = code.textContent || '';
++      if (navigator.clipboard && navigator.clipboard.writeText) {
++        navigator.clipboard.writeText(text).then(function () {
++          button.textContent = 'Copied';
++        }, function () {
++          button.textContent = 'Select the key manually';
++        });
++      } else {
++        var range = document.createRange();
++        range.selectNodeContents(code);
++        var selection = window.getSelection();
++        selection.removeAllRanges();
++        selection.addRange(range);
++        button.textContent = 'Select the key manually';
++      }
++    });
++  })();
++</script>
++{% endblock %}
+diff --git a/controlcenter/urls.py b/controlcenter/urls.py
+index b531739..7ed9894 100644
+--- a/controlcenter/urls.py
++++ b/controlcenter/urls.py
+@@ -1,5 +1,6 @@
+ from django.urls import path
+ from . import views
++from . import external_link_views
+ 
+ app_name = 'controlcenter'
+ 
+@@ -7,6 +8,13 @@ urlpatterns = [
+     path('', views.DashboardView.as_view(), name='dashboard'),
+     path('analytics/', views.AnalyticsView.as_view(), name='analytics'),
+     path('comments/', views.CommentModerationView.as_view(), name='comments'),
++    # Dedicated screen for the optional WordPress External Link Generator.
++    # Registered before the generic <app_label>/<model_name>/ routes.
++    path(
++        'external-link-generator/',
++        external_link_views.ExternalLinkGeneratorView.as_view(),
++        name='external_link_generator',
++    ),
+     path('<str:app_label>/<str:model_name>/', views.ModelListView.as_view(), name='model_list'),
+     path('<str:app_label>/<str:model_name>/add/', views.ModelCreateView.as_view(), name='model_add'),
+     path('<str:app_label>/<str:model_name>/<int:pk>/view/', views.ModelDetailView.as_view(), name='model_view'),
+diff --git a/core/admin.py b/core/admin.py
+index fd9d656..d492e00 100644
+--- a/core/admin.py
++++ b/core/admin.py
+@@ -450,4 +450,11 @@ class SubscriberAdmin(admin.ModelAdmin):
+     list_display = ('email', 'created_at')
+     search_fields = ['email']
+ 
+-    # Your custom methods (get_urls, import_view, etc.) go here
+\ No newline at end of file
++    # Your custom methods (get_urls, import_view, etc.) go here
++
++
++# ---------------------------------------------------------------------------
++# Optional External Link Generator integration (WordPress download handoff).
++# Imported last so the registrations above are unaffected.
++# ---------------------------------------------------------------------------
++from . import external_link_admin  # noqa: E402,F401  (registers its own ModelAdmins)
+\ No newline at end of file
+diff --git a/core/external_link_admin.py b/core/external_link_admin.py
+new file mode 100644
+index 0000000..9420cd4
+--- /dev/null
++++ b/core/external_link_admin.py
+@@ -0,0 +1,380 @@
++"""
++Django admin registrations for the External Link Generator integration.
++
++The Control Center page at ``/control-center/external-link-generator/`` is the
++primary operator screen (it has one-click key/domain actions); these ModelAdmin
++classes keep the private Django admin working, add the same actions, and make the
++session/event audit trail browsable.
++"""
++
++from django.contrib import admin, messages
++from django.urls import reverse
++from django.utils.html import escape, format_html, mark_safe
++
++from . import external_link_service as service
++from .external_link_forms import ExternalLinkConfigForm
++from .external_link_models import (
++    ExternalLinkConfig,
++    ExternalLinkEvent,
++    ExternalLinkNonce,
++    ExternalLinkSession,
++)
++
++
++def _badge(text, colour, background):
++    return format_html(
++        '<span style="display:inline-block;padding:2px 8px;border-radius:10px;'
++        'font-size:11px;font-weight:600;color:{};background:{};white-space:nowrap">{}</span>',
++        colour,
++        background,
++        text,
++    )
++
++
++@admin.register(ExternalLinkConfig)
++class ExternalLinkConfigAdmin(admin.ModelAdmin):
++    form = ExternalLinkConfigForm
++
++    list_display = (
++        "generator_state",
++        "key_badge",
++        "wordpress_site_url",
++        "connection_badge",
++        "session_counts",
++    )
++    actions = (
++        "action_generate_api_key",
++        "action_revoke_api_key",
++        "action_enable_integration",
++        "action_disable_integration",
++        "action_reset_domain",
++    )
++    readonly_fields = (
++        "api_key_fingerprint",
++        "api_key_last_used_at",
++        "connection_summary",
++        "operator_panel",
++        "statistics_summary",
++    )
++    fieldsets = (
++        (
++            "Integration",
++            {
++                "fields": ("enabled",),
++                "description": (
++                    "While disabled, /download/quality/<id>/ behaves exactly as before. "
++                    "While enabled and configured, it hands the visitor to WordPress."
++                ),
++            },
++        ),
++        (
++            "Connected WordPress installation",
++            {"fields": ("wordpress_site_url", "wordpress_entry_template", "domain_locked", "connection_summary")},
++        ),
++        (
++            "API key",
++            {
++                "fields": ("api_key_fingerprint", "api_key_last_used_at", "operator_panel"),
++                "description": (
++                    "Keys are generated and rotated with the actions on the list page "
++                    "(or from the Link Generator screen in the Control Center). Only a "
++                    "hash is stored; the plaintext is displayed once."
++                ),
++            },
++        ),
++        (
++            "Session policy",
++            {
++                "fields": (
++                    "session_ttl_seconds",
++                    "min_countdown_seconds",
++                    "max_countdown_seconds",
++                    "api_clock_skew_seconds",
++                )
++            },
++        ),
++        ("Statistics", {"fields": ("statistics_summary",)}),
++    )
++
++    # -- permissions -------------------------------------------------------
++    def has_add_permission(self, request):
++        return not ExternalLinkConfig.objects.exists()
++
++    def has_delete_permission(self, request, obj=None):
++        return False
++
++    # -- list columns ------------------------------------------------------
++    @admin.display(description="Generator")
++    def generator_state(self, obj):
++        if obj.enabled:
++            return _badge("Enabled", "#065f46", "#d1fae5")
++        return _badge("Disabled", "#6b7280", "#f3f4f6")
++
++    @admin.display(description="API key")
++    def key_badge(self, obj):
++        if obj.key_state == "active":
++            return _badge(f"Active · {obj.api_key_prefix}…", "#065f46", "#d1fae5")
++        if obj.key_state == "revoked":
++            return _badge("Revoked", "#b91c1c", "#fee2e2")
++        return _badge("Not generated", "#92400e", "#fef3c7")
++
++    @admin.display(description="Connection")
++    def connection_badge(self, obj):
++        if obj.last_connection_ok is True:
++            return _badge("Connected", "#065f46", "#d1fae5")
++        if obj.last_connection_ok is False:
++            return _badge("Failed", "#b91c1c", "#fee2e2")
++        return _badge("Never tested", "#6b7280", "#f3f4f6")
++
++    @admin.display(description="Sessions (redeemed / total)")
++    def session_counts(self, obj):
++        stats = service.statistics()
++        return f"{stats['sessions_redeemed']} / {stats['sessions_total']}"
++
++    # -- read-only panels --------------------------------------------------
++    @admin.display(description="Key fingerprint")
++    def api_key_fingerprint(self, obj):
++        if not obj.api_key_prefix:
++            return "No key has been generated yet."
++        state = {"active": "active", "revoked": "revoked", "missing": "missing"}[obj.key_state]
++        created = obj.api_key_created_at.strftime("%Y-%m-%d %H:%M") if obj.api_key_created_at else "—"
++        return format_html(
++            "<code>{}</code>… <em>({})</em><br>Issued: {}<br>Revoked: {}",
++            obj.api_key_prefix,
++            state,
++            created,
++            obj.api_key_revoked_at.strftime("%Y-%m-%d %H:%M") if obj.api_key_revoked_at else "—",
++        )
++
++    @admin.display(description="Connection status")
++    def connection_summary(self, obj):
++        rows = [
++            ("Registered site", obj.wordpress_site_url or "—"),
++            ("Entry URL template", obj.wordpress_entry_template or "—"),
++            (
++                "Last test",
++                obj.last_connection_at.strftime("%Y-%m-%d %H:%M:%S UTC")
++                if obj.last_connection_at
++                else "never",
++            ),
++            ("Last test result", "success" if obj.last_connection_ok else ("failed" if obj.last_connection_ok is False else "—")),
++            ("Plugin version", obj.last_connection_plugin_version or "—"),
++            ("Last error", obj.last_connection_error or "—"),
++            (
++                "Last handoff",
++                obj.last_handoff_at.strftime("%Y-%m-%d %H:%M:%S UTC") if obj.last_handoff_at else "never",
++            ),
++            ("Last handoff problem", obj.last_handoff_error or "—"),
++        ]
++        # Built with mark_safe + escape() rather than format_html(): the entry
++        # template contains a literal "{token}" placeholder that str.format()
++        # would try to interpret.
++        cells = "".join(
++            "<tr><th style='text-align:left;padding:2px 12px 2px 0;font-weight:600'>{}</th>"
++            "<td style='padding:2px 0'>{}</td></tr>".format(escape(label), escape(str(value)))
++            for label, value in rows
++        )
++        return mark_safe("<table style='border-collapse:collapse'>" + cells + "</table>")
++
++    @admin.display(description="Operator panel")
++    def operator_panel(self, obj):
++        try:
++            url = reverse("controlcenter:external_link_generator")
++        except Exception:  # pragma: no cover - control center always installed here
++            url = "/control-center/external-link-generator/"
++        if obj.blocked_reason:
++            return format_html(
++                "<p><strong>Handoff inactive:</strong> {}</p>"
++                "<p><a class='button' href='{}'>Open the Link Generator screen</a></p>",
++                obj.blocked_reason,
++                url,
++            )
++        return format_html(
++            "<p><strong>Ready.</strong> The WordPress handoff is active.</p>"
++            "<p><a class='button' href='{}'>Open the Link Generator screen</a></p>",
++            url,
++        )
++
++    @admin.display(description="Statistics")
++    def statistics_summary(self, obj):
++        stats = service.statistics()
++        return format_html(
++            "<table style='border-collapse:collapse'>"
++            "<tr><th style='text-align:left;padding:2px 12px 2px 0'>Sessions created</th><td>{}</td></tr>"
++            "<tr><th style='text-align:left;padding:2px 12px 2px 0'>Redeemed (downloads)</th><td>{}</td></tr>"
++            "<tr><th style='text-align:left;padding:2px 12px 2px 0'>Expired unredeemed</th><td>{}</td></tr>"
++            "<tr><th style='text-align:left;padding:2px 12px 2px 0'>Still pending</th><td>{}</td></tr>"
++            "<tr><th style='text-align:left;padding:2px 12px 2px 0'>Last {} days</th><td>{} created / {} redeemed</td></tr>"
++            "</table>",
++            stats["sessions_total"],
++            stats["sessions_redeemed"],
++            stats["sessions_expired"],
++            stats["sessions_pending"],
++            stats["window_days"],
++            stats["sessions_recent"],
++            stats["sessions_recent_redeemed"],
++        )
++
++    # -- actions -----------------------------------------------------------
++    @admin.action(description="Generate / rotate the API key (plaintext shown once)")
++    def action_generate_api_key(self, request, queryset):
++        config = queryset.first() or ExternalLinkConfig.load()
++        raw_key = service.issue_api_key(config)
++        self.message_user(
++            request,
++            f"New API key generated. Copy it into WordPress now — it will not be shown again: {raw_key}",
++            level=messages.WARNING,
++        )
++
++    @admin.action(description="Revoke the API key")
++    def action_revoke_api_key(self, request, queryset):
++        config = queryset.first() or ExternalLinkConfig.load()
++        if service.revoke_api_key(config):
++            self.message_user(
++                request,
++                "API key revoked. Every WordPress request will now be rejected until a new key is issued.",
++                level=messages.WARNING,
++            )
++        else:
++            self.message_user(request, "There is no API key to revoke.", level=messages.INFO)
++
++    @admin.action(description="Enable the generator")
++    def action_enable_integration(self, request, queryset):
++        config = queryset.first() or ExternalLinkConfig.load()
++        config.enabled = True
++        config.save(update_fields=["enabled", "updated_at"])
++        service.log_event("integration_enabled", message="Generator enabled from the Django admin.")
++        if not config.is_operational:
++            self.message_user(
++                request,
++                f"Generator enabled, but the handoff is inactive: {config.blocked_reason}",
++                level=messages.WARNING,
++            )
++        else:
++            self.message_user(request, "Generator enabled; download buttons now use the WordPress handoff.")
++
++    @admin.action(description="Disable the generator (restore normal downloads)")
++    def action_disable_integration(self, request, queryset):
++        config = queryset.first() or ExternalLinkConfig.load()
++        config.enabled = False
++        config.save(update_fields=["enabled", "updated_at"])
++        service.log_event("integration_disabled", message="Generator disabled from the Django admin.")
++        self.message_user(request, "Generator disabled. /download/quality/<id>/ behaves as before.")
++
++    @admin.action(description="Forget the connected WordPress site (re-register on next test)")
++    def action_reset_domain(self, request, queryset):
++        config = queryset.first() or ExternalLinkConfig.load()
++        service.reset_registered_domain(config, keep_key=True)
++        self.message_user(
++            request,
++            "Registered WordPress site cleared. Run Test Connection in the plugin to re-register it.",
++            level=messages.WARNING,
++        )
++
++
++@admin.register(ExternalLinkSession)
++class ExternalLinkSessionAdmin(admin.ModelAdmin):
++    list_display = (
++        "token_prefix",
++        "quality_label",
++        "status",
++        "site_url",
++        "created_at",
++        "expires_at",
++        "redeemed_at",
++    )
++    list_filter = ("status", "site_url", "created_at")
++    search_fields = ("token_prefix", "quality_label", "post_title")
++    readonly_fields = (
++        "token_prefix",
++        "token_hash",
++        "quality",
++        "quality_label",
++        "post_id",
++        "post_title",
++        "site_url",
++        "vip_user_id",
++        "status",
++        "created_at",
++        "expires_at",
++        "validated_at",
++        "not_before",
++        "redeemed_at",
++        "created_ip_hash",
++        "redeemed_ip_hash",
++    )
++    actions = ("action_revoke_sessions", "action_expire_sessions")
++    date_hierarchy = "created_at"
++
++    def has_add_permission(self, request):
++        return False
++
++    def has_change_permission(self, request, obj=None):
++        return False
++
++    def has_delete_permission(self, request, obj=None):
++        return request.user.is_superuser
++
++    @admin.action(description="Revoke selected sessions (cannot be redeemed)")
++    def action_revoke_sessions(self, request, queryset):
++        updated = queryset.filter(redeemed_at__isnull=True).update(
++            status=ExternalLinkSession.Status.REVOKED
++        )
++        service.log_event(
++            "sessions_revoked_admin",
++            level=ExternalLinkEvent.Level.WARNING,
++            message=f"{updated} session(s) revoked by an administrator.",
++        )
++        self.message_user(request, f"{updated} session(s) revoked.")
++
++    @admin.action(description="Mark selected sessions as expired")
++    def action_expire_sessions(self, request, queryset):
++        updated = queryset.filter(redeemed_at__isnull=True).update(
++            status=ExternalLinkSession.Status.EXPIRED
++        )
++        self.message_user(request, f"{updated} session(s) marked as expired.")
++
++
++@admin.register(ExternalLinkEvent)
++class ExternalLinkEventAdmin(admin.ModelAdmin):
++    list_display = ("created_at", "event", "level", "message", "api_key_prefix", "session")
++    list_filter = ("level", "event", "created_at")
++    search_fields = ("event", "message")
++    readonly_fields = (
++        "created_at",
++        "event",
++        "level",
++        "message",
++        "session",
++        "api_key_prefix",
++        "ip_hash",
++    )
++    date_hierarchy = "created_at"
++
++    def has_add_permission(self, request):
++        return False
++
++    def has_change_permission(self, request, obj=None):
++        return False
++
++    def has_delete_permission(self, request, obj=None):
++        return request.user.is_superuser
++
++
++@admin.register(ExternalLinkNonce)
++class ExternalLinkNonceAdmin(admin.ModelAdmin):
++    """Visible only for troubleshooting replayed-request reports."""
++
++    list_display = ("nonce", "created_at")
++    readonly_fields = ("nonce", "created_at")
++    date_hierarchy = "created_at"
++
++    def has_add_permission(self, request):
++        return False
++
++    def has_change_permission(self, request, obj=None):
++        return False
++
++    def has_delete_permission(self, request, obj=None):
++        return request.user.is_superuser
++
+diff --git a/core/external_link_forms.py b/core/external_link_forms.py
+new file mode 100644
+index 0000000..60292c6
+--- /dev/null
++++ b/core/external_link_forms.py
+@@ -0,0 +1,113 @@
++"""
++Admin form for the External Link Generator configuration.
++
++Shared by the Django admin, the Control Center model pages and the dedicated
++Link Generator screen so validation rules only exist once.
++"""
++
++from django import forms
++
++from . import external_link_service as service
++from .external_link_models import ExternalLinkConfig
++
++EDITABLE_FIELDS = (
++    "enabled",
++    "wordpress_site_url",
++    "wordpress_entry_template",
++    "domain_locked",
++    "session_ttl_seconds",
++    "min_countdown_seconds",
++    "max_countdown_seconds",
++    "api_clock_skew_seconds",
++)
++
++MIN_TTL = 120
++MAX_TTL = 3600
++MIN_COUNTDOWN = 1
++MAX_COUNTDOWN = 600
++
++
++class ExternalLinkConfigForm(forms.ModelForm):
++    class Meta:
++        model = ExternalLinkConfig
++        fields = EDITABLE_FIELDS
++        widgets = {
++            "wordpress_site_url": forms.URLInput(
++                attrs={"placeholder": "https://blog.example.com", "size": 60}
++            ),
++            "wordpress_entry_template": forms.TextInput(
++                attrs={"placeholder": "https://blog.example.com/nzdworld-link/{token}/", "size": 80}
++            ),
++        }
++
++    def clean_wordpress_site_url(self):
++        raw = (self.cleaned_data.get("wordpress_site_url") or "").strip()
++        if not raw:
++            return ""
++        normalized = service.normalize_site_url(raw)
++        if not normalized:
++            raise forms.ValidationError(
++                "Enter an absolute HTTPS URL without credentials, query string or "
++                "fragment, for example https://blog.example.com"
++            )
++        return normalized
++
++    def clean(self):
++        cleaned = super().clean()
++        site_url = cleaned.get("wordpress_site_url") or ""
++        template = (cleaned.get("wordpress_entry_template") or "").strip()
++
++        if template:
++            if not site_url:
++                self.add_error(
++                    "wordpress_entry_template",
++                    "Register the WordPress site URL before setting the entry URL.",
++                )
++            else:
++                validated = service.validate_entry_template(template, site_url)
++                if not validated:
++                    self.add_error(
++                        "wordpress_entry_template",
++                        "Must be an HTTPS URL on the registered site containing exactly "
++                        "one {token} placeholder, e.g. "
++                        "https://blog.example.com/nzdworld-link/{token}/",
++                    )
++                else:
++                    cleaned["wordpress_entry_template"] = validated
++
++        ttl = cleaned.get("session_ttl_seconds") or 0
++        minimum = cleaned.get("min_countdown_seconds") or 0
++        maximum = cleaned.get("max_countdown_seconds") or 0
++        skew = cleaned.get("api_clock_skew_seconds") or 0
++
++        if not (MIN_TTL <= ttl <= MAX_TTL):
++            self.add_error(
++                "session_ttl_seconds",
++                f"Session lifetime must be between {MIN_TTL} and {MAX_TTL} seconds.",
++            )
++        if minimum < MIN_COUNTDOWN:
++            self.add_error(
++                "min_countdown_seconds", f"Minimum countdown must be at least {MIN_COUNTDOWN}s."
++            )
++        if maximum > MAX_COUNTDOWN:
++            self.add_error(
++                "max_countdown_seconds", f"Maximum countdown must be {MAX_COUNTDOWN}s or less."
++            )
++        if maximum and minimum and maximum < minimum:
++            self.add_error(
++                "max_countdown_seconds",
++                "Maximum countdown must be greater than or equal to the minimum.",
++            )
++        if ttl and maximum and ttl < maximum + 30:
++            self.add_error(
++                "session_ttl_seconds",
++                "Session lifetime must exceed the maximum countdown by at least 30 seconds "
++                f"(at least {maximum + 30}s).",
++            )
++        if not (30 <= skew <= 3600):
++            self.add_error(
++                "api_clock_skew_seconds",
++                "Accepted clock difference must be between 30 and 3600 seconds.",
++            )
++
++        return cleaned
+diff --git a/core/external_link_models.py b/core/external_link_models.py
+new file mode 100644
+index 0000000..e31c0d7
+--- /dev/null
++++ b/core/external_link_models.py
+@@ -0,0 +1,346 @@
++"""
++Models for the optional **External Link Generator** integration.
++
++The feature lets an existing ``/download/quality/<id>/`` click be handed off to
++an external WordPress installation that shows a random job article plus a
++countdown popup. The plugin only receives an opaque, short-lived, single-use
++session token. The real download destination stays on this server until the
++visitor finishes the countdown and the WordPress site redeems the session
++server-to-server.
++
++Design notes
++------------
++* API keys are only ever stored as a SHA-256 digest (``api_key_hash``) plus a
++  short display prefix. Rotating or revoking the key only touches the hash.
++* Download destinations are **never** stored on a session. At redemption the
++  current ``DownloadQuality.download_url`` is re-read and the existing VIP/CDN
++  token helpers are reused, so a changed or deleted quality record is handled
++  by the normal download logic.
++* Every session row is bound to the exact ``DownloadQuality`` row that the
++  visitor clicked (not just the numeric id) and to the registered WordPress
++  installation.
++* These models are imported from ``core/models.py`` so Django keeps the app
++  label ``core`` (no new app, no change to ``INSTALLED_APPS``).
++"""
++
++from urllib.parse import urlsplit
++
++from django.db import models
++from django.utils import timezone
++
++
++class ExternalLinkConfig(models.Model):
++    """Singleton configuration + connection state for the integration."""
++
++    SINGLETON_PK = 1
++
++    # --- master switch -----------------------------------------------------
++    enabled = models.BooleanField(
++        default=False,
++        help_text=(
++            "When on, /download/quality/<id>/ starts a WordPress handoff. "
++            "When off, download links behave exactly as before."
++        ),
++    )
++
++    # --- API credentials (hash only) --------------------------------------
++    api_key_hash = models.CharField(max_length=64, blank=True, default="", editable=False)
++    api_key_prefix = models.CharField(max_length=24, blank=True, default="", editable=False)
++    api_key_created_at = models.DateTimeField(null=True, blank=True, editable=False)
++    api_key_revoked_at = models.DateTimeField(null=True, blank=True, editable=False)
++    api_key_last_used_at = models.DateTimeField(null=True, blank=True, editable=False)
++
++    # --- Registered WordPress installation --------------------------------
++    wordpress_site_url = models.CharField(
++        max_length=300,
++        blank=True,
++        default="",
++        help_text="Registered WordPress installation, e.g. https://blog.example.com",
++    )
++    wordpress_entry_template = models.CharField(
++        max_length=500,
++        blank=True,
++        default="",
++        help_text=(
++            "Handoff URL reported by the plugin, containing {token}. "
++            "Example: https://blog.example.com/nzdworld-link/{token}/"
++        ),
++    )
++    domain_locked = models.BooleanField(
++        default=True,
++        help_text=(
++            "Reject API calls from any host other than the registered site. "
++            "Uncheck (then clear the site URL) to allow a different installation "
++            "to re-register."
++        ),
++    )
++
++    # --- Session lifetime / countdown policy ------------------------------
++    session_ttl_seconds = models.PositiveIntegerField(
++        default=900,
++        help_text="Lifetime of a generation session (120-3600 seconds).",
++    )
++    min_countdown_seconds = models.PositiveIntegerField(
++        default=5, help_text="Lowest countdown the plugin may request (seconds)."
++    )
++    max_countdown_seconds = models.PositiveIntegerField(
++        default=120, help_text="Highest countdown the plugin may request (seconds)."
++    )
++    api_clock_skew_seconds = models.PositiveIntegerField(
++        default=300, help_text="Accepted clock difference for signed API calls."
++    )
++
++    # --- Connection / operation state (written by the API) ----------------
++    last_connection_at = models.DateTimeField(null=True, blank=True, editable=False)
++    last_connection_ok = models.BooleanField(null=True, blank=True, editable=False)
++    last_connection_site_url = models.CharField(
++        max_length=300, blank=True, default="", editable=False
++    )
++    last_connection_plugin_version = models.CharField(
++        max_length=32, blank=True, default="", editable=False
++    )
++    last_connection_ip_hash = models.CharField(
++        max_length=64, blank=True, default="", editable=False
++    )
++    last_connection_error = models.CharField(
++        max_length=200, blank=True, default="", editable=False
++    )
++    last_handoff_at = models.DateTimeField(null=True, blank=True, editable=False)
++    last_handoff_error = models.CharField(
++        max_length=200, blank=True, default="", editable=False
++    )
++
++    created_at = models.DateTimeField(auto_now_add=True)
++    updated_at = models.DateTimeField(auto_now=True)
++
++    class Meta:
++        verbose_name = "External Link Generator settings"
++        verbose_name_plural = "External Link Generator settings"
++
++    def __str__(self):
++        state = "enabled" if self.enabled else "disabled"
++        return f"External Link Generator ({state})"
++
++    # -- singleton helpers -------------------------------------------------
++    def save(self, *args, **kwargs):
++        """
++        Enforce the single-row design.
++
++        Editing works through the normal admin/Control Center form; accidentally
++        creating a second row (e.g. by opening the generic "Add New" URL) is
++        refused instead of silently overwriting the live configuration.
++        """
++        if self._state.adding and type(self).objects.filter(pk=self.SINGLETON_PK).exists():
++            from django.core.exceptions import PermissionDenied
++
++            raise PermissionDenied(
++                "The External Link Generator settings already exist. "
++                "Open /control-center/external-link-generator/ and edit them there."
++            )
++        self.pk = self.SINGLETON_PK
++        super().save(*args, **kwargs)
++
++    @classmethod
++    def load(cls):
++        """Return the singleton row, creating a disabled default if missing."""
++        config, _created = cls.objects.get_or_create(pk=cls.SINGLETON_PK)
++        return config
++
++    # -- derived state -----------------------------------------------------
++    @property
++    def has_active_key(self):
++        return bool(self.api_key_hash) and self.api_key_revoked_at is None
++
++    @property
++    def key_state(self):
++        if not self.api_key_hash:
++            return "missing"
++        if self.api_key_revoked_at is not None:
++            return "revoked"
++        return "active"
++
++    @property
++    def site_host(self):
++        return _host_of(self.wordpress_site_url)
++
++    @property
++    def is_configured(self):
++        return bool(self.wordpress_site_url and self.wordpress_entry_template)
++
++    @property
++    def is_operational(self):
++        """True only when a handoff can actually be produced."""
++        return bool(self.enabled and self.has_active_key and self.is_configured)
++
++    @property
++    def blocked_reason(self):
++        if not self.enabled:
++            return "The integration is disabled."
++        if not self.has_active_key:
++            return "No active API key. Generate one in the Link Generator panel."
++        if not self.wordpress_site_url:
++            return "No WordPress site is registered yet."
++        if not self.wordpress_entry_template:
++            return "The WordPress entry URL is missing (run Test Connection in the plugin)."
++        return ""
++
++    def touch_connection(self, *, ok, site_url="", plugin_version="", error="", ip_hash=""):
++        """Record the outcome of a connection test (called by the API layer)."""
++        now = timezone.now()
++        self.last_connection_at = now
++        self.last_connection_ok = bool(ok)
++        self.last_connection_site_url = (site_url or "")[:300]
++        self.last_connection_plugin_version = (plugin_version or "")[:32]
++        self.last_connection_error = (error or "")[:200]
++        self.last_connection_ip_hash = (ip_hash or "")[:64]
++        self.save(
++            update_fields=[
++                "last_connection_at",
++                "last_connection_ok",
++                "last_connection_site_url",
++                "last_connection_plugin_version",
++                "last_connection_error",
++                "last_connection_ip_hash",
++                "updated_at",
++            ]
++        )
++
++
++class ExternalLinkSession(models.Model):
++    """One opaque, short-lived, single-use handoff session."""
++
++    class Status(models.TextChoices):
++        CREATED = "created", "Created"
++        VALIDATED = "validated", "Validated by WordPress"
++        REDEEMED = "redeemed", "Redeemed"
++        EXPIRED = "expired", "Expired"
++        REVOKED = "revoked", "Revoked"
++        FAILED = "failed", "Failed"
++
++    # Only a digest of the token is stored; the plaintext token is returned to
++    # the browser once (inside the redirect) and never persisted.
++    token_hash = models.CharField(max_length=64, unique=True, db_index=True, editable=False)
++    token_prefix = models.CharField(max_length=12, blank=True, default="", editable=False)
++
++    # The exact quality row the visitor clicked. SET_NULL keeps the session
++    # row (and its audit trail) when an editor deletes the quality; redemption
++    # then fails cleanly with "download unavailable".
++    quality = models.ForeignKey(
++        "core.DownloadQuality",
++        null=True,
++        blank=True,
++        on_delete=models.SET_NULL,
++        related_name="external_link_sessions",
++    )
++    quality_label = models.CharField(max_length=200, blank=True, default="", editable=False)
++    post_id = models.PositiveBigIntegerField(null=True, blank=True, editable=False)
++    post_title = models.CharField(max_length=200, blank=True, default="", editable=False)
++
++    # Registered installation this session belongs to (host binding).
++    site_url = models.CharField(max_length=300, blank=True, default="", editable=False)
++
++    # Active VIP subscriber at handoff time, if any. The signed CDN token is
++    # generated from this id at redemption, so no token is stored.
++    vip_user_id = models.PositiveIntegerField(null=True, blank=True, editable=False)
++
++    status = models.CharField(
++        max_length=20, choices=Status.choices, default=Status.CREATED, db_index=True
++    )
++    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
++    expires_at = models.DateTimeField(db_index=True)
++    validated_at = models.DateTimeField(null=True, blank=True)
++    # Server-side "not before" time: redemption is refused before this moment,
++    # independently of whatever the browser countdown shows.
++    not_before = models.DateTimeField(null=True, blank=True)
++    redeemed_at = models.DateTimeField(null=True, blank=True, db_index=True)
++
++    created_ip_hash = models.CharField(max_length=64, blank=True, default="", editable=False)
++    redeemed_ip_hash = models.CharField(max_length=64, blank=True, default="", editable=False)
++
++    class Meta:
++        verbose_name = "External link session"
++        verbose_name_plural = "External link sessions"
++        ordering = ["-created_at"]
++        indexes = [
++            models.Index(fields=["status", "expires_at"], name="core_els_status_exp_idx"),
++            models.Index(fields=["site_url", "created_at"], name="core_els_site_idx"),
++        ]
++
++    def __str__(self):
++        return f"{self.token_prefix}… → {self.quality_label or 'unknown quality'}"
++
++    @property
++    def is_expired(self):
++        return self.expires_at <= timezone.now()
++
++    @property
++    def is_redeemed(self):
++        return self.redeemed_at is not None
++
++    @property
++    def is_redeemable(self):
++        now = timezone.now()
++        return (
++            self.redeemed_at is None
++            and self.expires_at > now
++            and self.not_before is not None
++            and self.not_before <= now
++        )
++
++
++class ExternalLinkEvent(models.Model):
++    """Audit trail. Never contains tokens, API keys or download URLs."""
++
++    class Level(models.TextChoices):
++        INFO = "info", "Info"
++        WARNING = "warning", "Warning"
++        ERROR = "error", "Error"
++
++    event = models.CharField(max_length=40, db_index=True)
++    level = models.CharField(max_length=10, choices=Level.choices, default=Level.INFO)
++    message = models.CharField(max_length=300, blank=True, default="")
++    session = models.ForeignKey(
++        ExternalLinkSession,
++        null=True,
++        blank=True,
++        on_delete=models.SET_NULL,
++        related_name="events",
++    )
++    api_key_prefix = models.CharField(max_length=24, blank=True, default="")
++    ip_hash = models.CharField(max_length=64, blank=True, default="")
++    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
++
++    class Meta:
++        verbose_name = "External link event"
++        verbose_name_plural = "External link events"
++        ordering = ["-created_at"]
++        indexes = [
++            models.Index(fields=["event", "created_at"], name="core_ele_event_idx"),
++        ]
++
++    def __str__(self):
++        return f"{self.created_at:%Y-%m-%d %H:%M} {self.event}"
++
++
++class ExternalLinkNonce(models.Model):
++    """Short-lived nonces used to reject replayed signed API requests."""
++
++    nonce = models.CharField(max_length=64, unique=True)
++    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
++
++    class Meta:
++        verbose_name = "External link request nonce"
++        verbose_name_plural = "External link request nonces"
++        ordering = ["-created_at"]
++
++    def __str__(self):
++        return self.nonce[:12]
++
++
++def _host_of(url):
++    """Normalised lowercase host for a URL-ish string ('' when invalid)."""
++    try:
++        host = urlsplit((url or "").strip()).hostname or ""
++    except ValueError:
++        return ""
++    return host.lower().strip(".")
+diff --git a/core/external_link_service.py b/core/external_link_service.py
+new file mode 100644
+index 0000000..f3a852a
+--- /dev/null
++++ b/core/external_link_service.py
+@@ -0,0 +1,1060 @@
++"""
++Service layer for the optional **External Link Generator** integration.
++
++Everything security-relevant lives here so the HTTP views stay thin:
++
++* API key issue / rotate / revoke (only a SHA-256 digest is stored).
++* Signed server-to-server request authentication (Bearer key + HMAC-SHA256 over
++  timestamp, single-use nonce and the exact request body), clock-skew window,
++  replay rejection and domain/installation binding.
++* Opaque session tokens (only a digest is stored), expiry, server-side
++  ``not_before`` and atomic single-use redemption.
++* Handoff URL construction and event logging that never records tokens, keys or
++  download destinations.
++
++The module deliberately does not import ``core.views`` (no circular imports) and
++reads the existing download/VIP helpers from ``subscriptions.utils`` at call
++time, so the integration reuses the real download logic instead of duplicating
++it.
++"""
++
++from __future__ import annotations
++
++import hashlib
++import hmac
++import json
++import logging
++import math
++import re
++import secrets
++from dataclasses import dataclass, field
++from datetime import timedelta
++from urllib.parse import quote, urlsplit, urlunsplit
++
++from django.conf import settings
++from django.db import IntegrityError, transaction
++from django.db.models import Count, F, Q
++from django.http import HttpResponseRedirect, JsonResponse
++from django.utils import timezone
++from django.utils.crypto import constant_time_compare
++
++from .external_link_models import (
++    ExternalLinkConfig,
++    ExternalLinkEvent,
++    ExternalLinkNonce,
++    ExternalLinkSession,
++    _host_of,
++)
++
++logger = logging.getLogger("core.external_links")
++
++API_KEY_PREFIX = "nzd_live_"
++API_KEY_BYTES = 32
++SESSION_TOKEN_BYTES = 32
++SESSION_TOKEN_RE = re.compile(r"^[A-Za-z0-9_-]{32,96}$")
++NONCE_RE = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
++ENTRY_TEMPLATE_TOKEN = "{token}"
++
++
++# ---------------------------------------------------------------------------
++# Errors
++# ---------------------------------------------------------------------------
++class ApiFailure(Exception):
++    """A controlled API failure that becomes a JSON error response."""
++
++    def __init__(self, code, message, status=400, **extra):
++        super().__init__(message)
++        self.code = code
++        self.message = message
++        self.status = status
++        self.extra = extra
++
++    def as_payload(self):
++        return {
++            "ok": False,
++            "error": {"code": self.code, "message": self.message, **self.extra},
++        }
++
++
++# ---------------------------------------------------------------------------
++# Small helpers
++# ---------------------------------------------------------------------------
++def get_config():
++    return ExternalLinkConfig.load()
++
++
++def hash_api_key(raw_key):
++    """One-way digest for an API key (the plaintext is never stored)."""
++    return hashlib.sha256(f"nzdworld-el-key:{raw_key or ''}".encode("utf-8")).hexdigest()
++
++
++def hash_session_token(raw_token):
++    return hashlib.sha256(f"nzdworld-el-token:{raw_token or ''}".encode("utf-8")).hexdigest()
++
++
++def generate_api_key():
++    return API_KEY_PREFIX + secrets.token_urlsafe(API_KEY_BYTES)
++
++
++def verify_api_key(config, presented_key):
++    if not presented_key or not config.has_active_key:
++        return False
++    return constant_time_compare(hash_api_key(presented_key), config.api_key_hash)
++
++
++def normalize_site_url(raw_url):
++    """
++    Canonicalise an installation URL to ``https://host[:port][/path]``.
++
++    Returns ``""`` when the value is not an absolute, credential-free HTTPS URL
++    (the API only ever talks to HTTPS sites, so plain HTTP is refused).
++    """
++    raw = (raw_url or "").strip()
++    if not raw or len(raw) > 300:
++        return ""
++    try:
++        parts = urlsplit(raw)
++        port = parts.port
++    except ValueError:
++        return ""
++    if parts.scheme.lower() != "https" or not parts.hostname:
++        return ""
++    if parts.username or parts.password or parts.query or parts.fragment:
++        return ""
++    host = parts.hostname.lower().strip(".")
++    netloc = host if port in (None, 443) else f"{host}:{port}"
++    return urlunsplit(("https", netloc, parts.path.rstrip("/"), "", ""))
++
++
++def site_origin(url):
++    """``https://host[:port]`` part of a URL (with any sub-directory removed)."""
++    normalized = normalize_site_url(url)
++    if not normalized:
++        return ""
++    parts = urlsplit(normalized)
++    return urlunsplit((parts.scheme, parts.netloc, "", "", ""))
++
++
++def hosts_match(first, second):
++    host_a, host_b = _host_of(first), _host_of(second)
++    return bool(host_a) and host_a == host_b
++
++
++def validate_entry_template(template, site_url):
++    """
++    Validate the WordPress-reported handoff URL template.
++
++    Must be absolute HTTPS, contain exactly one ``{token}`` placeholder, carry no
++    fragment/userinfo and live on the registered site's host. Returns the
++    cleaned template or ``""``.
++    """
++    candidate = (template or "").strip()
++    if not candidate or len(candidate) > 500:
++        return ""
++    if any(char in candidate for char in ("\r", "\n", "\t", " ")):
++        return ""
++    if candidate.count(ENTRY_TEMPLATE_TOKEN) != 1:
++        return ""
++    leftover = candidate.replace(ENTRY_TEMPLATE_TOKEN, "")
++    if "{" in leftover or "}" in leftover:
++        return ""
++    try:
++        parts = urlsplit(candidate)
++    except ValueError:
++        return ""
++    if parts.scheme.lower() != "https" or not parts.hostname:
++        return ""
++    if parts.username or parts.password or parts.fragment:
++        return ""
++    if not hosts_match(site_url, f"https://{parts.netloc}"):
++        return ""
++    return candidate
++
++
++def is_https_request(request):
++    """Whether the incoming API call arrived over TLS (proxy-aware)."""
++    if not getattr(settings, "EXTERNAL_LINK_REQUIRE_HTTPS", True):
++        return True
++    if request.is_secure():
++        return True
++    trusted = tuple(getattr(settings, "TRUSTED_PROXY_IPS", ()) or ())
++    peer = request.META.get("REMOTE_ADDR", "")
++    if peer and peer in trusted:
++        forwarded = request.META.get("HTTP_X_FORWARDED_PROTO", "").split(",")[0].strip().lower()
++        if forwarded == "https":
++            return True
++    return False
++
++
++def client_ip_hash(request):
++    """Salted hash of the visitor IP — never the raw address."""
++    ip = ""
++    try:
++        from controlcenter.traffic import get_client_ip
++
++        ip = get_client_ip(request) or ""
++    except Exception:  # pragma: no cover - defensive
++        ip = request.META.get("REMOTE_ADDR", "") or ""
++    if not ip:
++        return ""
++    salt = getattr(settings, "SECRET_KEY", "") or ""
++    return hashlib.sha256(f"{salt}:{ip}".encode("utf-8")).hexdigest()[:64]
++
++
++def iso(moment):
++    return moment.isoformat().replace("+00:00", "Z") if moment else ""
++
++
++# ---------------------------------------------------------------------------
++# Event log
++# ---------------------------------------------------------------------------
++def log_event(event, *, level=ExternalLinkEvent.Level.INFO, message="", session=None,
++              api_key_prefix="", ip_hash=""):
++    """Persist an audit event. Never pass secrets or download URLs here."""
++    safe_message = (message or "")[:300]
++    try:
++        ExternalLinkEvent.objects.create(
++            event=event,
++            level=level,
++            message=safe_message,
++            session=session,
++            api_key_prefix=(api_key_prefix or "")[:24],
++            ip_hash=(ip_hash or "")[:64],
++        )
++    except Exception:  # pragma: no cover - logging must never break a download
++        logger.exception("Could not persist external link event %s", event)
++
++    log = logger.warning if level in ("warning", "error") else logger.info
++    log("external_link event=%s %s", event, safe_message)
++
++
++# ---------------------------------------------------------------------------
++# API key lifecycle
++# ---------------------------------------------------------------------------
++def issue_api_key(config=None):
++    """Create a new key; returns the plaintext (to be shown exactly once)."""
++    config = config or get_config()
++    raw_key = generate_api_key()
++    config.api_key_hash = hash_api_key(raw_key)
++    config.api_key_prefix = raw_key[:16]
++    config.api_key_created_at = timezone.now()
++    config.api_key_revoked_at = None
++    config.save(
++        update_fields=[
++            "api_key_hash",
++            "api_key_prefix",
++            "api_key_created_at",
++            "api_key_revoked_at",
++            "updated_at",
++        ]
++    )
++    log_event(
++        "api_key_generated",
++        message=f"New API key issued ({config.api_key_prefix}…).",
++        api_key_prefix=config.api_key_prefix,
++    )
++    return raw_key
++
++
++def revoke_api_key(config=None):
++    config = config or get_config()
++    if not config.api_key_hash:
++        return False
++    config.api_key_revoked_at = timezone.now()
++    config.save(update_fields=["api_key_revoked_at", "updated_at"])
++    log_event(
++        "api_key_revoked",
++        level=ExternalLinkEvent.Level.WARNING,
++        message="API key revoked; WordPress calls will be rejected.",
++        api_key_prefix=config.api_key_prefix,
++    )
++    return True
++
++
++def reset_registered_domain(config=None, *, keep_key=True):
++    """Forget the connected WordPress site (optionally revoking its key too)."""
++    config = config or get_config()
++    fields = ["wordpress_site_url", "wordpress_entry_template", "updated_at"]
++    config.wordpress_site_url = ""
++    config.wordpress_entry_template = ""
++    if not keep_key:
++        config.api_key_revoked_at = timezone.now()
++        fields.append("api_key_revoked_at")
++    config.save(update_fields=fields)
++    log_event(
++        "domain_reset",
++        level=ExternalLinkEvent.Level.WARNING,
++        message="Registered WordPress site cleared; the next Test Connection re-registers it.",
++        api_key_prefix=config.api_key_prefix,
++    )
++    return True
++
++
++# ---------------------------------------------------------------------------
++# Signed request authentication
++# ---------------------------------------------------------------------------
++@dataclass
++class ApiContext:
++    config: ExternalLinkConfig
++    request: object
++    site_url: str
++    body: bytes
++    data: dict = field(default_factory=dict)
++    plugin_version: str = ""
++    ip_hash: str = ""
++
++    @property
++    def site_host(self):
++        return _host_of(self.site_url)
++
++    @property
++    def key_prefix(self):
++        return self.config.api_key_prefix
++
++
++def expected_signature(secret, timestamp, nonce, raw_body):
++    """HMAC-SHA256 over ``timestamp.nonce.sha256(body)``."""
++    body_digest = hashlib.sha256(raw_body or b"").hexdigest()
++    payload = f"{timestamp}.{nonce}.{body_digest}".encode("utf-8")
++    return hmac.new(secret.encode("utf-8"), payload, hashlib.sha256).hexdigest()
++
++
++def _record_nonce(nonce, *, skew):
++    """Reject replayed requests; prune old nonces opportunistically."""
++    try:
++        ExternalLinkNonce.objects.create(nonce=nonce)
++    except IntegrityError:
++        return False
++    if secrets.randbelow(40) == 0:
++        cutoff = timezone.now() - timedelta(seconds=max(600, int(skew) * 3))
++        try:
++            ExternalLinkNonce.objects.filter(created_at__lt=cutoff).delete()
++        except Exception:  # pragma: no cover
++            logger.exception("Could not prune external link nonces")
++    return True
++
++
++def authenticate_api_request(request, *, scope="external_api", allow_when_disabled=False):
++    """
++    Authenticate a WordPress -> NZDWorld API call.
++
++    Returns ``(ApiContext, None)`` on success or ``(None, JsonResponse)`` with a
++    controlled error. The response never contains credentials.
++
++    ``allow_when_disabled`` is only used by the connection test: an operator
++    must be able to register the installation (so the admin screen can report
++    status) while the generator itself stays switched off.
++    """
++    if not is_https_request(request):
++        log_event(
++            "auth_failed",
++            level=ExternalLinkEvent.Level.WARNING,
++            message="API call rejected: plaintext HTTP.",
++            ip_hash=client_ip_hash(request),
++        )
++        return None, error_response(
++            ApiFailure("insecure_transport", "HTTPS is required for the integration API.", 400)
++        )
++
++    config = get_config()
++
++    authorization = request.headers.get("Authorization", "")
++    if not authorization.lower().startswith("bearer "):
++        return None, error_response(
++            ApiFailure("unauthorized", "A Bearer API key is required.", 401)
++        )
++    presented_key = authorization[7:].strip()
++    if len(presented_key) < 20 or len(presented_key) > 200:
++        return None, error_response(ApiFailure("unauthorized", "Invalid API key.", 401))
++
++    if not verify_api_key(config, presented_key):
++        log_event(
++            "auth_failed",
++            level=ExternalLinkEvent.Level.WARNING,
++            message="API call rejected: bad or revoked API key.",
++            ip_hash=client_ip_hash(request),
++        )
++        return None, error_response(
++            ApiFailure("unauthorized", "Invalid or revoked API key.", 401)
++        )
++
++    # Only authenticated callers learn whether the feature is switched on.
++    if not config.enabled and not allow_when_disabled:
++        return None, error_response(
++            ApiFailure(
++                "integration_disabled",
++                "The External Link Generator is disabled on NZDWorld.",
++                403,
++            )
++        )
++
++    timestamp = (request.headers.get("X-NZD-Timestamp") or "").strip()
++    nonce = (request.headers.get("X-NZD-Nonce") or "").strip()
++    signature = (request.headers.get("X-NZD-Signature") or "").strip().lower()
++    if not timestamp.isdigit() or not NONCE_RE.match(nonce or "") or not signature:
++        return None, error_response(
++            ApiFailure(
++                "invalid_signature",
++                "Signed request headers (X-NZD-Timestamp, X-NZD-Nonce, X-NZD-Signature) are required.",
++                401,
++            )
++        )
++
++    skew = max(30, int(config.api_clock_skew_seconds or 300))
++    now_ts = int(timezone.now().timestamp())
++    if abs(now_ts - int(timestamp)) > skew:
++        log_event(
++            "auth_failed",
++            level=ExternalLinkEvent.Level.WARNING,
++            message="API call rejected: timestamp outside the allowed window.",
++            api_key_prefix=config.api_key_prefix,
++            ip_hash=client_ip_hash(request),
++        )
++        return None, error_response(
++            ApiFailure("stale_request", "The request timestamp is outside the allowed window.", 401)
++        )
++
++    raw_body = request.body or b""
++    expected = expected_signature(presented_key, timestamp, nonce, raw_body)
++    if not constant_time_compare(signature, expected):
++        log_event(
++            "auth_failed",
++            level=ExternalLinkEvent.Level.WARNING,
++            message="API call rejected: signature mismatch.",
++            api_key_prefix=config.api_key_prefix,
++            ip_hash=client_ip_hash(request),
++        )
++        return None, error_response(
++            ApiFailure("invalid_signature", "The request signature is invalid.", 401)
++        )
++
++    if not _record_nonce(nonce, skew=skew):
++        log_event(
++            "auth_failed",
++            level=ExternalLinkEvent.Level.WARNING,
++            message="API call rejected: replayed nonce.",
++            api_key_prefix=config.api_key_prefix,
++            ip_hash=client_ip_hash(request),
++        )
++        return None, error_response(
++            ApiFailure("replayed_request", "This request has already been processed.", 401)
++        )
++
++    try:
++        data = json.loads((raw_body or b"{}").decode("utf-8"))
++    except (UnicodeDecodeError, ValueError):
++        return None, error_response(ApiFailure("invalid_json", "The request body is not valid JSON.", 400))
++    if not isinstance(data, dict):
++        return None, error_response(ApiFailure("invalid_json", "The request body must be a JSON object.", 400))
++
++    site_url = normalize_site_url(data.get("site_url") or "")
++    if not site_url:
++        return None, error_response(
++            ApiFailure("invalid_site", "site_url must be an absolute HTTPS URL.", 400)
++        )
++
++    if (
++        config.domain_locked
++        and config.site_host
++        and not hosts_match(site_url, config.wordpress_site_url)
++    ):
++        log_event(
++            "domain_mismatch",
++            level=ExternalLinkEvent.Level.ERROR,
++            message=f"Call from {_host_of(site_url)} rejected; registered host is {config.site_host}.",
++            api_key_prefix=config.api_key_prefix,
++            ip_hash=client_ip_hash(request),
++        )
++        return None, error_response(
++            ApiFailure(
++                "domain_mismatch",
++                "This WordPress installation is not the registered one.",
++                403,
++            )
++        )
++
++    limit = _check_api_rate_limit(config, request, scope=scope)
++    if limit is not None:
++        return None, limit
++
++    # Cheap, useful bookkeeping: the key is in active use.
++    try:
++        ExternalLinkConfig.objects.filter(pk=config.pk).update(api_key_last_used_at=timezone.now())
++    except Exception:  # pragma: no cover
++        logger.exception("Could not update api_key_last_used_at")
++
++    return (
++        ApiContext(
++            config=config,
++            request=request,
++            site_url=site_url,
++            body=raw_body,
++            data=data,
++            plugin_version=str(data.get("plugin_version") or "")[:32],
++            ip_hash=client_ip_hash(request),
++        ),
++        None,
++    )
++
++
++def _check_api_rate_limit(config, request, *, scope):
++    from controlcenter.throttle import check_rate_limit
++
++    key = f"{config.api_key_prefix}:{client_ip_hash(request)}"
++    try:
++        limit = check_rate_limit(scope, key, request)
++    except Exception:  # pragma: no cover - never break the API on counter issues
++        logger.exception("External link rate limiter failed")
++        return None
++    if limit.allowed:
++        return None
++    log_event(
++        "rate_limited",
++        level=ExternalLinkEvent.Level.WARNING,
++        message=f"API rate limit hit for scope {scope}.",
++        api_key_prefix=config.api_key_prefix,
++        ip_hash=client_ip_hash(request),
++    )
++    return error_response(
++        ApiFailure(
++            "rate_limited",
++            "Too many requests. Please retry shortly.",
++            429,
++            retry_after=limit.retry_after,
++        ),
++        retry_after=limit.retry_after,
++    )
++
++
++def error_response(failure, *, retry_after=None):
++    response = JsonResponse(failure.as_payload(), status=failure.status)
++    response["Cache-Control"] = "no-store, no-cache, must-revalidate, private"
++    if retry_after:
++        response["Retry-After"] = str(int(retry_after))
++    return response
++
++
++# ---------------------------------------------------------------------------
++# Connection registration / verification
++# ---------------------------------------------------------------------------
++def register_connection(ctx):
++    """
++    Record (or verify) the calling WordPress installation.
++
++    First successful Test Connection from a fresh key registers the site and the
++    entry URL template it reports (trust-on-first-use); later calls must come
++    from the same host unless the domain lock is cleared by an administrator.
++    """
++    config = ctx.config
++    data = ctx.data
++    site_url = ctx.site_url
++    entry_template = validate_entry_template(data.get("entry_url_template"), site_url)
++    if not entry_template:
++        raise ApiFailure(
++            "invalid_entry_url",
++            "entry_url_template must be an HTTPS URL on the site_url host containing {token}.",
++            400,
++        )
++
++    if config.site_host and not hosts_match(site_url, config.wordpress_site_url):
++        if config.domain_locked:
++            raise ApiFailure(
++                "domain_mismatch",
++                "This WordPress installation is not the registered one.",
++                403,
++            )
++
++    changed_fields = []
++    if config.wordpress_site_url != site_url:
++        config.wordpress_site_url = site_url
++        changed_fields.append("wordpress_site_url")
++    if config.wordpress_entry_template != entry_template:
++        config.wordpress_entry_template = entry_template
++        changed_fields.append("wordpress_entry_template")
++
++    now = timezone.now()
++    config.last_connection_at = now
++    config.last_connection_ok = True
++    config.last_connection_site_url = site_url
++    config.last_connection_plugin_version = ctx.plugin_version
++    config.last_connection_ip_hash = ctx.ip_hash
++    config.last_connection_error = ""
++    changed_fields += [
++        "last_connection_at",
++        "last_connection_ok",
++        "last_connection_site_url",
++        "last_connection_plugin_version",
++        "last_connection_ip_hash",
++        "last_connection_error",
++        "updated_at",
++    ]
++    config.save(update_fields=changed_fields)
++
++    log_event(
++        "connection_verified",
++        message=f"WordPress installation verified ({ctx.site_host}).",
++        api_key_prefix=config.api_key_prefix,
++        ip_hash=ctx.ip_hash,
++    )
++
++    return {
++        "api_version": "1.0",
++        "server_time": iso(now),
++        "integration_enabled": config.enabled,
++        "registered_site": config.wordpress_site_url,
++        "entry_template_ok": True,
++        "session_ttl_seconds": config.session_ttl_seconds,
++        "min_countdown_seconds": config.min_countdown_seconds,
++        "max_countdown_seconds": config.max_countdown_seconds,
++        "message": (
++            "Connection verified."
++            if config.enabled
++            else "Connection verified, but the generator is disabled on NZDWorld."
++        ),
++    }
++
++
++# ---------------------------------------------------------------------------
++# Generation sessions
++# ---------------------------------------------------------------------------
++def quality_label(quality):
++    """Human label for admin lists — never contains the download URL."""
++    if quality is None:
++        return ""
++    display = ""
++    try:
++        display = quality.get_quality_display()
++    except Exception:  # pragma: no cover - defensive
++        display = getattr(quality, "quality", "") or ""
++    title = ""
++    try:
++        title = quality.post.title if quality.post_id else ""
++    except Exception:  # pragma: no cover
++        title = ""
++    label = f"{display} — {title}" if title else display
++    return label[:200]
++
++
++def create_generation_session(quality, *, site_url, request=None, vip_user_id=None):
++    """Create a new opaque session; returns ``(session, plaintext_token)``."""
++    config = get_config()
++    token = secrets.token_urlsafe(SESSION_TOKEN_BYTES)
++    now = timezone.now()
++    session = ExternalLinkSession.objects.create(
++        token_hash=hash_session_token(token),
++        token_prefix=token[:10],
++        quality=quality,
++        quality_label=quality_label(quality),
++        post_id=quality.post_id,
++        post_title=(quality.post.title[:200] if quality.post_id else ""),
++        site_url=site_url or "",
++        vip_user_id=vip_user_id,
++        expires_at=now + timedelta(seconds=int(config.session_ttl_seconds or 900)),
++        created_ip_hash=client_ip_hash(request) if request is not None else "",
++    )
++    log_event(
++        "session_created",
++        message=f"Session {session.token_prefix}… created for quality #{quality.pk}.",
++        session=session,
++        api_key_prefix=config.api_key_prefix,
++        ip_hash=session.created_ip_hash,
++    )
++    return session, token
++
++
++def build_handoff_url(config, token):
++    """Absolute WordPress entry URL for a token (raises ApiFailure if unusable)."""
++    template = config.wordpress_entry_template or ""
++    if template.count(ENTRY_TEMPLATE_TOKEN) != 1:
++        raise ApiFailure("not_configured", "The WordPress entry URL is not configured.", 409)
++    url = template.replace(ENTRY_TEMPLATE_TOKEN, quote(token, safe=""))
++    try:
++        parts = urlsplit(url)
++    except ValueError:
++        raise ApiFailure("not_configured", "The WordPress entry URL is not valid.", 409)
++    if parts.scheme.lower() != "https" or not parts.hostname:
++        raise ApiFailure("not_configured", "The WordPress entry URL must be HTTPS.", 409)
++    if config.site_host and parts.hostname.lower() != config.site_host:
++        # Never redirect the browser to a different host than the registered one.
++        raise ApiFailure(
++            "not_configured", "The WordPress entry URL host does not match the registered site.", 409
++        )
++    return url
++
++
++def start_handoff(request, quality, *, is_vip=False):
++    """
++    Begin the WordPress handoff for a real download-quality row.
++
++    Returns an :class:`~django.http.HttpResponse` redirect when the integration
++    takes over, or ``None`` in every other case so the caller keeps its original
++    behaviour untouched (disabled, unconfigured, premium without VIP, error).
++    """
++    try:
++        config = get_config()
++    except Exception:  # pragma: no cover - e.g. migrations not applied yet
++        logger.exception("External link config could not be loaded; using the direct download")
++        return None
++
++    if not config.enabled:
++        return None
++    if quality is None:
++        return None
++    if quality.is_premium and not is_vip:
++        # Never bypass the existing premium gate: let the caller show its usual
++        # "activate VIP" message.
++        return None
++    if not config.is_operational:
++        _note_handoff_error(config, config.blocked_reason)
++        return None
++
++    # Rate limit the handoff per visitor. A broken counter must not block a
++    # download, so a limiter error is treated as "allowed".
++    from controlcenter.throttle import check_rate_limit
++
++    try:
++        limit = check_rate_limit("external_handoff", client_ip_hash(request) or "anon", request)
++    except Exception:  # pragma: no cover
++        logger.exception("External link handoff rate limiter failed")
++        limit = None
++
++    if limit is not None and not limit.allowed:
++        from core.auth_views import rate_limited_response
++
++        log_event(
++            "handoff_rate_limited",
++            level=ExternalLinkEvent.Level.WARNING,
++            message="Handoff rate limit hit.",
++            api_key_prefix=config.api_key_prefix,
++            ip_hash=client_ip_hash(request),
++        )
++        return rate_limited_response(request, limit, "download")
++
++    try:
++        vip_user_id = None
++        if is_vip and getattr(request, "user", None) is not None and request.user.is_authenticated:
++            vip_user_id = request.user.pk
++
++        session, token = create_generation_session(
++            quality,
++            site_url=config.wordpress_site_url,
++            request=request,
++            vip_user_id=vip_user_id,
++        )
++        handoff_url = build_handoff_url(config, token)
++
++        config.last_handoff_at = timezone.now()
++        config.last_handoff_error = ""
++        config.save(update_fields=["last_handoff_at", "last_handoff_error", "updated_at"])
++
++        log_event(
++            "handoff_started",
++            message=f"Visitor sent to the generator for quality #{quality.pk}.",
++            session=session,
++            api_key_prefix=config.api_key_prefix,
++            ip_hash=session.created_ip_hash,
++        )
++
++        response = HttpResponseRedirect(handoff_url)
++        response["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0, private"
++        response["Pragma"] = "no-cache"
++        response["Expires"] = "0"
++        # The token lives in the WordPress URL: never leak it via Referer.
++        response["Referrer-Policy"] = "no-referrer"
++        response["X-Robots-Tag"] = "noindex, nofollow, noarchive"
++        return response
++    except ApiFailure as exc:
++        logger.warning("External link handoff skipped: %s", exc.message)
++        try:
++            _note_handoff_error(get_config(), exc.message)
++        except Exception:  # pragma: no cover
++            logger.exception("Could not record handoff error")
++        return None
++    except Exception:  # pragma: no cover - a broken integration must not break downloads
++        logger.exception("External link handoff failed; falling back to the direct download")
++        try:
++            _note_handoff_error(get_config(), "Internal error while creating the handoff.")
++        except Exception:
++            pass
++        return None
++
++
++def _note_handoff_error(config, message):
++    message = (message or "")[:200]
++    if config.last_handoff_error == message:
++        return
++    config.last_handoff_error = message
++    config.save(update_fields=["last_handoff_error", "updated_at"])
++    log_event(
++        "handoff_skipped",
++        level=ExternalLinkEvent.Level.WARNING,
++        message=f"Handoff skipped, direct download still works: {message}",
++        api_key_prefix=config.api_key_prefix,
++    )
++
++
++def _load_session(token):
++    if not SESSION_TOKEN_RE.match(token or ""):
++        return None
++    return ExternalLinkSession.objects.filter(token_hash=hash_session_token(token)).first()
++
++
++def validate_generation_session(config, *, token, site_url, countdown_seconds=0, ctx=None):
++    """Validate a session for the plugin's entry route and stamp ``not_before``."""
++    now = timezone.now()
++    session = _load_session(token)
++    if session is None:
++        raise ApiFailure("invalid_token", "This download session is not recognised.", 404)
++    if session.site_url and not hosts_match(session.site_url, site_url):
++        raise ApiFailure("domain_mismatch", "This session belongs to another installation.", 403)
++    if session.redeemed_at is not None:
++        raise ApiFailure("session_redeemed", "This download session has already been used.", 409)
++    if session.status == ExternalLinkSession.Status.REVOKED:
++        raise ApiFailure("session_revoked", "This download session has been revoked.", 409)
++    if session.expires_at <= now:
++        ExternalLinkSession.objects.filter(pk=session.pk).update(
++            status=ExternalLinkSession.Status.EXPIRED
++        )
++        log_event(
++            "session_expired",
++            level=ExternalLinkEvent.Level.WARNING,
++            message=f"Session {session.token_prefix}… expired before validation.",
++            session=session,
++            api_key_prefix=config.api_key_prefix,
++        )
++        raise ApiFailure("session_expired", "This download session has expired.", 410)
++
++    try:
++        requested = int(countdown_seconds or 0)
++    except (TypeError, ValueError):
++        requested = 0
++    minimum = max(1, int(config.min_countdown_seconds or 1))
++    maximum = max(minimum, int(config.max_countdown_seconds or minimum))
++    countdown = min(max(requested, minimum), maximum)
++
++    if session.not_before is None:
++        deadline = now + timedelta(seconds=countdown)
++        if deadline >= session.expires_at - timedelta(seconds=5):
++            raise ApiFailure(
++                "countdown_too_long",
++                "The configured countdown does not fit inside the session lifetime.",
++                409,
++                max_countdown_seconds=max(
++                    1, int((session.expires_at - now).total_seconds()) - 10
++                ),
++            )
++        session.not_before = deadline
++        session.validated_at = now
++        session.status = ExternalLinkSession.Status.VALIDATED
++        session.save(update_fields=["not_before", "validated_at", "status"])
++        log_event(
++            "session_validated",
++            message=f"Session {session.token_prefix}… validated; countdown {countdown}s.",
++            session=session,
++            api_key_prefix=config.api_key_prefix,
++            ip_hash=ctx.ip_hash if ctx else "",
++        )
++
++    remaining = max(0, int(math.ceil((session.not_before - timezone.now()).total_seconds())))
++    return {
++        "session": {
++            "token_prefix": session.token_prefix,
++            "quality": session.quality.quality if session.quality_id else "",
++            "quality_label": session.quality_label,
++            "status": session.status,
++            "server_time": iso(timezone.now()),
++            "not_before": iso(session.not_before),
++            "expires_at": iso(session.expires_at),
++            "remaining_seconds": remaining,
++            "countdown_seconds": countdown,
++            "can_redeem": session.is_redeemable,
++        }
++    }
++
++def redeem_generation_session(config, *, token, site_url, ctx=None):
++    """
++    Atomically redeem a session and return the real download destination.
++
++    Concurrency safety: the row is locked with ``SELECT ... FOR UPDATE`` inside a
++    transaction *and* the state change is a conditional ``UPDATE`` that only
++    matches an unredeemed row, so two simultaneous Proceed clicks cannot both
++    succeed (the loser sees ``session_redeemed``).
++    """
++    now = timezone.now()
++    session = _load_session(token)
++    if session is None:
++        raise ApiFailure("invalid_token", "This download session is not recognised.", 404)
++    if session.site_url and not hosts_match(session.site_url, site_url):
++        raise ApiFailure("domain_mismatch", "This session belongs to another installation.", 403)
++
++    with transaction.atomic():
++        session = (
++            ExternalLinkSession.objects.select_for_update()
++            .select_related("quality", "quality__post")
++            .filter(pk=session.pk)
++            .first()
++        )
++        if session is None:  # deleted between the two queries
++            raise ApiFailure("invalid_token", "This download session is not recognised.", 404)
++        if session.redeemed_at is not None:
++            raise ApiFailure("session_redeemed", "This download session has already been used.", 409)
++        if session.expires_at <= now:
++            raise ApiFailure("session_expired", "This download session has expired.", 410)
++        if session.status == ExternalLinkSession.Status.REVOKED:
++            raise ApiFailure("session_revoked", "This download session has been revoked.", 409)
++        if session.not_before is None:
++            raise ApiFailure(
++                "session_not_validated",
++                "This session was never validated by the WordPress plugin.",
++                409,
++            )
++        if session.not_before > now:
++            wait = max(1, int(math.ceil((session.not_before - now).total_seconds())))
++            raise ApiFailure(
++                "too_early",
++                "The countdown has not finished yet.",
++                409,
++                retry_after=wait,
++                remaining_seconds=wait,
++            )
++
++        quality = session.quality
++        if quality is None:
++            raise ApiFailure(
++                "quality_unavailable",
++                "This download is no longer available.",
++                410,
++            )
++        post = quality.post
++        if post is None:
++            raise ApiFailure("quality_unavailable", "This download is no longer available.", 410)
++        if not post.enable_downloads:
++            raise ApiFailure(
++                "download_disabled", "Downloads are disabled for this item.", 410
++            )
++        if quality.is_premium and not _vip_still_active(session.vip_user_id):
++            raise ApiFailure(
++                "vip_required",
++                "A VIP subscription is required for this download.",
++                403,
++            )
++
++        claimed = ExternalLinkSession.objects.filter(
++            pk=session.pk, redeemed_at__isnull=True
++        ).update(
++            redeemed_at=now,
++            status=ExternalLinkSession.Status.REDEEMED,
++            redeemed_ip_hash=ctx.ip_hash if ctx else "",
++        )
++        if not claimed:
++            raise ApiFailure("session_redeemed", "This download session has already been used.", 409)
++
++        destination = build_destination_url(quality, session.vip_user_id)
++
++        # Count the download at delivery time (the visitor really continues to
++        # the file), not when the button was clicked.
++        from .models import DownloadQuality
++
++        DownloadQuality.objects.filter(pk=quality.pk).update(
++            download_count=F("download_count") + 1
++        )
++
++    log_event(
++        "session_redeemed",
++        message=f"Session {session.token_prefix}… redeemed; download released.",
++        session=session,
++        api_key_prefix=config.api_key_prefix,
++        ip_hash=ctx.ip_hash if ctx else "",
++    )
++    return {
++        "destination_url": destination,
++        "quality": quality.quality,
++        "quality_label": session.quality_label,
++        "redeemed_at": iso(now),
++        "expires_at": iso(session.expires_at),
++    }
++
++
++def _vip_still_active(user_id):
++    if not user_id:
++        return False
++    try:
++        from django.contrib.auth import get_user_model
++
++        from subscriptions.utils import user_has_active_subscription
++
++        user = get_user_model().objects.filter(pk=user_id).first()
++        return bool(user and user_has_active_subscription(user))
++    except Exception:  # pragma: no cover - entitlement helper must not break redemption
++        logger.exception("VIP entitlement check failed")
++        return False
++
++
++def build_destination_url(quality, vip_user_id):
++    """
++    Reuse the existing download + VIP/CDN token helpers.
++
++    The URL is calculated only here, at redemption time, from the current
++    database row — it is never stored on the session, mirrored in HTML or logged.
++    """
++    destination = quality.download_url
++    if vip_user_id:
++        try:
++            from subscriptions.utils import (
++                append_vip_token_to_url,
++                generate_cdn_vip_token,
++                user_has_active_subscription,
++            )
++            from django.contrib.auth import get_user_model
++
++            user = get_user_model().objects.filter(pk=vip_user_id).first()
++            if user and user_has_active_subscription(user):
++                destination = append_vip_token_to_url(
++                    destination, generate_cdn_vip_token(user.pk)
++                )
++        except Exception:  # pragma: no cover - non-VIP download still works
++            logger.exception("Could not attach the VIP token to the destination")
++    return destination
++
++
++# ---------------------------------------------------------------------------
++# Statistics
++# ---------------------------------------------------------------------------
++def statistics(days=7):
++    now = timezone.now()
++    window = now - timedelta(days=days)
++    totals = ExternalLinkSession.objects.aggregate(
++        total=Count("id"),
++        redeemed=Count("id", filter=Q(redeemed_at__isnull=False)),
++        expired=Count("id", filter=Q(redeemed_at__isnull=True, expires_at__lte=now)),
++        pending=Count("id", filter=Q(redeemed_at__isnull=True, expires_at__gt=now)),
++        recent=Count("id", filter=Q(created_at__gte=window)),
++        recent_redeemed=Count("id", filter=Q(redeemed_at__gte=window)),
++    )
++    events = (
++        ExternalLinkEvent.objects.filter(created_at__gte=window)
++        .values("event")
++        .annotate(total=Count("id"))
++        .order_by("-total")
++    )
++    return {
++        "sessions_total": totals["total"] or 0,
++        "sessions_redeemed": totals["redeemed"] or 0,
++        "sessions_expired": totals["expired"] or 0,
++        "sessions_pending": totals["pending"] or 0,
++        "sessions_recent": totals["recent"] or 0,
++        "sessions_recent_redeemed": totals["recent_redeemed"] or 0,
++        "events": list(events),
++        "window_days": days,
++    }
++
++
++def recent_sessions(limit=25):
++    return (
++        ExternalLinkSession.objects.select_related("quality")
++        .order_by("-created_at")[:limit]
++    )
++
++
++def recent_events(limit=25):
++    return ExternalLinkEvent.objects.order_by("-created_at")[:limit]
+diff --git a/core/external_link_urls.py b/core/external_link_urls.py
+new file mode 100644
+index 0000000..1f20e6a
+--- /dev/null
++++ b/core/external_link_urls.py
+@@ -0,0 +1,15 @@
++"""URLs for the External Link Generator API (mounted under ``/api/external-link/``)."""
++
++from django.urls import path
++
++from . import external_link_views as views
++
++app_name = "external_links"
++
++urlpatterns = [
++    path("", views.api_index, name="index"),
++    path("connection-test/", views.connection_test, name="connection_test"),
++    path("sessions/create/", views.session_create, name="session_create"),
++    path("sessions/validate/", views.session_validate, name="session_validate"),
++    path("sessions/redeem/", views.session_redeem, name="session_redeem"),
++]
+diff --git a/core/external_link_views.py b/core/external_link_views.py
+new file mode 100644
+index 0000000..226c258
+--- /dev/null
++++ b/core/external_link_views.py
+@@ -0,0 +1,216 @@
++"""
++HTTP endpoints for the External Link Generator integration.
++
++All endpoints are machine-to-machine calls from the WordPress plugin. They are
++authenticated with a Bearer API key plus an HMAC signature over the timestamp,
++a single-use nonce and the exact request body — never with cookies — so they are
++CSRF-exempt by design and never depend on (or leak) a logged-in browser session.
++
++Public (unauthenticated) surface: ``GET /api/external-link/`` only, which returns
++static documentation metadata and no configuration or destination data.
++"""
++
++from django.http import JsonResponse
++from django.views.decorators.csrf import csrf_exempt
++from django.views.decorators.http import require_GET, require_POST
++
++from . import external_link_service as service
++from .external_link_models import ExternalLinkEvent
++from .models import DownloadQuality
++
++
++def _json(payload, status=200):
++    response = JsonResponse(payload, status=status)
++    response["Cache-Control"] = "no-store, no-cache, must-revalidate, private"
++    response["X-Robots-Tag"] = "noindex, nofollow, noarchive"
++    return response
++
++
++def _fail(failure, *, event, ctx=None, request=None):
++    """Log a controlled failure (code + short message, never the token) and reply."""
++    level = (
++        ExternalLinkEvent.Level.WARNING
++        if failure.status < 500
++        else ExternalLinkEvent.Level.ERROR
++    )
++    service.log_event(
++        event,
++        level=level,
++        message=f"{failure.code}: {failure.message}",
++        api_key_prefix=(ctx.config.api_key_prefix if ctx else ""),
++        ip_hash=(ctx.ip_hash if ctx else service.client_ip_hash(request) if request else ""),
++    )
++    return service.error_response(failure, retry_after=failure.extra.get("retry_after"))
++
++
++@require_GET
++def api_index(request):
++    """Static API description (safe to expose; contains no configuration)."""
++    return _json(
++        {
++            "name": "NZDWorld External Link Generator API",
++            "api_version": "1.0",
++            "authentication": {
++                "scheme": "Bearer API key + HMAC-SHA256 request signature",
++                "headers": [
++                    "Authorization: Bearer <api key>",
++                    "X-NZD-Timestamp: <unix seconds>",
++                    "X-NZD-Nonce: <unique random string>",
++                    "X-NZD-Signature: hex(hmac_sha256(key, timestamp + '.' + nonce + '.' + sha256(body)))",
++                ],
++                "transport": "HTTPS only",
++            },
++            "endpoints": [
++                {"method": "POST", "path": "/api/external-link/connection-test/"},
++                {"method": "POST", "path": "/api/external-link/sessions/create/"},
++                {"method": "POST", "path": "/api/external-link/sessions/validate/"},
++                {"method": "POST", "path": "/api/external-link/sessions/redeem/"},
++            ],
++            "notes": (
++                "Session creation also happens automatically when a visitor opens "
++                "/download/quality/<id>/ while the integration is enabled. Download "
++                "destinations are only returned by the redeem endpoint, after the "
++                "session is validated, the server-side countdown has elapsed and the "
++                "session is atomically marked as redeemed."
++            ),
++        }
++    )
++
++
++@csrf_exempt
++@require_POST
++def connection_test(request):
++    """
++    Verify a WordPress installation and register its site URL + entry template.
++
++    Allowed while the generator is disabled so the plugin can report a precise
++    status ("connected, generator disabled") instead of an opaque auth error.
++    """
++    ctx, error = service.authenticate_api_request(request, allow_when_disabled=True)
++    if error is not None:
++        return error
++    try:
++        payload = service.register_connection(ctx)
++    except service.ApiFailure as failure:
++        ctx.config.last_connection_ok = False
++        ctx.config.last_connection_error = failure.message[:200]
++        ctx.config.save(update_fields=["last_connection_ok", "last_connection_error", "updated_at"])
++        return _fail(failure, event="connection_failed", ctx=ctx)
++    return _json({"ok": True, **payload})
++
++
++@csrf_exempt
++@require_POST
++def session_create(request):
++    """
++    Create a generation session for a specific download-quality row.
++
++    The normal visitor flow creates its session from
++    ``/download/quality/<id>/`` (where the visitor's own subscription state can
++    be checked). This endpoint exists for server-initiated integrations; it
++    refuses premium rows because there is no visitor identity to authorise.
++    """
++    ctx, error = service.authenticate_api_request(request)
++    if error is not None:
++        return error
++    try:
++        raw_quality_id = ctx.data.get("quality_id")
++        if isinstance(raw_quality_id, bool):
++            raise service.ApiFailure("invalid_quality", "quality_id must be a positive integer.", 400)
++        try:
++            quality_id = int(str(raw_quality_id).strip())
++        except (TypeError, ValueError):
++            raise service.ApiFailure("invalid_quality", "quality_id must be a positive integer.", 400)
++        if quality_id <= 0:
++            raise service.ApiFailure("invalid_quality", "quality_id must be a positive integer.", 400)
++
++        quality = (
++            DownloadQuality.objects.select_related("post").filter(pk=quality_id).first()
++        )
++        if quality is None:
++            raise service.ApiFailure("quality_unavailable", "This download is no longer available.", 404)
++        if quality.post is None or not quality.post.enable_downloads:
++            raise service.ApiFailure("download_disabled", "Downloads are disabled for this item.", 410)
++        if quality.is_premium:
++            raise service.ApiFailure(
++                "premium_not_allowed",
++                "Premium downloads can only be started by a signed-in visitor on NZDWorld.",
++                403,
++            )
++
++        session, token = service.create_generation_session(
++            quality, site_url=ctx.site_url, request=request
++        )
++    except service.ApiFailure as failure:
++        return _fail(failure, event="session_create_failed", ctx=ctx)
++
++    return _json(
++        {
++            "ok": True,
++            "token": token,
++            "session": {
++                "token_prefix": session.token_prefix,
++                "status": session.status,
++                "quality": quality.quality,
++                "quality_label": session.quality_label,
++                "expires_at": service.iso(session.expires_at),
++                "not_before": None,
++            },
++        },
++        status=201,
++    )
++
++
++@csrf_exempt
++@require_POST
++def session_validate(request):
++    """
++    Validate an incoming token and stamp the server-side countdown deadline.
++
++    The plugin calls this from its entry route, after the visitor was redirected
++    from NZDWorld. Repeating the call (e.g. on refresh) returns the same
++    ``not_before`` instead of restarting the countdown.
++    """
++    ctx, error = service.authenticate_api_request(request)
++    if error is not None:
++        return error
++    try:
++        token = str(ctx.data.get("token") or "").strip()
++        if not service.SESSION_TOKEN_RE.match(token):
++            raise service.ApiFailure("invalid_token", "This download session is not recognised.", 404)
++        payload = service.validate_generation_session(
++            ctx.config,
++            token=token,
++            site_url=ctx.site_url,
++            countdown_seconds=ctx.data.get("countdown_seconds") or 0,
++            ctx=ctx,
++        )
++    except service.ApiFailure as failure:
++        return _fail(failure, event="session_validate_failed", ctx=ctx)
++    return _json({"ok": True, **payload})
++
++
++@csrf_exempt
++@require_POST
++def session_redeem(request):
++    """
++    Atomically redeem a session and release the (previously hidden) destination.
++
++    Refused before the server-side ``not_before`` time, after expiry, on a second
++    use, for a deleted/disabled quality row and for a session belonging to a
++    different installation.
++    """
++    ctx, error = service.authenticate_api_request(request)
++    if error is not None:
++        return error
++    try:
++        token = str(ctx.data.get("token") or "").strip()
++        if not service.SESSION_TOKEN_RE.match(token):
++            raise service.ApiFailure("invalid_token", "This download session is not recognised.", 404)
++        payload = service.redeem_generation_session(
++            ctx.config, token=token, site_url=ctx.site_url, ctx=ctx
++        )
++    except service.ApiFailure as failure:
++        return _fail(failure, event="session_redeem_failed", ctx=ctx)
++    return _json({"ok": True, **payload})
++
+diff --git a/core/migrations/0017_external_link_generator.py b/core/migrations/0017_external_link_generator.py
+new file mode 100644
+index 0000000..acef973
+--- /dev/null
++++ b/core/migrations/0017_external_link_generator.py
+@@ -0,0 +1,117 @@
++# Generated by Django 5.0.6 on 2026-11-04 02:18
++
++import django.db.models.deletion
++from django.db import migrations, models
++
++
++class Migration(migrations.Migration):
++
++    dependencies = [
++        ('core', '0016_downloadquality_filename_mode_and_more'),
++    ]
++
++    operations = [
++        migrations.CreateModel(
++            name='ExternalLinkConfig',
++            fields=[
++                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
++                ('enabled', models.BooleanField(default=False, help_text='When on, /download/quality/<id>/ starts a WordPress handoff. When off, download links behave exactly as before.')),
++                ('api_key_hash', models.CharField(blank=True, default='', editable=False, max_length=64)),
++                ('api_key_prefix', models.CharField(blank=True, default='', editable=False, max_length=24)),
++                ('api_key_created_at', models.DateTimeField(blank=True, editable=False, null=True)),
++                ('api_key_revoked_at', models.DateTimeField(blank=True, editable=False, null=True)),
++                ('api_key_last_used_at', models.DateTimeField(blank=True, editable=False, null=True)),
++                ('wordpress_site_url', models.CharField(blank=True, default='', help_text='Registered WordPress installation, e.g. https://blog.example.com', max_length=300)),
++                ('wordpress_entry_template', models.CharField(blank=True, default='', help_text='Handoff URL reported by the plugin, containing {token}. Example: https://blog.example.com/nzdworld-link/{token}/', max_length=500)),
++                ('domain_locked', models.BooleanField(default=True, help_text='Reject API calls from any host other than the registered site. Uncheck (then clear the site URL) to allow a different installation to re-register.')),
++                ('session_ttl_seconds', models.PositiveIntegerField(default=900, help_text='Lifetime of a generation session (120-3600 seconds).')),
++                ('min_countdown_seconds', models.PositiveIntegerField(default=5, help_text='Lowest countdown the plugin may request (seconds).')),
++                ('max_countdown_seconds', models.PositiveIntegerField(default=120, help_text='Highest countdown the plugin may request (seconds).')),
++                ('api_clock_skew_seconds', models.PositiveIntegerField(default=300, help_text='Accepted clock difference for signed API calls.')),
++                ('last_connection_at', models.DateTimeField(blank=True, editable=False, null=True)),
++                ('last_connection_ok', models.BooleanField(blank=True, editable=False, null=True)),
++                ('last_connection_site_url', models.CharField(blank=True, default='', editable=False, max_length=300)),
++                ('last_connection_plugin_version', models.CharField(blank=True, default='', editable=False, max_length=32)),
++                ('last_connection_ip_hash', models.CharField(blank=True, default='', editable=False, max_length=64)),
++                ('last_connection_error', models.CharField(blank=True, default='', editable=False, max_length=200)),
++                ('last_handoff_at', models.DateTimeField(blank=True, editable=False, null=True)),
++                ('last_handoff_error', models.CharField(blank=True, default='', editable=False, max_length=200)),
++                ('created_at', models.DateTimeField(auto_now_add=True)),
++                ('updated_at', models.DateTimeField(auto_now=True)),
++            ],
++            options={
++                'verbose_name': 'External Link Generator settings',
++                'verbose_name_plural': 'External Link Generator settings',
++            },
++        ),
++        migrations.CreateModel(
++            name='ExternalLinkNonce',
++            fields=[
++                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
++                ('nonce', models.CharField(max_length=64, unique=True)),
++                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
++            ],
++            options={
++                'verbose_name': 'External link request nonce',
++                'verbose_name_plural': 'External link request nonces',
++                'ordering': ['-created_at'],
++            },
++        ),
++        migrations.CreateModel(
++            name='ExternalLinkSession',
++            fields=[
++                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
++                ('token_hash', models.CharField(db_index=True, editable=False, max_length=64, unique=True)),
++                ('token_prefix', models.CharField(blank=True, default='', editable=False, max_length=12)),
++                ('quality_label', models.CharField(blank=True, default='', editable=False, max_length=200)),
++                ('post_id', models.PositiveBigIntegerField(blank=True, editable=False, null=True)),
++                ('post_title', models.CharField(blank=True, default='', editable=False, max_length=200)),
++                ('site_url', models.CharField(blank=True, default='', editable=False, max_length=300)),
++                ('vip_user_id', models.PositiveIntegerField(blank=True, editable=False, null=True)),
++                ('status', models.CharField(choices=[('created', 'Created'), ('validated', 'Validated by WordPress'), ('redeemed', 'Redeemed'), ('expired', 'Expired'), ('revoked', 'Revoked'), ('failed', 'Failed')], db_index=True, default='created', max_length=20)),
++                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
++                ('expires_at', models.DateTimeField(db_index=True)),
++                ('validated_at', models.DateTimeField(blank=True, null=True)),
++                ('not_before', models.DateTimeField(blank=True, null=True)),
++                ('redeemed_at', models.DateTimeField(blank=True, db_index=True, null=True)),
++                ('created_ip_hash', models.CharField(blank=True, default='', editable=False, max_length=64)),
++                ('redeemed_ip_hash', models.CharField(blank=True, default='', editable=False, max_length=64)),
++                ('quality', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='external_link_sessions', to='core.downloadquality')),
++            ],
++            options={
++                'verbose_name': 'External link session',
++                'verbose_name_plural': 'External link sessions',
++                'ordering': ['-created_at'],
++            },
++        ),
++        migrations.CreateModel(
++            name='ExternalLinkEvent',
++            fields=[
++                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
++                ('event', models.CharField(db_index=True, max_length=40)),
++                ('level', models.CharField(choices=[('info', 'Info'), ('warning', 'Warning'), ('error', 'Error')], default='info', max_length=10)),
++                ('message', models.CharField(blank=True, default='', max_length=300)),
++                ('api_key_prefix', models.CharField(blank=True, default='', max_length=24)),
++                ('ip_hash', models.CharField(blank=True, default='', max_length=64)),
++                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
++                ('session', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='events', to='core.externallinksession')),
++            ],
++            options={
++                'verbose_name': 'External link event',
++                'verbose_name_plural': 'External link events',
++                'ordering': ['-created_at'],
++            },
++        ),
++        migrations.AddIndex(
++            model_name='externallinksession',
++            index=models.Index(fields=['status', 'expires_at'], name='core_els_status_exp_idx'),
++        ),
++        migrations.AddIndex(
++            model_name='externallinksession',
++            index=models.Index(fields=['site_url', 'created_at'], name='core_els_site_idx'),
++        ),
++        migrations.AddIndex(
++            model_name='externallinkevent',
++            index=models.Index(fields=['event', 'created_at'], name='core_ele_event_idx'),
++        ),
++    ]
+diff --git a/core/models.py b/core/models.py
+index 9d24df5..7fe6bf9 100644
+--- a/core/models.py
++++ b/core/models.py
+@@ -525,3 +525,18 @@ class Subscriber(models.Model):
+ 
+     def __str__(self):
+         return self.email 
++
++
++# ---------------------------------------------------------------------------
++# Optional External Link Generator integration (WordPress handoff).
++#
++# The models live in their own module to keep this file readable, but they are
++# imported here so they belong to the existing `core` app (no INSTALLED_APPS or
++# migration-graph changes beyond the new migration).
++# ---------------------------------------------------------------------------
++from .external_link_models import (  # noqa: E402,F401  (imported for Django model discovery)
++    ExternalLinkConfig,
++    ExternalLinkEvent,
++    ExternalLinkNonce,
++    ExternalLinkSession,
++)
+diff --git a/core/test_external_links.py b/core/test_external_links.py
+new file mode 100644
+index 0000000..9e20254
+--- /dev/null
++++ b/core/test_external_links.py
+@@ -0,0 +1,683 @@
++"""
++Automated tests for the optional External Link Generator integration.
++
++Run with::
++
++    python manage.py test core.test_external_links -v 2
++
++Covers the handoff, the signed server-to-server API, session expiry, replay,
++single-use redemption, deleted/disabled quality rows, premium handling, rate
++limiting, admin actions and the "nothing leaks before redemption" rule.
++"""
++
++import json
++import re
++import secrets
++from datetime import timedelta
++
++from django.contrib.auth import get_user_model
++from django.core.cache import cache
++from django.test import TestCase, override_settings
++from django.urls import reverse
++from django.utils import timezone
++
++from core import external_link_service as service
++from core.external_link_models import (
++    ExternalLinkConfig,
++    ExternalLinkEvent,
++    ExternalLinkSession,
++)
++from core.models import Category, DownloadQuality, Post
++
++User = get_user_model()
++
++BLOG_URL = "https://blog.example.test"
++ENTRY_TEMPLATE = "https://blog.example.test/nzdworld-link/{token}/"
++# Kept on a shortener-allowed host so the existing pre_save shortener signal is
++# skipped (no outbound HTTP inside unit tests).
++DESTINATION = "https://cdn.nzdworld.com/files/movie-one-720p.mp4"
++TOKEN_FROM_LOCATION = re.compile(r"/nzdworld-link/([A-Za-z0-9_-]+)/$")
++
++
++class ExternalLinkTestBase(TestCase):
++    def setUp(self):
++        cache.clear()
++        self.owner = User.objects.create_user("owner", password="x")
++        self.category = Category.objects.create(name="Movies", slug="movies")
++        self.post = Post.objects.create(
++            title="Movie One",
++            slug="movie-one",
++            content="<p>Body</p>",
++            author=self.owner,
++            category=self.category,
++            is_published=True,
++            enable_downloads=True,
++        )
++        self.quality = DownloadQuality.objects.create(
++            post=self.post,
++            quality="720p",
++            download_url=DESTINATION,
++        )
++        self.config = ExternalLinkConfig.load()
++        self.config.enabled = True
++        self.config.wordpress_site_url = BLOG_URL
++        self.config.wordpress_entry_template = ENTRY_TEMPLATE
++        self.config.save()
++        self.key = service.issue_api_key(self.config)
++        self.config.refresh_from_db()
++
++    # -- helpers -----------------------------------------------------------
++    def handoff(self, quality=None, **params):
++        return self.client.get(
++            reverse("download_quality", args=[(quality or self.quality).pk]), **params
++        )
++
++    def token_from(self, response):
++        match = TOKEN_FROM_LOCATION.search(response["Location"])
++        self.assertIsNotNone(match, f"unexpected handoff URL: {response['Location']}")
++        return match.group(1)
++
++    def api(self, name, payload, *, key=None, timestamp=None, nonce=None,
++            signature=None, secure=True, raw_body=None):
++        key = self.key if key is None else key
++        body = raw_body if raw_body is not None else json.dumps(payload)
++        ts = str(int(timezone.now().timestamp())) if timestamp is None else str(timestamp)
++        nce = nonce or secrets.token_hex(16)
++        sig = signature or service.expected_signature(key, ts, nce, body.encode("utf-8"))
++        return self.client.post(
++            reverse(f"external_links:{name}"),
++            data=body,
++            content_type="application/json",
++            HTTP_AUTHORIZATION=f"Bearer {key}",
++            HTTP_X_NZD_TIMESTAMP=ts,
++            HTTP_X_NZD_NONCE=nce,
++            HTTP_X_NZD_SIGNATURE=sig,
++            secure=secure,
++        )
++
++    def validate(self, token, countdown=30, **kwargs):
++        return self.api(
++            "session_validate",
++            {
++                "site_url": BLOG_URL,
++                "token": token,
++                "countdown_seconds": countdown,
++                "plugin_version": "1.0.0",
++            },
++            **kwargs,
++        )
++
++    def redeem(self, token, **kwargs):
++        return self.api("session_redeem", {"site_url": BLOG_URL, "token": token}, **kwargs)
++
++    def force_countdown_finished(self, token):
++        session = ExternalLinkSession.objects.get(token_hash=service.hash_session_token(token))
++        ExternalLinkSession.objects.filter(pk=session.pk).update(
++            not_before=timezone.now() - timedelta(seconds=1)
++        )
++        return session
++
++
++class DisabledIntegrationTests(ExternalLinkTestBase):
++    def test_disabled_integration_keeps_the_original_download(self):
++        ExternalLinkConfig.objects.filter(pk=self.config.pk).update(enabled=False)
++        response = self.handoff()
++        self.assertEqual(response.status_code, 302)
++        self.assertEqual(response["Location"], DESTINATION)
++        self.assertFalse(ExternalLinkSession.objects.exists())
++        self.quality.refresh_from_db()
++        self.assertEqual(self.quality.download_count, 1)
++
++    def test_revoked_key_restores_the_original_download(self):
++        service.revoke_api_key(self.config)
++        response = self.handoff()
++        self.assertEqual(response.status_code, 302)
++        self.assertEqual(response["Location"], DESTINATION)
++        self.assertFalse(ExternalLinkSession.objects.exists())
++
++    def test_unconfigured_integration_falls_back_and_records_the_reason(self):
++        ExternalLinkConfig.objects.filter(pk=self.config.pk).update(wordpress_site_url="")
++        response = self.handoff()
++        self.assertEqual(response.status_code, 302)
++        self.assertEqual(response["Location"], DESTINATION)
++        self.config.refresh_from_db()
++        self.assertIn("No WordPress site", self.config.last_handoff_error)
++
++    def test_disabled_api_rejects_sessions_but_allows_a_connection_test(self):
++        ExternalLinkConfig.objects.filter(pk=self.config.pk).update(enabled=False)
++        validate = self.validate("a" * 43)
++        self.assertEqual(validate.status_code, 403)
++        self.assertEqual(validate.json()["error"]["code"], "integration_disabled")
++
++        test = self.api(
++            "connection_test",
++            {
++                "site_url": BLOG_URL,
++                "entry_url_template": ENTRY_TEMPLATE,
++                "plugin_version": "1.0.0",
++            },
++        )
++        self.assertEqual(test.status_code, 200)
++        self.assertFalse(test.json()["integration_enabled"])
++
++
++class HandoffTests(ExternalLinkTestBase):
++    def test_enabled_handoff_redirects_to_wordpress_with_an_opaque_token(self):
++        response = self.handoff()
++        self.assertEqual(response.status_code, 302)
++        self.assertTrue(response["Location"].startswith(BLOG_URL))
++        self.assertNotIn("cdn.nzdworld.com", response["Location"])
++        self.assertNotIn("/download/quality/", response["Location"])
++        self.assertNotIn(str(self.quality.pk), response["Location"].split("/nzdworld-link/")[0])
++
++        token = self.token_from(response)
++        self.assertRegex(token, service.SESSION_TOKEN_RE)
++        # the plaintext token must never be stored
++        self.assertFalse(ExternalLinkSession.objects.filter(token_hash=token).exists())
++        session = ExternalLinkSession.objects.get()
++        self.assertEqual(session.token_hash, service.hash_session_token(token))
++        self.assertEqual(session.quality_id, self.quality.pk)
++        self.assertEqual(session.post_id, self.post.pk)
++        self.assertEqual(session.site_url, BLOG_URL)
++
++    def test_handoff_sets_no_store_and_no_referrer_headers(self):
++        response = self.handoff()
++        self.assertIn("no-store", response["Cache-Control"])
++        self.assertEqual(response["Referrer-Policy"], "no-referrer")
++        self.assertEqual(response.content, b"")
++
++    def test_repeated_clicks_create_independent_single_use_sessions(self):
++        first = self.token_from(self.handoff())
++        second = self.token_from(self.handoff())
++        self.assertNotEqual(first, second)
++        self.assertEqual(ExternalLinkSession.objects.count(), 2)
++
++        for token in (first, second):
++            self.assertEqual(self.validate(token).status_code, 200)
++            self.force_countdown_finished(token)
++            redeemed = self.redeem(token)
++            self.assertEqual(redeemed.status_code, 200)
++            self.assertEqual(redeemed.json()["destination_url"], DESTINATION)
++        self.quality.refresh_from_db()
++        self.assertEqual(self.quality.download_count, 2)
++
++    def test_premium_without_vip_keeps_the_existing_gate(self):
++        DownloadQuality.objects.filter(pk=self.quality.pk).update(is_premium=True)
++        self.quality.refresh_from_db()
++        response = self.handoff()
++        self.assertEqual(response.status_code, 302)
++        self.assertEqual(response["Location"], reverse("subscriptions:plan_list"))
++        self.assertFalse(ExternalLinkSession.objects.exists())
++
++    def test_vip_session_reuses_the_cdn_token_helper(self):
++        vip = User.objects.create_superuser("vip", "vip@example.test", "x")
++        DownloadQuality.objects.filter(pk=self.quality.pk).update(is_premium=True)
++        self.quality.refresh_from_db()
++        self.client.force_login(vip)
++
++        response = self.handoff()
++        self.assertEqual(response.status_code, 302)
++        session = ExternalLinkSession.objects.get()
++        self.assertEqual(session.vip_user_id, vip.pk)
++
++        token = self.token_from(response)
++        self.validate(token, countdown=5)
++        self.force_countdown_finished(token)
++        redeemed = self.redeem(token)
++        self.assertEqual(redeemed.status_code, 200)
++        destination = redeemed.json()["destination_url"]
++        self.assertTrue(destination.startswith("https://cdn.nzdworld.com/files/movie-one-720p.mp4/"))
++        self.assertIn("token=", destination)
++
++    @override_settings(RATE_LIMITS={"external_handoff": {"hits": 1, "window": 300, "cooldown": 300}})
++    def test_handoff_is_rate_limited_per_visitor(self):
++        self.assertEqual(self.handoff().status_code, 302)
++        limited = self.handoff()
++        self.assertEqual(limited.status_code, 429)
++        self.assertEqual(ExternalLinkSession.objects.count(), 1)
++
++    def test_handoff_token_never_appears_in_events_or_logs(self):
++        token = self.token_from(self.handoff())
++        self.validate(token)
++        self.force_countdown_finished(token)
++        self.redeem(token)
++        for event in ExternalLinkEvent.objects.all():
++            self.assertNotIn(token, event.message)
++            self.assertNotIn(DESTINATION, event.message)
++            self.assertNotIn("cdn.nzdworld.com", event.message)
++            self.assertNotIn(self.key, event.message)
++
++
++class ApiAuthenticationTests(ExternalLinkTestBase):
++    def payload(self):
++        return {"site_url": BLOG_URL, "entry_url_template": ENTRY_TEMPLATE}
++
++    def test_public_api_index_lists_endpoints_without_secrets(self):
++        response = self.client.get(reverse("external_links:index"))
++        self.assertEqual(response.status_code, 200)
++        body = response.json()
++        self.assertIn("connection-test", json.dumps(body))
++        self.assertNotIn(self.key, response.content.decode())
++
++    @override_settings(EXTERNAL_LINK_REQUIRE_HTTPS=True)
++    def test_https_is_required(self):
++        response = self.api("connection_test", self.payload(), secure=False)
++        self.assertEqual(response.status_code, 400)
++        self.assertEqual(response.json()["error"]["code"], "insecure_transport")
++
++    def test_invalid_api_key_is_rejected_and_audited(self):
++        response = self.api("connection_test", self.payload(), key="nzd_live_wrong-key-value")
++        self.assertEqual(response.status_code, 401)
++        self.assertEqual(response.json()["error"]["code"], "unauthorized")
++        self.assertTrue(ExternalLinkEvent.objects.filter(event="auth_failed").exists())
++        self.assertNotIn("nzd_live_wrong", json.dumps(list(ExternalLinkEvent.objects.values("message"))))
++
++    def test_revoked_key_is_rejected(self):
++        service.revoke_api_key(self.config)
++        response = self.api("connection_test", self.payload())
++        self.assertEqual(response.status_code, 401)
++
++    def test_missing_signature_headers_are_rejected(self):
++        response = self.client.post(
++            reverse("external_links:connection_test"),
++            data=json.dumps(self.payload()),
++            content_type="application/json",
++            HTTP_AUTHORIZATION=f"Bearer {self.key}",
++            secure=True,
++        )
++        self.assertEqual(response.status_code, 401)
++        self.assertEqual(response.json()["error"]["code"], "invalid_signature")
++
++    def test_tampered_body_is_rejected(self):
++        signed_body = json.dumps(self.payload())
++        sent_body = json.dumps({**self.payload(), "extra": "tampered"})
++        nonce = "nonce-value-123"
++        timestamp = str(int(timezone.now().timestamp()))
++        response = self.api(
++            "connection_test",
++            None,
++            raw_body=sent_body,
++            nonce=nonce,
++            timestamp=timestamp,
++            signature=service.expected_signature(
++                self.key, timestamp, nonce, signed_body.encode("utf-8")
++            ),
++        )
++        self.assertEqual(response.status_code, 401)
++        self.assertEqual(response.json()["error"]["code"], "invalid_signature")
++
++    def test_stale_timestamp_is_rejected(self):
++        stale = int(timezone.now().timestamp()) - 4000
++        response = self.api("connection_test", self.payload(), timestamp=stale)
++        self.assertEqual(response.status_code, 401)
++        self.assertEqual(response.json()["error"]["code"], "stale_request")
++
++    def test_replayed_nonce_is_rejected(self):
++        nonce = secrets.token_hex(16)
++        first = self.api("connection_test", self.payload(), nonce=nonce)
++        self.assertEqual(first.status_code, 200)
++        second = self.api("connection_test", self.payload(), nonce=nonce)
++        self.assertEqual(second.status_code, 401)
++        self.assertEqual(second.json()["error"]["code"], "replayed_request")
++
++    def test_foreign_domain_is_rejected(self):
++        response = self.api(
++            "connection_test",
++            {"site_url": "https://evil.example.test", "entry_url_template": "https://evil.example.test/x/{token}/"},
++        )
++        self.assertEqual(response.status_code, 403)
++        self.assertEqual(response.json()["error"]["code"], "domain_mismatch")
++        self.config.refresh_from_db()
++        self.assertEqual(self.config.wordpress_site_url, BLOG_URL)
++
++
++class CrossImplementationSignatureTests(TestCase):
++    """
++    The WordPress plugin signs each request with HMAC-SHA256 over
++    ``timestamp.nonce.sha256(body)``. This fixed vector was produced
++    independently (Python) and is duplicated in the plugin's PHP test harness,
++    so both implementations are checked against the same expected digest.
++    """
++
++    SECRET = "nzd_live_test_key_ABC123"
++    TIMESTAMP = "1700000000"
++    NONCE = "abc123def456"
++    BODY = '{"site_url":"https://blog.example.com","token":"abc"}'
++    EXPECTED = "a66ff43b5e973bedb09598f2ad37b2cd88eed5deb466c865cd77f3b52dc76775"
++
++    def test_expected_signature_matches_the_shared_vector(self):
++        self.assertEqual(
++            service.expected_signature(self.SECRET, self.TIMESTAMP, self.NONCE, self.BODY.encode("utf-8")),
++            self.EXPECTED,
++        )
++
++
++class ConnectionTests(ExternalLinkTestBase):
++    def test_first_connection_registers_the_site_and_entry_url(self):
++        ExternalLinkConfig.objects.filter(pk=self.config.pk).update(
++            wordpress_site_url="", wordpress_entry_template=""
++        )
++        response = self.api(
++            "connection_test",
++            {
++                "site_url": BLOG_URL,
++                "entry_url_template": ENTRY_TEMPLATE,
++                "plugin_version": "1.0.0",
++                "site_name": "NZDWorld Jobs",
++            },
++        )
++        self.assertEqual(response.status_code, 200)
++        body = response.json()
++        self.assertTrue(body["ok"])
++        self.assertTrue(body["integration_enabled"])
++        self.assertEqual(body["registered_site"], BLOG_URL)
++
++        self.config.refresh_from_db()
++        self.assertEqual(self.config.wordpress_site_url, BLOG_URL)
++        self.assertEqual(self.config.wordpress_entry_template, ENTRY_TEMPLATE)
++        self.assertTrue(self.config.last_connection_ok)
++        self.assertEqual(self.config.last_connection_plugin_version, "1.0.0")
++
++    def test_entry_template_on_another_host_is_refused(self):
++        response = self.api(
++            "connection_test",
++            {
++                "site_url": BLOG_URL,
++                "entry_url_template": "https://evil.example.test/nzdworld-link/{token}/",
++            },
++        )
++        self.assertEqual(response.status_code, 400)
++        self.assertEqual(response.json()["error"]["code"], "invalid_entry_url")
++
++    def test_entry_template_must_contain_the_token_placeholder(self):
++        response = self.api(
++            "connection_test",
++            {"site_url": BLOG_URL, "entry_url_template": "https://blog.example.test/nzdworld-link/"},
++        )
++        self.assertEqual(response.status_code, 400)
++
++    def test_http_site_urls_are_refused(self):
++        response = self.api(
++            "connection_test",
++            {"site_url": "http://blog.example.test", "entry_url_template": ENTRY_TEMPLATE},
++        )
++        self.assertEqual(response.status_code, 400)
++        self.assertEqual(response.json()["error"]["code"], "invalid_site")
++
++
++class SessionLifecycleTests(ExternalLinkTestBase):
++    def test_validate_stamps_the_server_side_countdown(self):
++        token = self.token_from(self.handoff())
++        before = timezone.now()
++        response = self.validate(token, countdown=30)
++        self.assertEqual(response.status_code, 200)
++        session_payload = response.json()["session"]
++        self.assertEqual(session_payload["status"], "validated")
++        self.assertFalse(session_payload["can_redeem"])
++        self.assertGreaterEqual(session_payload["remaining_seconds"], 27)
++        self.assertLessEqual(session_payload["remaining_seconds"], 31)
++
++        session = ExternalLinkSession.objects.get()
++        self.assertIsNotNone(session.not_before)
++        self.assertGreaterEqual(session.not_before, before + timedelta(seconds=25))
++
++    def test_validate_is_idempotent_and_does_not_restart_the_countdown(self):
++        token = self.token_from(self.handoff())
++        first = self.validate(token, countdown=30).json()["session"]
++        stamped = ExternalLinkSession.objects.get().not_before
++        # Simulate a refresh a few seconds later: the deadline must not move.
++        older = timezone.now() + timedelta(seconds=10)
++        ExternalLinkSession.objects.update(not_before=older)
++        second = self.validate(token, countdown=30).json()["session"]
++        self.assertLessEqual(second["remaining_seconds"], 11)
++        self.assertLessEqual(second["remaining_seconds"], first["remaining_seconds"])
++        self.assertEqual(ExternalLinkSession.objects.get().not_before, older)
++        self.assertLessEqual(older, stamped + timedelta(seconds=1))
++
++    def test_countdown_is_clamped_to_the_configured_maximum(self):
++        ExternalLinkConfig.objects.filter(pk=self.config.pk).update(max_countdown_seconds=60)
++        token = self.token_from(self.handoff())
++        payload = self.validate(token, countdown=9999).json()["session"]
++        self.assertEqual(payload["countdown_seconds"], 60)
++        self.assertLessEqual(payload["remaining_seconds"], 60)
++
++    def test_countdown_too_long_for_the_session_lifetime_is_refused(self):
++        ExternalLinkConfig.objects.filter(pk=self.config.pk).update(
++            session_ttl_seconds=120, min_countdown_seconds=5, max_countdown_seconds=600
++        )
++        token = self.token_from(self.handoff())
++        response = self.validate(token, countdown=600)
++        self.assertEqual(response.status_code, 409)
++        self.assertEqual(response.json()["error"]["code"], "countdown_too_long")
++
++    def test_unknown_token_is_refused(self):
++        response = self.validate("A" * 43)
++        self.assertEqual(response.status_code, 404)
++        self.assertEqual(response.json()["error"]["code"], "invalid_token")
++
++    def test_expired_session_cannot_be_validated_or_redeemed(self):
++        token = self.token_from(self.handoff())
++        ExternalLinkSession.objects.update(expires_at=timezone.now() - timedelta(seconds=5))
++        validate = self.validate(token)
++        self.assertEqual(validate.status_code, 410)
++        self.assertEqual(validate.json()["error"]["code"], "session_expired")
++        redeem = self.redeem(token)
++        self.assertEqual(redeem.status_code, 410)
++
++    def test_redeem_before_the_countdown_is_refused(self):
++        token = self.token_from(self.handoff())
++        self.validate(token, countdown=30)
++        response = self.redeem(token)
++        self.assertEqual(response.status_code, 409)
++        body = response.json()
++        self.assertEqual(body["error"]["code"], "too_early")
++        self.assertGreaterEqual(body["error"]["retry_after"], 1)
++        self.assertNotIn("destination_url", body)
++        session = ExternalLinkSession.objects.get()
++        self.assertIsNone(session.redeemed_at)
++
++    def test_redeem_requires_validation_first(self):
++        token = self.token_from(self.handoff())
++        response = self.redeem(token)
++        self.assertEqual(response.status_code, 409)
++        self.assertEqual(response.json()["error"]["code"], "session_not_validated")
++
++    def test_redeem_after_the_countdown_releases_the_destination_once(self):
++        token = self.token_from(self.handoff())
++        self.validate(token, countdown=5)
++        self.force_countdown_finished(token)
++
++        response = self.redeem(token)
++        self.assertEqual(response.status_code, 200)
++        self.assertEqual(response.json()["destination_url"], DESTINATION)
++        self.quality.refresh_from_db()
++        self.assertEqual(self.quality.download_count, 1)
++        session = ExternalLinkSession.objects.get()
++        self.assertIsNotNone(session.redeemed_at)
++        self.assertEqual(session.status, ExternalLinkSession.Status.REDEEMED)
++
++        replay = self.redeem(token)
++        self.assertEqual(replay.status_code, 409)
++        self.assertEqual(replay.json()["error"]["code"], "session_redeemed")
++        self.quality.refresh_from_db()
++        self.assertEqual(self.quality.download_count, 1)
++
++    def test_entry_route_style_revalidation_after_redemption_is_refused(self):
++        token = self.token_from(self.handoff())
++        self.validate(token)
++        self.force_countdown_finished(token)
++        self.assertEqual(self.redeem(token).status_code, 200)
++        again = self.validate(token)
++        self.assertEqual(again.status_code, 409)
++        self.assertEqual(again.json()["error"]["code"], "session_redeemed")
++
++    def test_deleted_quality_record_fails_cleanly(self):
++        token = self.token_from(self.handoff())
++        self.validate(token, countdown=5)
++        self.force_countdown_finished(token)
++        self.quality.delete()
++        response = self.redeem(token)
++        self.assertEqual(response.status_code, 410)
++        self.assertEqual(response.json()["error"]["code"], "quality_unavailable")
++
++    def test_disabled_downloads_fail_cleanly(self):
++        token = self.token_from(self.handoff())
++        self.validate(token, countdown=5)
++        self.force_countdown_finished(token)
++        Post.objects.filter(pk=self.post.pk).update(enable_downloads=False)
++        response = self.redeem(token)
++        self.assertEqual(response.status_code, 410)
++        self.assertEqual(response.json()["error"]["code"], "download_disabled")
++
++    def test_session_cannot_be_used_from_another_installation(self):
++        token = self.token_from(self.handoff())
++        self.validate(token, countdown=5)
++        self.force_countdown_finished(token)
++
++        # Administrator re-registers a different WordPress installation.
++        service.reset_registered_domain(self.config, keep_key=True)
++        registered = self.api(
++            "connection_test",
++            {
++                "site_url": "https://other.example.test",
++                "entry_url_template": "https://other.example.test/nzdworld-link/{token}/",
++            },
++        )
++        self.assertEqual(registered.status_code, 200)
++
++        hijack = self.api(
++            "session_redeem",
++            {"site_url": "https://other.example.test", "token": token},
++        )
++        self.assertEqual(hijack.status_code, 403)
++        self.assertEqual(hijack.json()["error"]["code"], "domain_mismatch")
++        self.assertFalse(ExternalLinkSession.objects.get().redeemed_at)
++
++    def test_admin_can_revoke_a_session(self):
++        token = self.token_from(self.handoff())
++        session = ExternalLinkSession.objects.get()
++        ExternalLinkSession.objects.filter(pk=session.pk).update(
++            status=ExternalLinkSession.Status.REVOKED
++        )
++        response = self.validate(token)
++        self.assertEqual(response.status_code, 409)
++        self.assertEqual(response.json()["error"]["code"], "session_revoked")
++
++
++class SessionCreateEndpointTests(ExternalLinkTestBase):
++    def test_create_endpoint_returns_a_token(self):
++        response = self.api("session_create", {"site_url": BLOG_URL, "quality_id": self.quality.pk})
++        self.assertEqual(response.status_code, 201)
++        body = response.json()
++        self.assertRegex(body["token"], service.SESSION_TOKEN_RE)
++        self.assertEqual(body["session"]["quality"], "720p")
++        self.assertIsNone(body["session"]["not_before"])
++        self.assertEqual(ExternalLinkSession.objects.count(), 1)
++
++    def test_create_endpoint_refuses_premium_rows(self):
++        DownloadQuality.objects.filter(pk=self.quality.pk).update(is_premium=True)
++        response = self.api("session_create", {"site_url": BLOG_URL, "quality_id": self.quality.pk})
++        self.assertEqual(response.status_code, 403)
++        self.assertEqual(response.json()["error"]["code"], "premium_not_allowed")
++
++    def test_create_endpoint_validates_the_quality_id(self):
++        self.assertEqual(
++            self.api("session_create", {"site_url": BLOG_URL, "quality_id": "abc"}).status_code, 400
++        )
++        self.assertEqual(
++            self.api("session_create", {"site_url": BLOG_URL, "quality_id": 999999}).status_code, 404
++        )
++
++
++class AdminSurfaceTests(ExternalLinkTestBase):
++    def setUp(self):
++        super().setUp()
++        self.staff = User.objects.create_user("staff", password="x", is_staff=True)
++        self.admin = User.objects.create_superuser("root", "root@example.test", "x")
++
++    def test_control_center_page_requires_staff_and_permission(self):
++        url = reverse("controlcenter:external_link_generator")
++        self.assertEqual(self.client.get(url).status_code, 302)  # login redirect
++
++        self.client.force_login(self.staff)
++        response = self.client.get(url)
++        self.assertEqual(response.status_code, 403)
++
++        self.client.force_login(self.admin)
++        response = self.client.get(url)
++        self.assertEqual(response.status_code, 200)
++        self.assertIn(b"External Link Generator", response.content)
++
++    def test_generate_key_action_shows_the_plaintext_once(self):
++        url = reverse("controlcenter:external_link_generator")
++        self.client.force_login(self.admin)
++        response = self.client.post(url, {"action": "generate_key"})
++        self.assertEqual(response.status_code, 302)
++
++        page = self.client.get(url)
++        self.assertEqual(page.status_code, 200)
++        match = re.search(r"nzd_live_[A-Za-z0-9_-]{20,}", page.content.decode())
++        self.assertIsNotNone(match, "the new key should be displayed once")
++        full_key = match.group(0)
++        self.assertEqual(service.hash_api_key(full_key), service.get_config().api_key_hash)
++
++        second = self.client.get(url)
++        self.assertNotIn(full_key, second.content.decode())
++
++    def test_enable_disable_actions(self):
++        url = reverse("controlcenter:external_link_generator")
++        self.client.force_login(self.admin)
++        self.client.post(url, {"action": "disable"})
++        self.config.refresh_from_db()
++        self.assertFalse(self.config.enabled)
++
++        self.client.post(url, {"action": "enable"})
++        self.config.refresh_from_db()
++        self.assertTrue(self.config.enabled)
++
++    def test_settings_form_rejects_unsafe_values(self):
++        from core.external_link_forms import ExternalLinkConfigForm
++
++        form = ExternalLinkConfigForm(
++            data={
++                "enabled": True,
++                "wordpress_site_url": "http://blog.example.test",
++                "wordpress_entry_template": ENTRY_TEMPLATE,
++                "domain_locked": True,
++                "session_ttl_seconds": 60,
++                "min_countdown_seconds": 5,
++                "max_countdown_seconds": 120,
++                "api_clock_skew_seconds": 300,
++            },
++            instance=self.config,
++        )
++        self.assertFalse(form.is_valid())
++        self.assertIn("wordpress_site_url", form.errors)
++        self.assertIn("session_ttl_seconds", form.errors)
++
++    def test_django_admin_registration_and_custom_columns(self):
++        """
++        The private Django admin shares the same ModelAdmin. Rendering admin
++        templates through the test client trips a Python 3.14/Django 5.0
++        context-copy quirk in this project's test shim, so this checks the
++        registration, the available actions and the custom read-only columns
++        instead (``manage.py check`` validates the fieldsets themselves).
++        """
++        from django.contrib import admin
++        from django.test import RequestFactory
++
++        model_admin = admin.site._registry[ExternalLinkConfig]
++        request = RequestFactory().get("/")
++        request.user = self.admin
++
++        actions = model_admin.get_actions(request)
++        self.assertIn("action_generate_api_key", actions)
++        self.assertIn("action_disable_integration", actions)
++        self.assertIn("action_reset_domain", actions)
++        self.assertIn("Active", str(model_admin.key_badge(self.config)))
++        self.assertIn("Sessions", str(model_admin.statistics_summary(self.config)))
++        self.assertIn("Registered site", str(model_admin.connection_summary(self.config)))
++        self.assertIn(
++            "external-link-generator", str(model_admin.operator_panel(self.config))
++        )
++        self.assertEqual(model_admin.has_add_permission(request), False)
+diff --git a/core/views.py b/core/views.py
+index 7a2f114..8d586a1 100644
+--- a/core/views.py
++++ b/core/views.py
+@@ -536,6 +536,21 @@ def download_quality(request, pk):
+         )
+         return redirect('subscriptions:plan_list')
+ 
++    # ------------------------------------------------------------------
++    # Optional External Link Generator handoff (WordPress).
++    #
++    # Returns None unless the feature is enabled *and* fully configured, so a
++    # disabled integration leaves this view exactly as it was. The actual
++    # download destination is not revealed here: the visitor is redirected to
++    # the WordPress generator with an opaque single-use token, and the URL is
++    # only released by the redemption endpoint.
++    # ------------------------------------------------------------------
++    from .external_link_service import start_handoff
++
++    handoff_response = start_handoff(request, quality, is_vip=is_vip)
++    if handoff_response is not None:
++        return handoff_response
++
+     # Atomic counter update: no read-modify-write race, no full row rewrite.
+     DownloadQuality.objects.filter(pk=quality.pk).update(
+         download_count=F('download_count') + 1

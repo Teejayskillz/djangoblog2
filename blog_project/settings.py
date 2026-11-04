@@ -495,3 +495,33 @@ CACHES = {
         'TIMEOUT': 300,
     }
 }
+
+# ---------------------------------------------------------------------------
+# External Link Generator (optional WordPress download handoff)
+#
+# The feature is disabled unless an administrator enables it in the Control
+# Center (external_link_generator) / Django admin. When disabled, the existing
+# /download/quality/<id>/ behaviour is untouched.
+#
+# The API is server-to-server only and therefore HTTPS-only. Set
+# EXTERNAL_LINK_REQUIRE_HTTPS=false only for local development without TLS.
+# ---------------------------------------------------------------------------
+EXTERNAL_LINK_REQUIRE_HTTPS = _env_bool('EXTERNAL_LINK_REQUIRE_HTTPS', 'true')
+
+# Public API base path, shown in the admin screen and documentation.
+EXTERNAL_LINK_API_BASE = '/api/external-link'
+
+# Abuse protection for the two new surfaces: the browser handoff redirect and
+# the signed WordPress -> NZDWorld API.
+RATE_LIMITS.update({
+    'external_handoff': {
+        'hits': int(os.getenv('RL_HANDOFF_HITS', '30')),
+        'window': 300,
+        'cooldown': 300,
+    },
+    'external_api': {
+        'hits': int(os.getenv('RL_EXTERNAL_API_HITS', '240')),
+        'window': 300,
+        'cooldown': 120,
+    },
+})

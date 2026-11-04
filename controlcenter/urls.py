@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from . import external_link_views
 
 app_name = 'controlcenter'
 
@@ -7,6 +8,13 @@ urlpatterns = [
     path('', views.DashboardView.as_view(), name='dashboard'),
     path('analytics/', views.AnalyticsView.as_view(), name='analytics'),
     path('comments/', views.CommentModerationView.as_view(), name='comments'),
+    # Dedicated screen for the optional WordPress External Link Generator.
+    # Registered before the generic <app_label>/<model_name>/ routes.
+    path(
+        'external-link-generator/',
+        external_link_views.ExternalLinkGeneratorView.as_view(),
+        name='external_link_generator',
+    ),
     path('<str:app_label>/<str:model_name>/', views.ModelListView.as_view(), name='model_list'),
     path('<str:app_label>/<str:model_name>/add/', views.ModelCreateView.as_view(), name='model_add'),
     path('<str:app_label>/<str:model_name>/<int:pk>/view/', views.ModelDetailView.as_view(), name='model_view'),

@@ -204,6 +204,13 @@
           </a>
         </li>
 
+        <li class="{% if active_menu == 'external_link_generator' %}current{% endif %}">
+          <a href="{% url 'controlcenter:external_link_generator' %}" class="{% if active_menu == 'external_link_generator' %}active{% endif %}">
+            <span class="wp-menu-icon">🔗</span>
+            <span class="wp-menu-name">Link Generator</span>
+          </a>
+        </li>
+
         {% for app in app_list %}
         <li class="menu-section-header">{{ app.name }}</li>
           {% for model in app.models %}
