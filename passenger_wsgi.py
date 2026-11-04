@@ -16,7 +16,7 @@ INTERP = "/home/hypeblog/virtualenv/hypeblog9jatv.com.ng/3.9/bin/python" # <--- 
 if sys.executable != INTERP:
     os.execl(INTERP, INTERP, *sys.argv)
 
-# 3. Set the DJANGO_SETTINGS_MODULE environment variable.
+# 3. Set the DJANGO_SETTINGS_MODULE environment variable.ok
 # 'your_django_project_name' should be the name of your Django project's main folder
 # (the one that contains settings.py, urls.py, wsgi.py).
 # From previous context, it was 'blog_project'. If you renamed it, update this.
