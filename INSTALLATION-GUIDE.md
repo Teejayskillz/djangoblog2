@@ -76,7 +76,7 @@ git apply nzdworld-django-integration/external-link-generator.patch
 | `core/external_link_forms.py` | Validation for the admin settings (URLs, TTL, countdown, clock skew) |
 | `core/external_link_admin.py` | Django-admin registration, read-only session/event views, key/domain actions |
 | `core/migrations/0017_external_link_generator.py` | Database migration |
-| `core/test_external_links.py` | 47 automated tests |
+| `core/test_external_links.py` | 53 automated tests |
 | `controlcenter/external_link_views.py` + template | The operator screen at `/control-center/external-link-generator/` |
 
 ### 3.3 Files that were modified (small, additive changes)
@@ -89,6 +89,7 @@ git apply nzdworld-django-integration/external-link-generator.patch
 | `core/admin.py` | Imports the new ModelAdmins |
 | `core/views.py` | ~10 lines inside `download_quality()` that call `start_handoff()`; returns `None` unless enabled **and** fully configured, so the original path is untouched otherwise |
 | `controlcenter/urls.py` | Adds the Link Generator screen before the generic model routes |
+| `controlcenter/middleware.py` | New `OpaqueOriginCsrfCompatMiddleware` — lets the Control Center / private admin accept admin POSTs whose browser reports `Origin: null` (sandboxed preview iframe, in-app browser), while still enforcing the CSRF token |
 | `controlcenter/templates/controlcenter/base.html` | One sidebar item ("Link Generator") |
 
 ### 3.4 Apply and verify
@@ -96,7 +97,7 @@ git apply nzdworld-django-integration/external-link-generator.patch
 ```bash
 python manage.py migrate            # creates the four new tables
 python manage.py check              # must print: no issues
-python manage.py test core.test_external_links    # 47 tests
+python manage.py test core.test_external_links    # 53 tests
 ```
 
 Restart the application so the new code is live:
@@ -251,6 +252,8 @@ before.
 | "PHP OpenSSL is missing" notice | PHP `openssl` extension unavailable | Enable `openssl` on the host |
 | "This site is not using HTTPS" | WordPress `home_url()` is `http://` | Enable TLS and update the WordPress address |
 | Handoff silently falls back to the direct link | Integration enabled but not operational | Link Generator page shows the exact reason ("Last handoff problem") |
+| `Forbidden (403) CSRF verification failed … Origin checking failed - null` | The admin page was submitted from an **opaque origin**: a sandboxed hosting-panel preview iframe, an in-app browser (Facebook/Instagram/etc.) or a page opened from `file://`. The browser sends the literal header `Origin: null`, which Django rejects before checking the CSRF token | Update to this build (the Control Center and the private Django admin now normalise an explicit `null` origin while still requiring the CSRF token). Best practice: open the admin directly in a normal browser tab. If it still fails, check that cookies are not blocked for the site |
+| Django error pages show a full traceback / settings | `DEBUG=True` in production | Set `DEBUG=False` in `.env` and restart. DEBUG must never be on for a public site |
 
 ---
 

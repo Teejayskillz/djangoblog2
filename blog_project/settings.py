@@ -205,6 +205,10 @@ MIDDLEWARE = [
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
+    # Normalises ``Origin: null`` for the Link Generator admin screens (sandboxed
+    # preview iframes / in-app browsers) before Django's CSRF origin check runs.
+    # Must stay above CsrfViewMiddleware.
+    'controlcenter.middleware.OpaqueOriginCsrfCompatMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',

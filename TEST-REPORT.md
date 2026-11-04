@@ -34,27 +34,27 @@ offline was verified, and the gaps are listed explicitly in §7–§9.
 | --- | --- | --- |
 | 1 | `python manage.py check` | `System check identified no issues (0 silenced).` |
 | 2 | `python manage.py makemigrations --check --dry-run` | `No changes detected` (migration matches models) |
-| 3 | `python manage.py test core.test_external_links -v 2` | **47 tests, OK** (~50 s) |
-| 4 | `python manage.py test` (whole project) | **323 tests, OK**, 608.191 s, process exit code **0** |
+| 3 | `python manage.py test core.test_external_links -v 1` | **53 tests, OK** (43.9 s) |
+| 4 | `python manage.py test` (whole project) | **329 tests, OK**, 468.066 s, process exit code **0** |
 | 5 | `python manage.py migrate --plan` | Lists pending migrations including `core.0017_external_link_generator` (read-only; dev DB untouched) |
 | 6 | `python manage.py sqlmigrate core 0017` | Renders valid SQLite DDL for the four tables |
 | 7 | `python wordpress-plugin/package-plugin.py` | Built + verified `nzdworld-link-generator.zip` |
 | 8 | `python wordpress-plugin/check-php-structure.py` | 16 PHP/JS/CSS files checked, no structural problems |
-| 9 | `git diff --stat` for the Django patch | 17 files, +3 482 / −1 lines |
+| 9 | `git diff --stat` for the Django patch | 18 files, +3 638 / −1 lines |
 
-The earlier full run `python manage.py test core controlcenter subscriptions sports ads`
-also finished with **262 tests, OK** (exit code 0) before the last review fixes;
-the final whole-project run (#4) is the authoritative one.
+Earlier runs also finished with **262 tests, OK** (`core controlcenter subscriptions
+sports ads`) and **323 tests, OK** (whole project) before the CSRF compatibility
+fix was added; the final whole-project run (#4) is the authoritative one.
 
 ### Evidence for #3 / #4 (tail of output)
 
 ```
-Ran 47 tests in 50.048s
+Ran 53 tests in 43.922s
 OK
 ```
 
 ```
-Ran 323 tests in 608.191s
+Ran 329 tests in 468.066s
 OK
 Destroying test database for alias 'default'...
 EXITCODE=0
@@ -62,7 +62,7 @@ EXITCODE=0
 
 ---
 
-## 3. Django feature tests (47)
+## 3. Django feature tests (53)
 
 File: `core/test_external_links.py`. Each test uses a real `DownloadQuality` row
 attached to a real `Post` (with a category), a real config singleton and a real
@@ -78,6 +78,7 @@ headers.
 | `ConnectionTests` | 4 | First connection registers site + entry template + plugin version; entry template on another host refused; template without `{token}` refused; `http://` site URL refused. |
 | `SessionLifecycleTests` | 14 | Validate stamps `not_before` (≈ requested countdown), repeat validate does not move it, countdown clamped to the configured maximum, countdown that cannot fit the lifetime rejected, unknown token 404, expired session 410 on validate and redeem, early redeem 409 `too_early` with `retry_after` and no destination, redeem without validation 409, redeem after countdown returns the destination exactly once and increments the counter once, replay 409, re-entering the entry token after redemption 409, deleted quality 410, `enable_downloads=False` 410, session from another installation 403, admin-revoked session 409. |
 | `SessionCreateEndpointTests` | 3 | `sessions/create/` returns a token; refuses premium rows; validates `quality_id`. |
+| `OpaqueOriginCsrfTests` | 6 | Browsers that report an opaque origin (`Origin: null` — sandboxed preview iframes, in-app browsers) can still use the admin: the action succeeds with a valid CSRF token, a missing token is still 403, a foreign origin is still 403, other Control Center screens are covered, a public view (login) is **not** relaxed, and the private Django-admin action works the same way. |
 | `AdminSurfaceTests` | 5 | Control Center screen: anonymous → login redirect, staff without permission → 403, superuser → 200; key generation shows the plaintext key exactly once (second GET does not contain it) and its digest matches the stored hash; enable/disable actions persist; form rejects `http://` site URL and too-short TTL; Django-admin registration exposes the five actions and the custom read-only columns; `has_add_permission` is False for the singleton. |
 
 Notable behaviour verified in passing: the event log table never contains the
@@ -141,6 +142,7 @@ written to be executable but no PHP runtime existed during this build.
 | Expired-session statistics could be incremented repeatedly | Code review | Conditional `UPDATE ... WHERE status='ready'` (`mark_expired()`), statistics only on the transition |
 | Blog page URL was rebuilt incorrectly on sub-directory installs | Code review (`home_url($path)` duplicates the sub-directory) | Rebuild from the submitted scheme/host/port/path and require the same host |
 | ZIP written with backslash paths | ZIP inspection | Python packaging script with explicit forward-slash arcnames + automatic verification |
+| `403 CSRF verification failed — Origin checking failed - null` when clicking **Generate API key** / **Enable generator** | Reported from a real admin session: the browser sent `Origin: null` because the page was submitted from an opaque-origin context (sandboxed hosting-panel preview iframe / in-app browser). Django rejects the origin *before* checking the token | Added `OpaqueOriginCsrfCompatMiddleware`: only an explicit `null` origin is rewritten to the site's own origin, only for Control Center / private-admin POSTs; the CSRF cookie + token are still verified, foreign origins are still rejected and public views are untouched. Six tests cover the behaviour (see `OpaqueOriginCsrfTests`) |
 
 ---
 
@@ -194,8 +196,8 @@ site.
 | --- | --- |
 | Django system checks | Passed |
 | Django migrations consistency | Passed (`No changes detected`) |
-| Feature tests (47) | Passed |
-| Whole-project regression suite (323 tests) | Passed, exit code 0 |
+| Feature tests (53) | Passed |
+| Whole-project regression suite (329 tests) | Passed, exit code 0 |
 | Cross-language signature vector | Passed (both suites share it) |
 | WordPress ZIP structure/contents | Passed (verified programmatically) |
 | PHP/JS/CSS structural syntax | Passed (tokeniser; not a compiler) |

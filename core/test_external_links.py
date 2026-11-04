@@ -17,7 +17,7 @@ from datetime import timedelta
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
-from django.test import TestCase, override_settings
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -681,3 +681,101 @@ class AdminSurfaceTests(ExternalLinkTestBase):
             "external-link-generator", str(model_admin.operator_panel(self.config))
         )
         self.assertEqual(model_admin.has_add_permission(request), False)
+
+
+class OpaqueOriginCsrfTests(ExternalLinkTestBase):
+    """
+    A sandboxed preview iframe / in-app browser sends ``Origin: null``, which
+    Django's CSRF middleware rejects before checking the token. The Link
+    Generator screens normalise only that opaque value; everything else must keep
+    Django's default behaviour.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.admin = User.objects.create_superuser("root", "root@example.test", "x")
+        self.url = reverse("controlcenter:external_link_generator")
+
+    def csrf_client(self, page_url):
+        client = Client(enforce_csrf_checks=True)
+        client.force_login(self.admin)
+        page = client.get(page_url)
+        self.assertEqual(page.status_code, 200)
+        match = re.search(
+            r'name="csrfmiddlewaretoken" value="([^"]+)"', page.content.decode()
+        )
+        self.assertIsNotNone(match, "the page must render a CSRF token")
+        return client, match.group(1)
+
+    def test_opaque_origin_action_is_accepted_with_a_valid_token(self):
+        old_hash = ExternalLinkConfig.load().api_key_hash
+        client, token = self.csrf_client(self.url)
+
+        response = client.post(
+            self.url,
+            {"action": "generate_key", "csrfmiddlewaretoken": token},
+            HTTP_ORIGIN="null",
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertNotEqual(ExternalLinkConfig.load().api_key_hash, old_hash)
+
+    def test_opaque_origin_without_a_token_is_still_rejected(self):
+        client, _token = self.csrf_client(self.url)
+        response = client.post(self.url, {"action": "generate_key"}, HTTP_ORIGIN="null")
+        self.assertEqual(response.status_code, 403)
+        self.assertContains(response, "CSRF", status_code=403)
+
+    def test_foreign_origin_is_still_rejected(self):
+        _client, token = self.csrf_client(self.url)
+        client = Client(enforce_csrf_checks=True)
+        client.force_login(self.admin)
+        client.get(self.url)
+        response = client.post(
+            self.url,
+            {"action": "generate_key", "csrfmiddlewaretoken": token},
+            HTTP_ORIGIN="https://evil.example.test",
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_relaxation_covers_the_other_admin_screens(self):
+        other = reverse("controlcenter:model_list", args=["core", "post"])
+        client, token = self.csrf_client(other)
+        response = client.post(
+            other,
+            {"csrfmiddlewaretoken": token},
+            HTTP_ORIGIN="null",
+        )
+        # No action selected: the view just redirects, which proves CSRF passed.
+        self.assertEqual(response.status_code, 302)
+
+    def test_relaxation_does_not_apply_to_public_views(self):
+        client, token = self.csrf_client(self.url)
+        response = client.post(
+            reverse("login"),
+            {"username": "root", "password": "x", "csrfmiddlewaretoken": token},
+            HTTP_ORIGIN="null",
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertContains(response, "CSRF", status_code=403)
+
+    def test_opaque_origin_works_for_the_private_admin_action(self):
+        # Rendering Django admin templates through the test client trips the
+        # project's Python 3.14 context-copy shim, so the CSRF token is taken
+        # from the Control Center page instead (tokens are session-bound, not
+        # path-bound) and the admin action is verified by its redirect + effect.
+        client, token = self.csrf_client(self.url)
+        url = reverse("admin:core_externallinkconfig_changelist")
+        old_hash = ExternalLinkConfig.load().api_key_hash
+
+        response = client.post(
+            url,
+            {
+                "action": "action_generate_api_key",
+                "_selected_action": [str(self.config.pk)],
+                "csrfmiddlewaretoken": token,
+                "index": "0",
+            },
+            HTTP_ORIGIN="null",
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertNotEqual(ExternalLinkConfig.load().api_key_hash, old_hash)

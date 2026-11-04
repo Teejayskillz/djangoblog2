@@ -162,3 +162,57 @@ class TrafficAnalyticsMiddleware:
             is_staff_user=bool(is_authenticated and user.is_staff),
             timestamp=now,
         )
+
+
+class OpaqueOriginCsrfCompatMiddleware:
+    """
+    Accept the Link Generator admin POSTs when the browser reports ``Origin: null``.
+
+    A sandboxed preview iframe, an in-app browser or a page saved to disk gives
+    the document an *opaque* origin, so the browser sends the literal header
+    ``Origin: null``. Django's CSRF middleware rejects that before it ever looks
+    at the CSRF token ("Origin checking failed - null does not match any trusted
+    origins"), which is what an operator sees when the Control Center is embedded
+    in a hosting panel preview pane.
+
+    For these admin screens only, such an opaque origin is normalised to this
+    site's own origin. Django then performs its normal checks: the CSRF cookie
+    and the ``csrfmiddlewaretoken`` field must still match, so a genuine
+    cross-site page (which sends its real origin) is still rejected.
+
+    Scope: the operator screens only -- the Control Center and the private
+    Django admin. Public views, the JSON API and every other part of the site
+    keep Django's default behaviour.
+    """
+
+    #: Admin URL prefixes whose POSTs may arrive with an opaque origin.
+    PROTECTED_PREFIXES = (
+        '/control-center/',
+        '/django-admin-backend-internal/',
+    )
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        self._normalise_opaque_origin(request)
+        return self.get_response(request)
+
+    def _normalise_opaque_origin(self, request):
+        if request.method != 'POST':
+            return
+        path = getattr(request, 'path', '') or ''
+        if not path.startswith(self.PROTECTED_PREFIXES):
+            return
+        origin = (request.META.get('HTTP_ORIGIN') or '').strip()
+        if origin.lower() != 'null':
+            return
+        try:
+            host = request.get_host()
+        except DisallowedHost:  # pragma: no cover - ALLOWED_HOSTS already blocked it
+            return
+        scheme = 'https' if request.is_secure() else 'http'
+        request.META['HTTP_ORIGIN'] = f'{scheme}://{host}'
+        logger.warning(
+            'CSRF: normalised opaque Origin for %s (%s)', path, host
+        )

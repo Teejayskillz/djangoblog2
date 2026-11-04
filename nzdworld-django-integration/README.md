@@ -4,8 +4,9 @@ This folder documents the changes that were applied directly to the NZDWorld
 Django project (the working copy on branch `feature/external-link-generator`).
 The untouched starting point is branch `backup/pre-external-link-generator`.
 
-* **`external-link-generator.patch`** — complete diff (17 files, ~3 480 added
-  lines) including the new migration and the automated tests.
+* **`external-link-generator.patch`** — complete diff (18 files, +3 638 / −1
+  lines) including the new migration, the CSRF compatibility middleware and the
+  automated tests.
 * **`FILES.md`** — every changed/added file and why.
 
 ---
@@ -57,7 +58,7 @@ file.
 ## Tests
 
 ```bash
-python manage.py test core.test_external_links -v 2   # 47 tests
+python manage.py test core.test_external_links -v 2   # 53 tests
 python manage.py test                                 # full project suite
 ```
 

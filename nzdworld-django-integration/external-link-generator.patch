@@ -1,8 +1,19 @@
 diff --git a/blog_project/settings.py b/blog_project/settings.py
-index f0d7b28..11cd50d 100644
+index f0d7b28..55f0bf1 100644
 --- a/blog_project/settings.py
 +++ b/blog_project/settings.py
-@@ -495,3 +495,33 @@ CACHES = {
+@@ -205,6 +205,10 @@ MIDDLEWARE = [
+     'whitenoise.middleware.WhiteNoiseMiddleware',
+     'django.contrib.sessions.middleware.SessionMiddleware',
+     'django.middleware.common.CommonMiddleware',
++    # Normalises ``Origin: null`` for the Link Generator admin screens (sandboxed
++    # preview iframes / in-app browsers) before Django's CSRF origin check runs.
++    # Must stay above CsrfViewMiddleware.
++    'controlcenter.middleware.OpaqueOriginCsrfCompatMiddleware',
+     'django.middleware.csrf.CsrfViewMiddleware',
+     'django.contrib.auth.middleware.AuthenticationMiddleware',
+     'django.contrib.messages.middleware.MessageMiddleware',
+@@ -495,3 +499,33 @@ CACHES = {
          'TIMEOUT': 300,
      }
  }
@@ -220,6 +231,68 @@ index 0000000..699d6d9
 +
 +        messages.error(request, "Unknown action.")
 +        return self._redirect()
+diff --git a/controlcenter/middleware.py b/controlcenter/middleware.py
+index 828662a..6e0da7d 100644
+--- a/controlcenter/middleware.py
++++ b/controlcenter/middleware.py
+@@ -162,3 +162,57 @@ class TrafficAnalyticsMiddleware:
+             is_staff_user=bool(is_authenticated and user.is_staff),
+             timestamp=now,
+         )
++
++
++class OpaqueOriginCsrfCompatMiddleware:
++    """
++    Accept the Link Generator admin POSTs when the browser reports ``Origin: null``.
++
++    A sandboxed preview iframe, an in-app browser or a page saved to disk gives
++    the document an *opaque* origin, so the browser sends the literal header
++    ``Origin: null``. Django's CSRF middleware rejects that before it ever looks
++    at the CSRF token ("Origin checking failed - null does not match any trusted
++    origins"), which is what an operator sees when the Control Center is embedded
++    in a hosting panel preview pane.
++
++    For these admin screens only, such an opaque origin is normalised to this
++    site's own origin. Django then performs its normal checks: the CSRF cookie
++    and the ``csrfmiddlewaretoken`` field must still match, so a genuine
++    cross-site page (which sends its real origin) is still rejected.
++
++    Scope: the operator screens only -- the Control Center and the private
++    Django admin. Public views, the JSON API and every other part of the site
++    keep Django's default behaviour.
++    """
++
++    #: Admin URL prefixes whose POSTs may arrive with an opaque origin.
++    PROTECTED_PREFIXES = (
++        '/control-center/',
++        '/django-admin-backend-internal/',
++    )
++
++    def __init__(self, get_response):
++        self.get_response = get_response
++
++    def __call__(self, request):
++        self._normalise_opaque_origin(request)
++        return self.get_response(request)
++
++    def _normalise_opaque_origin(self, request):
++        if request.method != 'POST':
++            return
++        path = getattr(request, 'path', '') or ''
++        if not path.startswith(self.PROTECTED_PREFIXES):
++            return
++        origin = (request.META.get('HTTP_ORIGIN') or '').strip()
++        if origin.lower() != 'null':
++            return
++        try:
++            host = request.get_host()
++        except DisallowedHost:  # pragma: no cover - ALLOWED_HOSTS already blocked it
++            return
++        scheme = 'https' if request.is_secure() else 'http'
++        request.META['HTTP_ORIGIN'] = f'{scheme}://{host}'
++        logger.warning(
++            'CSRF: normalised opaque Origin for %s (%s)', path, host
++        )
 diff --git a/controlcenter/templates/controlcenter/base.html b/controlcenter/templates/controlcenter/base.html
 index 43a86d1..8516fb9 100644
 --- a/controlcenter/templates/controlcenter/base.html
@@ -2904,10 +2977,10 @@ index 9d24df5..7fe6bf9 100644
 +)
 diff --git a/core/test_external_links.py b/core/test_external_links.py
 new file mode 100644
-index 0000000..9e20254
+index 0000000..220a26d
 --- /dev/null
 +++ b/core/test_external_links.py
-@@ -0,0 +1,683 @@
+@@ -0,0 +1,781 @@
 +"""
 +Automated tests for the optional External Link Generator integration.
 +
@@ -2927,7 +3000,7 @@ index 0000000..9e20254
 +
 +from django.contrib.auth import get_user_model
 +from django.core.cache import cache
-+from django.test import TestCase, override_settings
++from django.test import Client, TestCase, override_settings
 +from django.urls import reverse
 +from django.utils import timezone
 +
@@ -3591,6 +3664,104 @@ index 0000000..9e20254
 +            "external-link-generator", str(model_admin.operator_panel(self.config))
 +        )
 +        self.assertEqual(model_admin.has_add_permission(request), False)
++
++
++class OpaqueOriginCsrfTests(ExternalLinkTestBase):
++    """
++    A sandboxed preview iframe / in-app browser sends ``Origin: null``, which
++    Django's CSRF middleware rejects before checking the token. The Link
++    Generator screens normalise only that opaque value; everything else must keep
++    Django's default behaviour.
++    """
++
++    def setUp(self):
++        super().setUp()
++        self.admin = User.objects.create_superuser("root", "root@example.test", "x")
++        self.url = reverse("controlcenter:external_link_generator")
++
++    def csrf_client(self, page_url):
++        client = Client(enforce_csrf_checks=True)
++        client.force_login(self.admin)
++        page = client.get(page_url)
++        self.assertEqual(page.status_code, 200)
++        match = re.search(
++            r'name="csrfmiddlewaretoken" value="([^"]+)"', page.content.decode()
++        )
++        self.assertIsNotNone(match, "the page must render a CSRF token")
++        return client, match.group(1)
++
++    def test_opaque_origin_action_is_accepted_with_a_valid_token(self):
++        old_hash = ExternalLinkConfig.load().api_key_hash
++        client, token = self.csrf_client(self.url)
++
++        response = client.post(
++            self.url,
++            {"action": "generate_key", "csrfmiddlewaretoken": token},
++            HTTP_ORIGIN="null",
++        )
++        self.assertEqual(response.status_code, 302)
++        self.assertNotEqual(ExternalLinkConfig.load().api_key_hash, old_hash)
++
++    def test_opaque_origin_without_a_token_is_still_rejected(self):
++        client, _token = self.csrf_client(self.url)
++        response = client.post(self.url, {"action": "generate_key"}, HTTP_ORIGIN="null")
++        self.assertEqual(response.status_code, 403)
++        self.assertContains(response, "CSRF", status_code=403)
++
++    def test_foreign_origin_is_still_rejected(self):
++        _client, token = self.csrf_client(self.url)
++        client = Client(enforce_csrf_checks=True)
++        client.force_login(self.admin)
++        client.get(self.url)
++        response = client.post(
++            self.url,
++            {"action": "generate_key", "csrfmiddlewaretoken": token},
++            HTTP_ORIGIN="https://evil.example.test",
++        )
++        self.assertEqual(response.status_code, 403)
++
++    def test_relaxation_covers_the_other_admin_screens(self):
++        other = reverse("controlcenter:model_list", args=["core", "post"])
++        client, token = self.csrf_client(other)
++        response = client.post(
++            other,
++            {"csrfmiddlewaretoken": token},
++            HTTP_ORIGIN="null",
++        )
++        # No action selected: the view just redirects, which proves CSRF passed.
++        self.assertEqual(response.status_code, 302)
++
++    def test_relaxation_does_not_apply_to_public_views(self):
++        client, token = self.csrf_client(self.url)
++        response = client.post(
++            reverse("login"),
++            {"username": "root", "password": "x", "csrfmiddlewaretoken": token},
++            HTTP_ORIGIN="null",
++        )
++        self.assertEqual(response.status_code, 403)
++        self.assertContains(response, "CSRF", status_code=403)
++
++    def test_opaque_origin_works_for_the_private_admin_action(self):
++        # Rendering Django admin templates through the test client trips the
++        # project's Python 3.14 context-copy shim, so the CSRF token is taken
++        # from the Control Center page instead (tokens are session-bound, not
++        # path-bound) and the admin action is verified by its redirect + effect.
++        client, token = self.csrf_client(self.url)
++        url = reverse("admin:core_externallinkconfig_changelist")
++        old_hash = ExternalLinkConfig.load().api_key_hash
++
++        response = client.post(
++            url,
++            {
++                "action": "action_generate_api_key",
++                "_selected_action": [str(self.config.pk)],
++                "csrfmiddlewaretoken": token,
++                "index": "0",
++            },
++            HTTP_ORIGIN="null",
++        )
++        self.assertEqual(response.status_code, 302)
++        self.assertNotEqual(ExternalLinkConfig.load().api_key_hash, old_hash)
 diff --git a/core/views.py b/core/views.py
 index 7a2f114..8d586a1 100644
 --- a/core/views.py

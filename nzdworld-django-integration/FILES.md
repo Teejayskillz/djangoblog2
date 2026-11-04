@@ -13,7 +13,7 @@ All paths are relative to the project root (`djangoblog2/`).
 | `core/external_link_forms.py` | ~113 | Shared `ExternalLinkConfigForm`: HTTPS site URL, entry-template validation, TTL 120–3600, countdown limits, TTL must exceed max countdown by ≥ 30 s, clock-skew bounds. |
 | `core/external_link_admin.py` | ~380 | Django-admin registration: config with read-only key/connection/statistics panels and actions (generate/rotate key, revoke, enable, disable, forget site), read-only session list (revoke/expire actions), event log, nonce log. |
 | `core/migrations/0017_external_link_generator.py` | ~117 | Creates the four tables/indexes. Depends on `core.0016`. |
-| `core/test_external_links.py` | ~683 | 47 automated tests (see `TEST-REPORT.md`). |
+| `core/test_external_links.py` | ~781 | 53 automated tests, including 6 CSRF-compatibility tests (see `TEST-REPORT.md`). |
 | `controlcenter/external_link_views.py` | ~164 | Operator screen view (`StaffRequiredMixin` + `core.change_externallinkconfig`): save settings, generate/rotate key (plaintext shown once), revoke, forget site, enable/disable, prune abandoned sessions, statistics, recent sessions/events. |
 | `controlcenter/templates/controlcenter/external_link_generator.html` | ~302 | The operator screen itself (status badges, key-once panel, settings form, connection info, statistics, sessions/events tables, copy-to-clipboard). |
 
@@ -21,13 +21,14 @@ All paths are relative to the project root (`djangoblog2/`).
 
 | File | Change | Risk |
 | --- | --- | --- |
-| `blog_project/settings.py` | `EXTERNAL_LINK_REQUIRE_HTTPS`, `EXTERNAL_LINK_API_BASE`, and two `RATE_LIMITS` scopes (`external_handoff`, `external_api`). | Additive only. |
+| `blog_project/settings.py` | `EXTERNAL_LINK_REQUIRE_HTTPS`, `EXTERNAL_LINK_API_BASE`, two `RATE_LIMITS` scopes (`external_handoff`, `external_api`), and `OpaqueOriginCsrfCompatMiddleware` inserted **above** `CsrfViewMiddleware`. | Additive; middleware only rewrites an explicit `Origin: null` on admin POSTs, and the CSRF token is still required. |
 | `blog_project/urls.py` | `path('api/external-link/', include('core.external_link_urls'))` placed **before** `core.urls` (whose generic slug patterns would otherwise swallow the API paths). | Additive, ordered correctly. |
 | `core/models.py` | Imports the new models at the end of the file so they belong to the existing `core` app (no new app, no `INSTALLED_APPS` change, migration graph unchanged apart from `0017`). | Import-only. |
 | `core/admin.py` | Imports `core.external_link_admin` at the end (registers the new ModelAdmins). | Import-only. |
 | `core/views.py` | In `download_quality()`: after the existing premium/VIP gate and before the counter/redirect, calls `start_handoff(request, quality, is_vip=is_vip)` and returns its response when it is not `None`. ~10 lines. | When the feature is disabled/unconfigured it returns `None`, so the original lines execute unchanged. |
 | `controlcenter/urls.py` | Adds `external-link-generator/` **before** the generic `<app_label>/<model_name>/` routes. | Additive, ordered correctly. |
 | `controlcenter/templates/controlcenter/base.html` | Adds one sidebar item ("Link Generator"). | Markup-only. |
+| `controlcenter/middleware.py` | New `OpaqueOriginCsrfCompatMiddleware`: when a browser reports `Origin: null` (sandboxed preview iframe / in-app browser), the value is normalised to the site's own origin for Control Center and private-admin POSTs only, so Django's CSRF token check can run instead of failing on the origin. Public views, the API and the rest of the site are untouched. | Narrowly scoped; a foreign origin is still rejected, and a missing/invalid CSRF token still returns 403. |
 
 ## Not changed
 
